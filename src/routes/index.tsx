@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 /**
- * NÃO AVANÇA PRA HOMEPAGE, CARREGA INFINITO TESTE E2E
+ * ao ir pra /inicio continua carregando infinitamente.
  */
 const RedirectIndex = () => {
   const navigate = useNavigate();
