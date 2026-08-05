@@ -247,7 +247,16 @@ const SignupWizard = () => {
         }
       });
 
-      if (authError) { toast.error(authError.message); setLoading(false); return; }
+      if (authError) {
+        console.error('[SignupWizard] Auth error:', authError);
+        if (authError.message.includes('weak') || authError.message.includes('guess')) {
+          toast.error('Essa senha é muito fraca. Por favor, escolha uma senha mais forte (misture letras, números e símbolos).');
+        } else {
+          toast.error(authError.message);
+        }
+        setLoading(false);
+        return;
+      }
       
       const user = authData.user;
       if (!user) { toast.error('Erro ao criar conta'); setLoading(false); return; }
