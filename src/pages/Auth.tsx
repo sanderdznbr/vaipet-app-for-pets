@@ -121,7 +121,15 @@ const Auth = () => {
             }
           }
         });
-        if (error) throw error;
+        if (error) {
+          if (error.message.includes('User already registered')) {
+            throw new Error('Este e-mail já está cadastrado. Tente fazer login.');
+          }
+          if (error.message.includes('Password is known to be weak')) {
+            throw new Error('Sua senha é muito fraca. Tente uma combinação mais complexa com letras e números.');
+          }
+          throw error;
+        }
         toast.success('Cadastro realizado! Verifique seu e-mail ou faça login.');
         setIsRegistering(false);
       } else {
@@ -129,12 +137,17 @@ const Auth = () => {
           email,
           password,
         });
-        if (error) throw error;
+        if (error) {
+          if (error.message.includes('Invalid login credentials')) {
+            throw new Error('E-mail ou senha incorretos. Verifique seus dados e tente novamente.');
+          }
+          throw error;
+        }
         toast.success('Bem-vindo de volta!');
       }
     } catch (error: any) {
       console.error('[Auth] Email auth error:', error);
-      toast.error(error.message || 'Erro na autenticação');
+      toast.error(error.message || 'Ocorreu um erro. Tente novamente em alguns instantes.');
     } finally {
       setIsLoading(false);
     }
