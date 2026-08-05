@@ -127,37 +127,30 @@ const Auth = () => {
 
   return (
     <div
-      className="min-h-[100dvh] w-full flex items-start justify-center overflow-hidden relative"
+      className="min-h-[100dvh] w-full flex items-center justify-center overflow-hidden relative"
       style={{ 
         backgroundColor: PAPER, 
         color: INK, 
         fontFamily: "'DM Sans', system-ui, sans-serif" 
       }}
     >
-      <div 
-        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
-        style={{ 
-          backgroundImage: `url(${authBgAsset.url})`,
-        }}
-      />
-      
-      <main className="w-full flex items-start justify-center px-6 pt-8 pb-10 relative z-10 overflow-y-auto max-h-[100dvh]">
-        <div className="w-full max-w-md flex flex-col gap-6 items-center">
+      <main className="w-full flex items-center justify-center px-6 py-10 relative z-10 overflow-y-auto max-h-[100dvh]">
+        <div className="w-full max-w-md flex flex-col gap-8 items-center">
           <img src="/vaipet-logo.svg" alt="VaiPet" className="w-24 h-auto" />
           
-          <div className="w-full flex flex-col gap-4 bg-white/90 backdrop-blur-sm p-6 rounded-[32px] shadow-xl border border-black/5">
-            <h2 className="text-xl font-bold text-center" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+          <div className="w-full flex flex-col gap-6">
+            <h2 className="text-2xl font-bold text-center" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
               {isRegistering ? 'Criar Conta' : 'Entrar no VaiPet'}
             </h2>
 
-            <form onSubmit={handleEmailAuth} className="flex flex-col gap-3">
+            <form onSubmit={handleEmailAuth} className="flex flex-col gap-4">
               <input
                 type="email"
                 placeholder="E-mail"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full h-14 px-5 rounded-2xl border border-black/10 focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all"
+                className="w-full h-14 px-5 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all"
               />
               <input
                 type="password"
@@ -165,12 +158,12 @@ const Auth = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full h-14 px-5 rounded-2xl border border-black/10 focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all"
+                className="w-full h-14 px-5 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all"
               />
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-14 rounded-2xl font-bold text-white transition-all active:scale-[0.98] disabled:opacity-70"
+                className="w-full h-14 rounded-2xl font-bold text-white transition-all active:scale-[0.98] disabled:opacity-70 shadow-lg shadow-[#31D880]/20"
                 style={{ backgroundColor: '#31D880' }}
               >
                 {isLoading ? 'Aguarde...' : (isRegistering ? 'Cadastrar' : 'Entrar')}
@@ -179,7 +172,7 @@ const Auth = () => {
 
             <button
               onClick={() => setIsRegistering(!isRegistering)}
-              className="text-sm font-medium underline opacity-60 hover:opacity-100 transition-opacity"
+              className="text-sm font-semibold text-center underline opacity-60 hover:opacity-100 transition-opacity"
             >
               {isRegistering ? 'Já tem conta? Entre aqui' : 'Não tem conta? Crie uma'}
             </button>
@@ -189,11 +182,11 @@ const Auth = () => {
                 <span className="w-full border-t border-black/10"></span>
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white/90 px-2 text-black/40">Ou continue com</span>
+                <span className="px-2 text-black/40" style={{ backgroundColor: PAPER }}>Ou continue com</span>
               </div>
             </div>
 
-            <div className="w-full flex flex-col gap-2">
+            <div className="w-full flex flex-col gap-3">
               <button
                 type="button"
                 onClick={() => handleOAuth('google')}
@@ -228,7 +221,7 @@ const Auth = () => {
             </div>
           </div>
 
-          <p className="text-[11px] leading-relaxed text-center mt-0" style={{ color: INK, opacity: 0.6 }}>
+          <p className="text-[11px] font-medium leading-relaxed text-center mt-4" style={{ color: INK, opacity: 0.6 }}>
             Ao continuar, você aceita os{' '}
             <Link to="/termos-de-uso" className="underline" style={{ color: INK }}>Termos</Link>
             {' '}e{' '}
@@ -237,7 +230,7 @@ const Auth = () => {
         </div>
 
         {animPhase === 'playing-anim2' && (
-          <div className="absolute inset-0 z-[100] flex items-center justify-center pointer-events-none bg-[#F7F5EF]">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none bg-[#F7F5EF]">
             <div className="w-full h-full flex items-center justify-center overflow-hidden">
               <img
                 src={splashAsset.url + "?t=" + Date.now()}
