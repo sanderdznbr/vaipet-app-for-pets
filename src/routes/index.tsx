@@ -1,6 +1,9 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+/**
+ * NÃO AVANÇA PRA HOMEPAGE, CARREGA INFINITO TESTE E2E
+ */
 const RedirectIndex = () => {
   const navigate = useNavigate();
 
