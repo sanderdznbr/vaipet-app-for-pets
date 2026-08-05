@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 /**
- * ao ir pra /inicio continua carregando infinitamente.
+ * Corrigir o comportamento de /inicio para parar de carregar infinitamente e exibir a tela inicial corretamente.
  */
 const RedirectIndex = () => {
   const navigate = useNavigate();
