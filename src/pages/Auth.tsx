@@ -6,10 +6,11 @@ import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useHomeTheme } from '@/hooks/useHomeTheme';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Eye, EyeOff } from 'lucide-react';
 import logoAsset from "@/assets/vaipet-logo-new.png.asset.json";
 import splashAsset from "@/assets/animations/splash.gif.asset.json";
 import authBgAsset from "@/assets/auth/vipetauth_photo.png.asset.json";
+import { motion, AnimatePresence } from 'framer-motion';
 
 const BRAND = '#31D880';
 const LIME = '#E4FF7A';
@@ -35,6 +36,11 @@ const Auth = () => {
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [animPhase, setAnimPhase] = useState<AnimationPhase>('idle');
@@ -102,9 +108,18 @@ const Auth = () => {
     setIsLoading(true);
     try {
       if (isRegistering) {
+        if (password !== confirmPassword) {
+          throw new Error('As senhas não coincidem');
+        }
         const { error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              full_name: fullName,
+              phone: phone,
+            }
+          }
         });
         if (error) throw error;
         toast.success('Cadastro realizado! Verifique seu e-mail ou faça login.');
@@ -139,86 +154,153 @@ const Auth = () => {
           <img src="/vaipet-logo.svg" alt="VaiPet" className="w-24 h-auto" />
           
           <div className="w-full flex flex-col gap-6">
-            <h2 className="text-2xl font-bold text-center" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-              {isRegistering ? 'Criar Conta' : 'Entrar no VaiPet'}
-            </h2>
-
-            <form onSubmit={handleEmailAuth} className="flex flex-col gap-4">
-              <input
-                type="email"
-                placeholder="E-mail"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full h-14 px-5 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all"
-              />
-              <input
-                type="password"
-                placeholder="Senha"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full h-14 px-5 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all"
-              />
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full h-14 rounded-2xl font-bold text-white transition-all active:scale-[0.98] disabled:opacity-70 shadow-lg shadow-[#31D880]/20"
-                style={{ backgroundColor: '#31D880' }}
+          <div className="w-full">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={isRegistering ? 'register' : 'login'}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="w-full flex flex-col gap-6"
               >
-                {isLoading ? 'Aguarde...' : (isRegistering ? 'Cadastrar' : 'Entrar')}
-              </button>
-            </form>
+                <h2 className="text-2xl font-bold text-center" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                  {isRegistering ? 'Criar Conta' : 'Entrar no VaiPet'}
+                </h2>
 
-            <button
-              onClick={() => setIsRegistering(!isRegistering)}
-              className="text-sm font-semibold text-center underline opacity-60 hover:opacity-100 transition-opacity"
-            >
-              {isRegistering ? 'Já tem conta? Entre aqui' : 'Não tem conta? Crie uma'}
-            </button>
+                <form onSubmit={handleEmailAuth} className="flex flex-col gap-4">
+                  {isRegistering && (
+                    <>
+                      <input
+                        type="text"
+                        placeholder="Nome Completo"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        required
+                        className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg"
+                      />
+                      <input
+                        type="tel"
+                        placeholder="Telefone"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        required
+                        className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg"
+                      />
+                    </>
+                  )}
+                  <input
+                    type="email"
+                    placeholder="E-mail"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg"
+                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Senha"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg pr-14"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-5 top-1/2 -translate-y-1/2 text-black/40 hover:text-black/60 transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+                    </button>
+                  </div>
 
-            <div className="relative my-2">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-black/10"></span>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="px-2 text-black/40" style={{ backgroundColor: PAPER }}>Ou continue com</span>
-              </div>
-            </div>
+                  {isRegistering && (
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirmar Senha"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg pr-14"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-5 top-1/2 -translate-y-1/2 text-black/40 hover:text-black/60 transition-colors"
+                      >
+                        {showConfirmPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+                      </button>
+                    </div>
+                  )}
 
-            <div className="w-full flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={() => handleOAuth('google')}
-                disabled={oauthLoading !== null}
-                className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] disabled:opacity-60 border border-black/5 shadow-sm bg-white"
-                style={{ height: 64, borderRadius: 20, color: INK, fontFamily: "'Space Grotesk', sans-serif" }}
-              >
-                <span className="flex items-center gap-4">
-                  <span className="flex items-center justify-center bg-[#F8F9FA] border border-black/5" style={{ width: 36, height: 36, borderRadius: 10 }}>
-                    <GoogleIcon />
-                  </span>
-                  <span className="text-[15px] font-bold">Google</span>
-                </span>
-                <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
-              </button>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full h-16 rounded-2xl font-bold text-white transition-all active:scale-[0.98] disabled:opacity-70 shadow-lg shadow-[#31D880]/20 text-lg mt-2"
+                    style={{ backgroundColor: '#31D880' }}
+                  >
+                    {isLoading ? 'Aguarde...' : (isRegistering ? 'Cadastrar' : 'Entrar')}
+                  </button>
+                </form>
 
-              <button
-                type="button"
-                onClick={() => handleOAuth('apple')}
-                disabled={oauthLoading !== null}
-                className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] disabled:opacity-60 border border-black/5 shadow-sm bg-white"
-                style={{ height: 64, borderRadius: 20, color: INK, fontFamily: "'Space Grotesk', sans-serif" }}
-              >
-                <span className="flex items-center gap-4">
-                  <span className="flex items-center justify-center bg-white border border-black/5 shadow-sm" style={{ width: 36, height: 36, borderRadius: 10 }}>
-                    <AppleIcon />
-                  </span>
-                  <span className="text-[15px] font-bold">Apple</span>
-                </span>
-                <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
-              </button>
-            </div>
+                <button
+                  onClick={() => setIsRegistering(!isRegistering)}
+                  className="text-sm font-semibold text-center underline opacity-60 hover:opacity-100 transition-opacity"
+                >
+                  {isRegistering ? 'Já tem conta? Entre aqui' : 'Não tem conta? Crie uma'}
+                </button>
+
+                {!isRegistering && (
+                  <>
+                    <div className="relative my-2">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-black/10"></span>
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="px-2 text-black/40" style={{ backgroundColor: PAPER }}>Ou continue com</span>
+                      </div>
+                    </div>
+
+                    <div className="w-full flex flex-col gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleOAuth('google')}
+                        disabled={oauthLoading !== null}
+                        className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] disabled:opacity-60 border border-black/5 shadow-sm bg-white"
+                        style={{ height: 64, borderRadius: 20, color: INK, fontFamily: "'Space Grotesk', sans-serif" }}
+                      >
+                        <span className="flex items-center gap-4">
+                          <span className="flex items-center justify-center bg-[#F8F9FA] border border-black/5" style={{ width: 36, height: 36, borderRadius: 10 }}>
+                            <GoogleIcon />
+                          </span>
+                          <span className="text-[15px] font-bold">Google</span>
+                        </span>
+                        <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOAuth('apple')}
+                        disabled={oauthLoading !== null}
+                        className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] disabled:opacity-60 border border-black/5 shadow-sm bg-white"
+                        style={{ height: 64, borderRadius: 20, color: INK, fontFamily: "'Space Grotesk', sans-serif" }}
+                      >
+                        <span className="flex items-center gap-4">
+                          <span className="flex items-center justify-center bg-white border border-black/5 shadow-sm" style={{ width: 36, height: 36, borderRadius: 10 }}>
+                            <AppleIcon />
+                          </span>
+                          <span className="text-[15px] font-bold">Apple</span>
+                        </span>
+                        <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
           </div>
 
           <p className="text-[11px] font-medium leading-relaxed text-center mt-4" style={{ color: INK, opacity: 0.6 }}>
