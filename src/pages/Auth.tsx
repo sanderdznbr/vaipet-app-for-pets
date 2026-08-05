@@ -33,6 +33,10 @@ type AnimationPhase = 'idle' | 'playing-anim2';
 
 const Auth = () => {
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [animPhase, setAnimPhase] = useState<AnimationPhase>('idle');
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -54,8 +58,6 @@ const Auth = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('[Auth] State change:', event, session?.user?.id);
       if (session && (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION')) {
-        // Delay mínimo para garantir que o Supabase persistiu o token no storage
-        // Isso evita que o Index.tsx carregue e não veja a sessão imediatamente.
         setTimeout(() => triggerTransition(), 800);
       }
     });
@@ -95,6 +97,33 @@ const Auth = () => {
     }
   };
 
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      if (isRegistering) {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (error) throw error;
+        toast.success('Cadastro realizado! Verifique seu e-mail ou faça login.');
+        setIsRegistering(false);
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        toast.success('Bem-vindo de volta!');
+      }
+    } catch (error: any) {
+      console.error('[Auth] Email auth error:', error);
+      toast.error(error.message || 'Erro na autenticação');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div
@@ -105,7 +134,6 @@ const Auth = () => {
         fontFamily: "'DM Sans', system-ui, sans-serif" 
       }}
     >
-      {/* Background Image */}
       <div 
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
         style={{ 
@@ -113,69 +141,94 @@ const Auth = () => {
         }}
       />
       
-      {/* Login form */}
-      <main className="w-full flex items-start justify-center px-6 pt-16 pb-10 relative z-10">
-        <div className="w-full max-w-md flex flex-col gap-10 items-center">
-          <img src="/vaipet-logo.svg" alt="VaiPet" className="w-24 h-auto mb-2" />
+      <main className="w-full flex items-start justify-center px-6 pt-8 pb-10 relative z-10 overflow-y-auto max-h-[100dvh]">
+        <div className="w-full max-w-md flex flex-col gap-6 items-center">
+          <img src="/vaipet-logo.svg" alt="VaiPet" className="w-24 h-auto" />
           
-          
-          <div className="w-full flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={() => handleOAuth('google')}
-              disabled={oauthLoading !== null}
-              className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] disabled:opacity-60 border border-black/5 shadow-sm"
-              style={{
-                height: 72,
-                borderRadius: 24,
-                background: '#FFFFFF',
-                color: INK,
-                fontFamily: "'Space Grotesk', sans-serif",
-              }}
-            >
-              <span className="flex items-center gap-4">
-                <span
-                  className="flex items-center justify-center bg-[#F8F9FA] border border-black/5"
-                  style={{ width: 44, height: 44, borderRadius: 14 }}
-                >
-                  <GoogleIcon />
-                </span>
-                <span className="text-[17px] font-bold tracking-tight">
-                  {oauthLoading === 'google' ? 'Conectando…' : 'Entrar com Google'}
-                </span>
-              </span>
-              <ArrowUpRight size={20} className="opacity-20 group-hover:opacity-100 transition-opacity" />
-            </button>
+          <div className="w-full flex flex-col gap-4 bg-white/90 backdrop-blur-sm p-6 rounded-[32px] shadow-xl border border-black/5">
+            <h2 className="text-xl font-bold text-center" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              {isRegistering ? 'Criar Conta' : 'Entrar no VaiPet'}
+            </h2>
+
+            <form onSubmit={handleEmailAuth} className="flex flex-col gap-3">
+              <input
+                type="email"
+                placeholder="E-mail"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full h-14 px-5 rounded-2xl border border-black/10 focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all"
+              />
+              <input
+                type="password"
+                placeholder="Senha"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full h-14 px-5 rounded-2xl border border-black/10 focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all"
+              />
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-14 rounded-2xl font-bold text-white transition-all active:scale-[0.98] disabled:opacity-70"
+                style={{ backgroundColor: '#31D880' }}
+              >
+                {isLoading ? 'Aguarde...' : (isRegistering ? 'Cadastrar' : 'Entrar')}
+              </button>
+            </form>
 
             <button
-              type="button"
-              onClick={() => handleOAuth('apple')}
-              disabled={oauthLoading !== null}
-              className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] disabled:opacity-60 border border-black/5 shadow-sm"
-              style={{
-                height: 72,
-                borderRadius: 24,
-                background: '#FFFFFF',
-                color: INK,
-                fontFamily: "'Space Grotesk', sans-serif",
-              }}
+              onClick={() => setIsRegistering(!isRegistering)}
+              className="text-sm font-medium underline opacity-60 hover:opacity-100 transition-opacity"
             >
-              <span className="flex items-center gap-4">
-                <span
-                  className="flex items-center justify-center bg-white border border-black/5 shadow-sm"
-                  style={{ width: 44, height: 44, borderRadius: 14 }}
-                >
-                  <AppleIcon />
-                </span>
-                <span className="text-[17px] font-bold tracking-tight">
-                  {oauthLoading === 'apple' ? 'Conectando…' : 'Entrar com Apple'}
-                </span>
-              </span>
-              <ArrowUpRight size={20} className="opacity-20 group-hover:opacity-100 transition-opacity" />
+              {isRegistering ? 'Já tem conta? Entre aqui' : 'Não tem conta? Crie uma'}
             </button>
+
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-black/10"></span>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white/90 px-2 text-black/40">Ou continue com</span>
+              </div>
+            </div>
+
+            <div className="w-full flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => handleOAuth('google')}
+                disabled={oauthLoading !== null}
+                className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] disabled:opacity-60 border border-black/5 shadow-sm bg-white"
+                style={{ height: 64, borderRadius: 20, color: INK, fontFamily: "'Space Grotesk', sans-serif" }}
+              >
+                <span className="flex items-center gap-4">
+                  <span className="flex items-center justify-center bg-[#F8F9FA] border border-black/5" style={{ width: 36, height: 36, borderRadius: 10 }}>
+                    <GoogleIcon />
+                  </span>
+                  <span className="text-[15px] font-bold">Google</span>
+                </span>
+                <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleOAuth('apple')}
+                disabled={oauthLoading !== null}
+                className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] disabled:opacity-60 border border-black/5 shadow-sm bg-white"
+                style={{ height: 64, borderRadius: 20, color: INK, fontFamily: "'Space Grotesk', sans-serif" }}
+              >
+                <span className="flex items-center gap-4">
+                  <span className="flex items-center justify-center bg-white border border-black/5 shadow-sm" style={{ width: 36, height: 36, borderRadius: 10 }}>
+                    <AppleIcon />
+                  </span>
+                  <span className="text-[15px] font-bold">Apple</span>
+                </span>
+                <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
+              </button>
+            </div>
           </div>
 
-          <p className="text-[11px] leading-relaxed text-center mt-[-8px]" style={{ color: INK, opacity: 0.6 }}>
+          <p className="text-[11px] leading-relaxed text-center mt-0" style={{ color: INK, opacity: 0.6 }}>
             Ao continuar, você aceita os{' '}
             <Link to="/termos-de-uso" className="underline" style={{ color: INK }}>Termos</Link>
             {' '}e{' '}
