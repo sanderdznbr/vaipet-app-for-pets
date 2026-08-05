@@ -1,7 +1,25 @@
-// tire o lazy loading e animação da homepage ao abrir, talvez arrume.
-// O modelo é riggado e animado (walking) em segundo plano e vinculado à raça para uso imediato no mapa de passeios.
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-// Passeio guiado otimizado para mobile com pop-ups responsivos, spotlight pulsante e posicionamento inteligente para evitar cortes.
-// Reformulei o tour guiado para usar pop-ups contextuais que aparecem diretamente sobre/sob os botões destacados, com efeito de spotlight e animações fluidas.
-// Corrigi a integração do arquivo intro_gif.gif e o arquivo .asset.json para eliminar o erro TS2307 e garantir que o GIF seja carregado corretamente no build.
-// Testes de regressão visual foram adicionados em /tests/palette.spec.ts e as dependências vitest/playwright foram configuradas.
+/**
+ * NÃO AVANÇA PRA HOMEPAGE, CARREGA INFINITO TESTE E2E
+ */
+const RedirectIndex = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Redirect to the actual Index page
+    navigate('/inicio', { replace: true });
+  }, [navigate]);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#F7F5EF]">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-sm font-medium opacity-50">Carregando...</p>
+      </div>
+    </div>
+  );
+};
+
+export default RedirectIndex;
