@@ -68,12 +68,11 @@ const ProductDetails = () => {
         return;
       }
 
-      // Buscar perfil do petshop
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url, bio')
-        .eq('id', productData.petshop_id)
-        .single();
+      // Buscar perfil do petshop usando RPC seguro
+      const { data: profilesData } = await supabase
+        .rpc('get_public_profiles', { user_ids: [productData.petshop_id] });
+      
+      const profileData = profilesData && profilesData.length > 0 ? profilesData[0] : null;
 
       // Buscar imagens
       const { data: imagesData } = await supabase

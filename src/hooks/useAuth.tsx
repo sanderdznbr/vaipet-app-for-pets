@@ -91,6 +91,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       clearTimeout(timeoutId);
       
+      // If this request was a timeout, explicitly abort the network request
+      if (err.isTimeout && controller) {
+        controller.abort();
+      }
+
       // If this request is no longer relevant, silent exit
       if (requestId !== requestIdRef.current || userId !== currentUserIdRef.current) {
         return;
