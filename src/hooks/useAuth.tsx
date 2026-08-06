@@ -131,11 +131,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     try {
-      const fetchPromise = supabase
+      const fetchPromise = (supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .maybeSingle()
+        .maybeSingle() as any)
         .abortSignal(controller.signal);
 
       const { data, error } = await (Promise.race([fetchPromise, timeoutPromise]) as Promise<{ data: any; error: any }>);
