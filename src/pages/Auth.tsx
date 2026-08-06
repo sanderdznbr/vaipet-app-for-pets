@@ -311,6 +311,13 @@ const Auth = () => {
                     </div>
                   </>
                 )}
+
+                <button
+                  onClick={() => navigate('/petwalker/inscricao')}
+                  className="mt-4 text-xs font-bold text-[#31D880] tracking-tight opacity-80 hover:opacity-100 transition-opacity"
+                >
+                  Quero trabalhar como PetWalker
+                </button>
               </motion.div>
             </AnimatePresence>
           </div>
