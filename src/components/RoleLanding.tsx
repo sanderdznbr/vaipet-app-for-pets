@@ -34,9 +34,18 @@ const RoleLanding = () => {
   }
 
   if (isError) {
-    // If error, Index.tsx will handle the retry UI, but we need to land somewhere.
-    // Landing on /inicio is safe because it has its own error state handling.
-    return <Navigate to="/inicio" replace />;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-[#F7F5EF]">
+        <h2 className="text-xl font-bold mb-2">Erro ao carregar dados</h2>
+        <p className="text-gray-500 mb-6">Não conseguimos identificar seu destino.</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-6 py-3 bg-primary text-white rounded-xl font-bold"
+        >
+          Tentar novamente
+        </button>
+      </div>
+    );
   }
 
   if (authStatus === 'authenticated' && profileStatus === 'ready' && rolesStatus === 'ready') {
