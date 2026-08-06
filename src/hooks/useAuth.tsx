@@ -132,14 +132,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     try {
-      const fetchPromise = (supabase
+      const query = supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .maybeSingle() as any)
-        .abortSignal(controller.signal);
+        .maybeSingle();
+      
+      const fetchPromise = (query as any).abortSignal(controller.signal);
 
-      const { data, error } = await (Promise.race([fetchPromise, timeoutPromise]) as Promise<{ data: any; error: any }>);
+      const { data, error } = await (Promise.race([fetchPromise, timeoutPromise]) as Promise<{ data: Profile | null; error: any }>);
       if (timeoutId) clearTimeout(timeoutId);
 
       if (requestId !== profileRequestIdRef.current || userId !== currentUserIdRef.current) {
@@ -155,7 +156,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('[AuthProvider] Profile missing for user:', userId);
         setProfileStatus('missing');
       } else {
-        setProfile(data);
+        setProfile(data as Profile);
         setProfileStatus('ready');
       }
     } catch (err: unknown) {
