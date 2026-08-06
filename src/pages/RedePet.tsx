@@ -78,10 +78,7 @@ const RedePet = () => {
       if (!postsData) { setPosts([]); return; }
 
       const userIds = [...new Set(postsData.map(p => p.user_id))];
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url, bio')
-        .in('id', userIds);
+      const { data: profilesData } = await supabase.rpc('get_public_profiles', { user_ids: userIds });
 
       let myLikes: string[] = [];
       if (user) {
@@ -209,7 +206,7 @@ const RedePet = () => {
         .order('created_at', { ascending: true });
       if (data) {
         const userIds = [...new Set(data.map(c => c.user_id))];
-        const { data: profiles } = await supabase.from('profiles').select('id, full_name, avatar_url, bio').in('id', userIds);
+        const { data: profiles } = await supabase.rpc('get_public_profiles', { user_ids: userIds });
         const enriched = data.map(c => ({
           ...c,
           profile: profiles?.find(p => p.id === c.user_id) || undefined,
