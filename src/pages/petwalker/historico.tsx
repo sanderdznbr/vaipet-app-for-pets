@@ -8,7 +8,7 @@ import { History as HistoryIcon, Calendar } from 'lucide-react';
 
 const PetwalkerHistorico = () => {
   const { user } = useAuth();
-  const [walks, setWalks] = useState<any[]>([]);
+  const [walks, setWalks] = useState<Database['public']['Tables']['walk_sessions']['Row'][]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
