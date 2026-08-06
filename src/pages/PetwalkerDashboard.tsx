@@ -59,7 +59,7 @@ const PetwalkerDashboard = () => {
 
   useEffect(() => {
     loadWalkerData();
-  }, [user]);
+  }, [user, loadWalkerData]);
 
   const toggleAvailability = async () => {
     if (!walkerProfile || statusLoading) return;

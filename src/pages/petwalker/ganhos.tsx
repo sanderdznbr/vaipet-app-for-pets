@@ -8,7 +8,13 @@ import { Wallet, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 
 const PetwalkerGanhos = () => {
   const { user } = useAuth();
-  const [earnings, setEarnings] = useState<any[]>([]);
+  const [earnings, setEarnings] = useState<Array<{
+    id: string;
+    created_at: string;
+    net_amount: number;
+    status: string;
+    petwalker_id: string;
+  }>>([]);
   const [stats, setStats] = useState({
     today: 0,
     pending: 0,
