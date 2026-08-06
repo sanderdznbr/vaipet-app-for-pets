@@ -3,7 +3,7 @@ import { PetwalkerProtectedRoute } from '@/components/PetwalkerProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { BottomNavigation } from '@/components/BottomNavigation';
+import { PetwalkerNavigation } from '@/components/petwalker/PetwalkerNavigation';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -113,7 +113,7 @@ const PetwalkerPerfil = () => {
             </Button>
           </form>
         </div>
-        <BottomNavigation />
+        <PetwalkerNavigation />
       </div>
     </PetwalkerProtectedRoute>
   );

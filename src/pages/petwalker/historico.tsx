@@ -3,7 +3,7 @@ import { PetwalkerProtectedRoute } from '@/components/PetwalkerProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Header } from '@/components/Header';
-import { BottomNavigation } from '@/components/BottomNavigation';
+import { PetwalkerNavigation } from '@/components/petwalker/PetwalkerNavigation';
 import { History as HistoryIcon, Calendar } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 
@@ -77,7 +77,7 @@ const PetwalkerHistorico = () => {
             )}
           </div>
         </div>
-        <BottomNavigation />
+        <PetwalkerNavigation />
       </div>
     </PetwalkerProtectedRoute>
   );
