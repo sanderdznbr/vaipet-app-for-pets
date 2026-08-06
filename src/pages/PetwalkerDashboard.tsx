@@ -5,6 +5,7 @@ import { Tables } from '@/integrations/supabase/types';
 import { SplashScreen } from '@/components/SplashScreen';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { PetwalkerNavigation } from '@/components/petwalker/PetwalkerNavigation';
 
 const PetwalkerDashboard = () => {
   const { user } = useAuth();
@@ -182,6 +183,7 @@ const PetwalkerDashboard = () => {
           <p className="text-sm text-gray-500">Fique disponível para começar a receber solicitações de passeio.</p>
         </div>
       </div>
+      <PetwalkerNavigation />
     </div>
   );
 };
