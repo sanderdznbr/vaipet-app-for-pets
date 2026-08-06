@@ -46,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select('*')
         .eq('id', userId)
         .maybeSingle()
+        // @ts-ignore
         .abortSignal(controller.signal);
 
       clearTimeout(timeoutId);
