@@ -33,23 +33,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profileError, setProfileError] = useState<Error | null>(null);
 
   const fetchProfile = useCallback(async (userId: string) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     setProfileStatus('loading');
     setProfileError(null);
 
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
-    );
-
     try {
-      const fetchPromise = supabase
+      // @ts-ignore - abortSignal might not be in the generated types but exists in postgrest-js
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .maybeSingle();
+        .maybeSingle()
+        // @ts-ignore
+        .abortSignal(controller.signal);
 
-      const { data, error } = (await Promise.race([fetchPromise, timeoutPromise])) as any;
+      clearTimeout(timeoutId);
+
+      // Verify if the user is still the same after the async call
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser?.id !== userId) {
+        console.warn('[AuthProvider] Profile fetch returned for a different user, ignoring.');
+        return;
+      }
 
       if (error) {
+        if (error.message === 'Fetch is aborted') return;
         console.error('[AuthProvider] Error fetching profile:', error);
         setProfileError(error);
         setProfileStatus('error');
@@ -61,6 +71,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfileStatus('ready');
       }
     } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError' || err.message === 'Fetch is aborted') return;
       console.error('[AuthProvider] Profile fetch exception:', err);
       setProfileError(err);
       setProfileStatus('error');
@@ -127,7 +139,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      setAuthStatus('unauthenticated');
+      setProfileStatus('idle');
     } catch (err) {
       console.error('[AuthProvider] SignOut error:', err);
     }
@@ -143,7 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     session,
     profile,
-    loading: authStatus === 'initializing' || profileStatus === 'loading',
+    loading: authStatus === 'initializing' || (authStatus === 'authenticated' && (profileStatus === 'loading' || profileStatus === 'idle')),
     authStatus,
     profileStatus,
     authError,
