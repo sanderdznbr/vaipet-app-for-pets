@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
@@ -19,7 +19,7 @@ const PetwalkerDashboard = () => {
     total: 0
   });
 
-  const loadWalkerData = async () => {
+  const loadWalkerData = useCallback(async () => {
     if (!user) return;
     try {
       const { data, error } = await supabase
@@ -50,16 +50,16 @@ const PetwalkerDashboard = () => {
         setEarnings(stats);
       }
 
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error loading petwalker data:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     loadWalkerData();
-  }, [user]);
+  }, [user, loadWalkerData]);
 
   const toggleAvailability = async () => {
     if (!walkerProfile || statusLoading) return;
@@ -69,15 +69,16 @@ const PetwalkerDashboard = () => {
     
     try {
       const { error } = await supabase.rpc('set_petwalker_availability', {
-        new_availability: newStatus
+        _status: newStatus
       });
 
       if (error) throw error;
       
       toast.success(newStatus === 'available' ? 'Você está online!' : 'Você está offline');
       await loadWalkerData();
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao alterar disponibilidade');
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast.error(error.message || 'Erro ao alterar disponibilidade');
     } finally {
       setStatusLoading(false);
     }

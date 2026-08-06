@@ -11,6 +11,9 @@ import PetwalkerDashboard from "./pages/PetwalkerDashboard";
 import PetwalkerOnboarding from "./pages/PetwalkerOnboarding";
 import { PetwalkerProtectedRoute } from "./components/PetwalkerProtectedRoute";
 import PetwalkerInscricao from "./pages/PetwalkerInscricao";
+import PetwalkerPerfil from "./pages/petwalker/perfil";
+import PetwalkerGanhos from "./pages/petwalker/ganhos";
+import PetwalkerHistorico from "./pages/petwalker/historico";
 import { AuthProvider } from "./hooks/useAuth";
 import SearchWalk from "./pages/SearchWalk";
 import NotFound from "./pages/NotFound";
@@ -136,6 +139,9 @@ const App = () => {
             } 
           />
           <Route path="/petwalker/inscricao" element={<PetwalkerInscricao />} />
+          <Route path="/petwalker/perfil" element={<PetwalkerPerfil />} />
+          <Route path="/petwalker/ganhos" element={<PetwalkerGanhos />} />
+          <Route path="/petwalker/historico" element={<PetwalkerHistorico />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

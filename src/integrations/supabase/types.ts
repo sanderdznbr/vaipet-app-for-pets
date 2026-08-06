@@ -727,8 +727,8 @@ export type Database = {
     }
     Functions: {
       approve_petwalker_application: {
-        Args: { application_id: string }
-        Returns: undefined
+        Args: { _application_id: string }
+        Returns: Json
       }
       get_public_profiles: {
         Args: { user_ids: string[] }
@@ -746,16 +746,20 @@ export type Database = {
         }
         Returns: boolean
       }
+      reject_petwalker_application: {
+        Args: { _application_id: string; _reason: string }
+        Returns: Json
+      }
       set_petwalker_availability: {
-        Args: { new_availability: string }
+        Args: { _status: string }
         Returns: undefined
       }
       update_petwalker_operational_profile: {
         Args: {
-          p_bio: string
-          p_experience_years: number
-          p_price: number
-          p_radius: number
+          _experience_years: number
+          _price_30_minutes: number
+          _public_bio: string
+          _service_radius_km: number
         }
         Returns: undefined
       }
