@@ -6,6 +6,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
+import RoleLanding from "./components/RoleLanding";
+import PetwalkerDashboard from "./pages/PetwalkerDashboard";
+import PetwalkerInscricao from "./pages/PetwalkerInscricao";
 import { AuthProvider } from "./hooks/useAuth";
 import SearchWalk from "./pages/SearchWalk";
 import NotFound from "./pages/NotFound";
@@ -82,7 +85,7 @@ const App = () => {
       <BrowserRouter>
         <Routes>
           <Route path="/inicio" element={<Index />} />
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<RoleLanding />} />
           <Route path="/search-walk" element={<SearchWalk />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/signup" element={<SignupWizard />} />
@@ -114,6 +117,8 @@ const App = () => {
           <Route path="/privacidade" element={<Privacidade />} />
           <Route path="/ajuda" element={<Ajuda />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/petwalker" element={<PetwalkerDashboard />} />
+          <Route path="/petwalker/inscricao" element={<PetwalkerInscricao />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
