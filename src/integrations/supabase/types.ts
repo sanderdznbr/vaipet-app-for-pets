@@ -355,7 +355,15 @@ export type Database = {
           status?: string | null
           walk_session_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "petwalker_earnings_walk_session_id_fkey"
+            columns: ["walk_session_id"]
+            isOneToOne: false
+            referencedRelation: "walk_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       petwalker_profiles: {
         Row: {
@@ -718,6 +726,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_petwalker_application: {
+        Args: { application_id: string }
+        Returns: undefined
+      }
       get_public_profiles: {
         Args: { user_ids: string[] }
         Returns: {
@@ -733,6 +745,19 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      set_petwalker_availability: {
+        Args: { new_availability: string }
+        Returns: undefined
+      }
+      update_petwalker_operational_profile: {
+        Args: {
+          p_bio: string
+          p_experience_years: number
+          p_price: number
+          p_radius: number
+        }
+        Returns: undefined
       }
     }
     Enums: {

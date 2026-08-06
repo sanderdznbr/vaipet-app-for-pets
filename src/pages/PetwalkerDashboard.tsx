@@ -7,54 +7,108 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 const PetwalkerDashboard = () => {
-  const { user, hasRole } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [app, setApp] = useState<Tables<'petwalker_applications'> | null>(null);
   const [walkerProfile, setWalkerProfile] = useState<Tables<'petwalker_profiles'> | null>(null);
   const [loading, setLoading] = useState(true);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [earnings, setEarnings] = useState({
+    today: 0,
+    pending: 0,
+    available: 0,
+    total: 0
+  });
+
+  const loadWalkerData = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('petwalker_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      setWalkerProfile(data);
+
+      // Load Earnings
+      const { data: earningsData } = await supabase
+        .from('petwalker_earnings')
+        .select('*')
+        .eq('petwalker_id', user.id);
+
+      if (earningsData) {
+        const today = new Date().toISOString().split('T')[0];
+        const stats = earningsData.reduce((acc, curr) => {
+          const isToday = new Date(curr.created_at || '').toISOString().split('T')[0] === today;
+          acc.total += Number(curr.net_amount);
+          if (isToday) acc.today += Number(curr.net_amount);
+          if (curr.status === 'pending') acc.pending += Number(curr.net_amount);
+          if (curr.status === 'available') acc.available += Number(curr.net_amount);
+          return acc;
+        }, { today: 0, pending: 0, available: 0, total: 0 });
+        setEarnings(stats);
+      }
+
+    } catch (err) {
+      console.error('Error loading petwalker data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadWalkerData = async () => {
-      if (!user) return;
-      try {
-        const [appRes, profileRes] = await Promise.all([
-          supabase.from('petwalker_applications').select('*').eq('user_id', user.id).maybeSingle(),
-          supabase.from('petwalker_profiles').select('*').eq('user_id', user.id).maybeSingle()
-        ]);
-
-        if (appRes.data) setApp(appRes.data);
-        if (profileRes.data) setWalkerProfile(profileRes.data);
-      } catch (err) {
-        console.error('Error loading petwalker data:', err);
-        toast.error('Erro ao carregar dados do passeador');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadWalkerData();
   }, [user]);
 
-  if (!hasRole('petwalker')) {
+  const toggleAvailability = async () => {
+    if (!walkerProfile || statusLoading) return;
+    
+    setStatusLoading(true);
+    const newStatus = walkerProfile.availability_status === 'available' ? 'offline' : 'available';
+    
+    try {
+      const { error } = await supabase.rpc('set_petwalker_availability', {
+        new_availability: newStatus
+      });
+
+      if (error) throw error;
+      
+      toast.success(newStatus === 'available' ? 'Você está online!' : 'Você está offline');
+      await loadWalkerData();
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao alterar disponibilidade');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  if (loading) return <SplashScreen />;
+
+  if (walkerProfile && !walkerProfile.profile_completed) {
+    return <Navigate to="/petwalker/onboarding" replace />;
+  }
+
+  if (walkerProfile?.approval_status !== 'approved') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#F7F5EF] text-center">
-        <h1 className="text-xl font-bold mb-4">Acesso exclusivo para PetWalkers</h1>
-        <p className="text-gray-600 mb-6">Você ainda não possui permissão de passeador aprovada.</p>
+        <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mb-6 shadow-sm">
+          <span className="text-4xl">⏳</span>
+        </div>
+        <h1 className="text-xl font-bold mb-2">Inscrição em Análise</h1>
+        <p className="text-gray-500 mb-8 max-w-xs">
+          {walkerProfile?.approval_status === 'rejected' 
+            ? 'Sua inscrição foi recusada. Entre em contato com o suporte.' 
+            : 'Seus dados estão sendo analisados pela nossa equipe. Você receberá uma notificação em breve.'}
+        </p>
         <button 
           onClick={() => navigate('/inicio')}
-          className="px-6 py-3 bg-primary text-white rounded-xl font-bold"
+          className="px-8 py-4 bg-white text-gray-900 rounded-2xl font-bold shadow-sm"
         >
           Voltar para Home
         </button>
       </div>
     );
-  }
-
-  if (loading) return <SplashScreen />;
-
-  // Redirect to onboarding if profile not completed
-  if (walkerProfile && !walkerProfile.profile_completed) {
-    return <Navigate to="/petwalker/onboarding" replace />;
   }
 
   return (
@@ -69,7 +123,7 @@ const PetwalkerDashboard = () => {
               </span>
             </div>
           </div>
-          <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
+          <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden border-2 border-white shadow-sm">
             {user?.user_metadata?.avatar_url && (
               <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
             )}
@@ -87,7 +141,16 @@ const PetwalkerDashboard = () => {
               </span>
             </div>
           </div>
-          <button className="w-full py-4 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/20 active:scale-95 transition-transform">
+          <button 
+            disabled={statusLoading}
+            onClick={toggleAvailability}
+            className={`w-full py-4 rounded-2xl font-bold shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${
+              walkerProfile?.availability_status === 'available' 
+                ? 'bg-gray-100 text-gray-600' 
+                : 'bg-primary text-white shadow-primary/20'
+            }`}
+          >
+            {statusLoading && <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />}
             {walkerProfile?.availability_status === 'available' ? 'Ficar Offline' : 'Ficar Disponível'}
           </button>
         </div>
@@ -95,8 +158,8 @@ const PetwalkerDashboard = () => {
         {/* Metrics Grid */}
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
-            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest block mb-1">Ganhos Hoje</span>
-            <span className="text-xl font-bold">R$ 0,00</span>
+            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest block mb-1">Hoje</span>
+            <span className="text-xl font-bold">R$ {earnings.today.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
           </div>
           <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
             <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest block mb-1">Passeios</span>
@@ -104,7 +167,12 @@ const PetwalkerDashboard = () => {
           </div>
         </div>
 
-        {/* Active Walk / Requests Empty State */}
+        {/* Section Title */}
+        <div className="flex items-center justify-between mb-4 px-1">
+          <h2 className="font-bold">Próximas solicitações</h2>
+        </div>
+
+        {/* Requests Empty State */}
         <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm text-center mb-6">
           <div className="w-16 h-16 bg-[#F7F5EF] rounded-2xl flex items-center justify-center mx-auto mb-4">
              <span className="text-2xl">🐕</span>
