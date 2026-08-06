@@ -139,6 +139,9 @@ const App = () => {
             } 
           />
           <Route path="/petwalker/inscricao" element={<PetwalkerInscricao />} />
+          <Route path="/petwalker/perfil" element={<PetwalkerPerfil />} />
+          <Route path="/petwalker/ganhos" element={<PetwalkerGanhos />} />
+          <Route path="/petwalker/historico" element={<PetwalkerHistorico />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
