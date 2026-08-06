@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+/**
+ * Redirects to /inicio which is the main landing page of the application.
+ */
 const RedirectIndex = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Redirect to the actual Home page
     navigate('/inicio', { replace: true });
   }, [navigate]);
 
