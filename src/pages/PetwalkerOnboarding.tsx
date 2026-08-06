@@ -52,18 +52,19 @@ const PetwalkerOnboarding = () => {
     setLoading(true);
     try {
       const { error } = await supabase.rpc('update_petwalker_operational_profile', {
-        p_bio: formData.public_bio,
-        p_experience_years: formData.experience_years,
-        p_radius: formData.service_radius_km,
-        p_price: formData.price_30_minutes
+        _public_bio: formData.public_bio,
+        _experience_years: formData.experience_years,
+        _service_radius_km: formData.service_radius_km,
+        _price_30_minutes: formData.price_30_minutes
       });
 
       if (error) throw error;
 
       toast.success('Perfil atualizado com sucesso!');
       navigate('/petwalker');
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao atualizar perfil');
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast.error(error.message || 'Erro ao atualizar perfil');
     } finally {
       setLoading(false);
     }
