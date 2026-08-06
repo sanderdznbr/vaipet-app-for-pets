@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Header } from '@/components/Header';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import { Wallet, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Database } from '@/integrations/supabase/types';
 
 const PetwalkerGanhos = () => {
   const { user } = useAuth();
