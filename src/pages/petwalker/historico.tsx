@@ -65,11 +65,11 @@ const PetwalkerHistorico = () => {
                   </div>
                   <div className="flex justify-between items-end">
                     <div>
-                      <p className="text-xs text-gray-400">Pet</p>
-                      <p className="font-bold">{walk.pet_name || 'Pet'}</p>
+                      <p className="text-xs text-gray-400">Status</p>
+                      <p className="font-bold">{walk.status}</p>
                     </div>
                     <p className="font-bold text-primary">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(walk.price || 0)}
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(walk.distance_km) || 0)}
                     </p>
                   </div>
                 </div>
