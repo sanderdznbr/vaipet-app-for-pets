@@ -60,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRolesStatus('loading');
     setRolesError(null);
 
-    let timeoutId: any;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise((_, reject) => {
       timeoutId = setTimeout(() => {
         const error = new Error('Roles fetch timeout');
@@ -74,12 +74,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        // @ts-ignore
         .abortSignal(controller.signal);
 
-      // @ts-ignore
-      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
-      clearTimeout(timeoutId);
+      const { data, error } = await (Promise.race([fetchPromise, timeoutPromise]) as Promise<{ data: any[] | null; error: any }>);
+      if (timeoutId) clearTimeout(timeoutId);
 
       if (requestId !== rolesRequestIdRef.current || userId !== currentUserIdRef.current) {
         return;
@@ -88,20 +86,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         if (error.message === 'Fetch is aborted') return;
         console.error('[AuthProvider] Error fetching roles:', error);
-        setRolesError(error);
+        setRolesError(error instanceof Error ? error : new Error(String(error)));
         setRolesStatus('error');
       } else {
         setRoles(data?.map(r => r.role) || []);
         setRolesStatus('ready');
       }
-    } catch (err: any) {
-      clearTimeout(timeoutId);
-      if (err.isTimeout && controller) controller.abort();
+    } catch (err: unknown) {
+      if (timeoutId) clearTimeout(timeoutId);
+      const error = err as any;
+      if (error.isTimeout && controller) controller.abort();
       if (requestId !== rolesRequestIdRef.current || userId !== currentUserIdRef.current) return;
-      if (err.name === 'AbortError' || err.message === 'Fetch is aborted') return;
+      if (error.name === 'AbortError' || error.message === 'Fetch is aborted') return;
 
-      console.error('[AuthProvider] Roles fetch exception:', err);
-      setRolesError(err);
+      console.error('[AuthProvider] Roles fetch exception:', error);
+      setRolesError(error instanceof Error ? error : new Error(String(error)));
       setRolesStatus('error');
     } finally {
       if (requestId === rolesRequestIdRef.current) {
@@ -122,7 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfileStatus('loading');
     setProfileError(null);
 
-    let timeoutId: any;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise((_, reject) => {
       timeoutId = setTimeout(() => {
         const error = new Error('Profile fetch timeout');
@@ -137,12 +136,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select('*')
         .eq('id', userId)
         .maybeSingle()
-        // @ts-ignore
         .abortSignal(controller.signal);
 
-      // @ts-ignore
-      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
-      clearTimeout(timeoutId);
+      const { data, error } = await (Promise.race([fetchPromise, timeoutPromise]) as Promise<{ data: any; error: any }>);
+      if (timeoutId) clearTimeout(timeoutId);
 
       if (requestId !== profileRequestIdRef.current || userId !== currentUserIdRef.current) {
         return;
@@ -151,7 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         if (error.message === 'Fetch is aborted') return;
         console.error('[AuthProvider] Error fetching profile:', error);
-        setProfileError(error);
+        setProfileError(error instanceof Error ? error : new Error(String(error)));
         setProfileStatus('error');
       } else if (!data) {
         console.warn('[AuthProvider] Profile missing for user:', userId);
@@ -160,14 +157,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(data);
         setProfileStatus('ready');
       }
-    } catch (err: any) {
-      clearTimeout(timeoutId);
-      if (err.isTimeout && controller) controller.abort();
+    } catch (err: unknown) {
+      if (timeoutId) clearTimeout(timeoutId);
+      const error = err as any;
+      if (error.isTimeout && controller) controller.abort();
       if (requestId !== profileRequestIdRef.current || userId !== currentUserIdRef.current) return;
-      if (err.name === 'AbortError' || err.message === 'Fetch is aborted') return;
+      if (error.name === 'AbortError' || error.message === 'Fetch is aborted') return;
 
-      console.error('[AuthProvider] Profile fetch exception:', err);
-      setProfileError(err);
+      console.error('[AuthProvider] Profile fetch exception:', error);
+      setProfileError(error instanceof Error ? error : new Error(String(error)));
       setProfileStatus('error');
     } finally {
       if (requestId === profileRequestIdRef.current) {
