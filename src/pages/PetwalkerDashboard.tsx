@@ -19,7 +19,7 @@ const PetwalkerDashboard = () => {
     total: 0
   });
 
-  const loadWalkerData = async () => {
+  const loadWalkerData = useCallback(async () => {
     if (!user) return;
     try {
       const { data, error } = await supabase
@@ -50,12 +50,12 @@ const PetwalkerDashboard = () => {
         setEarnings(stats);
       }
 
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error loading petwalker data:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     loadWalkerData();
