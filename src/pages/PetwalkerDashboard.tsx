@@ -69,15 +69,16 @@ const PetwalkerDashboard = () => {
     
     try {
       const { error } = await supabase.rpc('set_petwalker_availability', {
-        new_availability: newStatus
+        _status: newStatus
       });
 
       if (error) throw error;
       
       toast.success(newStatus === 'available' ? 'Você está online!' : 'Você está offline');
       await loadWalkerData();
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao alterar disponibilidade');
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast.error(error.message || 'Erro ao alterar disponibilidade');
     } finally {
       setStatusLoading(false);
     }
