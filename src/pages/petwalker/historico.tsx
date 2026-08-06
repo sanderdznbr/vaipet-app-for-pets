@@ -8,14 +8,7 @@ import { History as HistoryIcon, Calendar } from 'lucide-react';
 
 const PetwalkerHistorico = () => {
   const { user } = useAuth();
-  const [walks, setWalks] = useState<Array<{
-    id: string;
-    created_at: string;
-    walker_id: string;
-    status: string;
-    pet_name: string;
-    price: number;
-  }>>([]);
+  const [walks, setWalks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

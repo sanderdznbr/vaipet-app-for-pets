@@ -153,7 +153,8 @@ const Auth = () => {
         }
         toast.success('Bem-vindo de volta!');
       }
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       console.error('[Auth] Email auth error:', error);
       toast.error(error.message || 'Ocorreu um erro. Tente novamente em alguns instantes.');
     } finally {

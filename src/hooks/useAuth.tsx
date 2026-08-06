@@ -70,13 +70,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     try {
-      const fetchPromise = (supabase
+      const query = supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId) as any)
-        .abortSignal(controller.signal);
+        .eq('user_id', userId);
 
-      const { data, error } = await (Promise.race([fetchPromise, timeoutPromise]) as Promise<{ data: any[] | null; error: any }>);
+      const fetchPromise = (query as any).abortSignal(controller.signal) as Promise<{ data: { role: string }[] | null; error: any }>;
+
+      const { data, error } = await (Promise.race([fetchPromise, timeoutPromise]) as Promise<{ data: { role: string }[] | null; error: any }>);
       if (timeoutId) clearTimeout(timeoutId);
 
       if (requestId !== rolesRequestIdRef.current || userId !== currentUserIdRef.current) {
@@ -89,7 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRolesError(error instanceof Error ? error : new Error(String(error)));
         setRolesStatus('error');
       } else {
-        setRoles(data?.map(r => r.role) || []);
+        setRoles((data?.map(r => r.role) || []) as string[]);
         setRolesStatus('ready');
       }
     } catch (err: unknown) {
