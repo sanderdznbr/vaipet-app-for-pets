@@ -748,11 +748,11 @@ export type Database = {
       }
       reject_petwalker_application: {
         Args: { _application_id: string; _reason: string }
-        Returns: boolean
+        Returns: Json
       }
       set_petwalker_availability: {
         Args: { _status: string }
-        Returns: boolean
+        Returns: undefined
       }
       update_petwalker_operational_profile: {
         Args: {
@@ -761,7 +761,7 @@ export type Database = {
           _public_bio: string
           _service_radius_km: number
         }
-        Returns: boolean
+        Returns: undefined
       }
     }
     Enums: {
