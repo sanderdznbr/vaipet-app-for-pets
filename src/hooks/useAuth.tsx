@@ -75,9 +75,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select('role')
         .eq('user_id', userId);
 
-      const fetchPromise = (query as any).abortSignal(controller.signal) as Promise<{ data: { role: string }[] | null; error: any }>;
+      const fetchPromise = (query as any).abortSignal(controller.signal) as Promise<{ data: { role: AppRole }[] | null; error: any }>;
 
-      const { data, error } = await (Promise.race([fetchPromise, timeoutPromise]) as Promise<{ data: { role: string }[] | null; error: any }>);
+      const { data, error } = await (Promise.race([fetchPromise, timeoutPromise]) as Promise<{ data: { role: AppRole }[] | null; error: any }>);
       if (timeoutId) clearTimeout(timeoutId);
 
       if (requestId !== rolesRequestIdRef.current || userId !== currentUserIdRef.current) {
@@ -90,7 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRolesError(error instanceof Error ? error : new Error(String(error)));
         setRolesStatus('error');
       } else {
-        setRoles((data?.map(r => r.role) || []) as string[]);
+        setRoles(data?.map(r => r.role as AppRole) || []);
         setRolesStatus('ready');
       }
     } catch (err: unknown) {
