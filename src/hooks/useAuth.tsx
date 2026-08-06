@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
@@ -31,6 +31,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profileStatus, setProfileStatus] = useState<ProfileStatus>('idle');
   const [authError, setAuthError] = useState<Error | null>(null);
   const [profileError, setProfileError] = useState<Error | null>(null);
+  
+  const currentUserIdRef = useRef<string | null>(null);
+  const requestIdRef = useRef<number>(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchProfile = useCallback(async (userId: string) => {
     const controller = new AbortController();
@@ -132,9 +136,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // React to user changes separately
   useEffect(() => {
+    currentUserIdRef.current = user?.id || null;
     if (authStatus === 'authenticated' && user) {
       fetchProfile(user.id);
     }
+    
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [user, authStatus, fetchProfile]);
 
   const signOut = async () => {
