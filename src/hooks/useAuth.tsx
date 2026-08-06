@@ -40,6 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfileError(null);
 
     try {
+      // @ts-ignore - abortSignal might not be in the generated types but exists in postgrest-js
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -49,9 +50,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       clearTimeout(timeoutId);
 
-      // Check if this response is still relevant (user hasn't changed)
-      if (supabase.auth.getUser().then(({ data }) => data.user?.id !== userId)) {
-        // This is a bit simplified, but in a hook we'd usually use a ref or closure
+      // Verify if the user is still the same after the async call
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser?.id !== userId) {
+        console.warn('[AuthProvider] Profile fetch returned for a different user, ignoring.');
+        return;
       }
 
       if (error) {
@@ -68,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (err: any) {
       clearTimeout(timeoutId);
-      if (err.name === 'AbortError') return;
+      if (err.name === 'AbortError' || err.message === 'Fetch is aborted') return;
       console.error('[AuthProvider] Profile fetch exception:', err);
       setProfileError(err);
       setProfileStatus('error');

@@ -97,7 +97,7 @@ const Index = () => {
               Tentar novamente
             </button>
             <button 
-              onClick={() => {
+              onClick={async () => {
                 await signOut();
                 navigate('/auth', { replace: true });
               }}
