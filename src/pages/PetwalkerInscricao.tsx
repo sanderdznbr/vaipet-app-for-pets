@@ -83,7 +83,14 @@ const PetwalkerInscricao = () => {
       const { error } = await supabase.from('petwalker_applications').insert([
         {
           user_id: user.id,
-          ...formData,
+          legal_name: formData.legal_name,
+          birth_date: formData.birth_date,
+          phone: formData.phone,
+          city: formData.city,
+          experience_description: formData.experience_description,
+          emergency_contact_name: formData.emergency_contact_name,
+          emergency_contact_phone: formData.emergency_contact_phone,
+          status: 'pending'
         },
       ]);
 
@@ -91,8 +98,9 @@ const PetwalkerInscricao = () => {
 
       toast.success('Inscrição enviada com sucesso!');
       navigate('/inicio');
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao processar inscrição');
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast.error(error.message || 'Erro ao processar inscrição');
     } finally {
       setLoading(false);
     }
