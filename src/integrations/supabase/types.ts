@@ -258,6 +258,159 @@ export type Database = {
         }
         Relationships: []
       }
+      petwalker_applications: {
+        Row: {
+          birth_date: string
+          city: string
+          created_at: string | null
+          document_status: string | null
+          emergency_contact_name: string
+          emergency_contact_phone: string
+          experience_description: string
+          id: string
+          legal_name: string
+          phone: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          submitted_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          birth_date: string
+          city: string
+          created_at?: string | null
+          document_status?: string | null
+          emergency_contact_name: string
+          emergency_contact_phone: string
+          experience_description: string
+          id?: string
+          legal_name: string
+          phone: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          birth_date?: string
+          city?: string
+          created_at?: string | null
+          document_status?: string | null
+          emergency_contact_name?: string
+          emergency_contact_phone?: string
+          experience_description?: string
+          id?: string
+          legal_name?: string
+          phone?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      petwalker_earnings: {
+        Row: {
+          available_at: string | null
+          created_at: string | null
+          gross_amount: number
+          id: string
+          net_amount: number
+          paid_at: string | null
+          petwalker_id: string
+          platform_fee: number
+          status: string | null
+          walk_session_id: string | null
+        }
+        Insert: {
+          available_at?: string | null
+          created_at?: string | null
+          gross_amount: number
+          id?: string
+          net_amount: number
+          paid_at?: string | null
+          petwalker_id: string
+          platform_fee: number
+          status?: string | null
+          walk_session_id?: string | null
+        }
+        Update: {
+          available_at?: string | null
+          created_at?: string | null
+          gross_amount?: number
+          id?: string
+          net_amount?: number
+          paid_at?: string | null
+          petwalker_id?: string
+          platform_fee?: number
+          status?: string | null
+          walk_session_id?: string | null
+        }
+        Relationships: []
+      }
+      petwalker_profiles: {
+        Row: {
+          approval_status: string | null
+          availability_status: string | null
+          cancellation_rate: number | null
+          completed_walks: number | null
+          created_at: string | null
+          experience_years: number | null
+          is_accepting_requests: boolean | null
+          last_online_at: string | null
+          price_30_minutes: number | null
+          profile_completed: boolean | null
+          public_bio: string | null
+          rating_average: number | null
+          service_radius_km: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          approval_status?: string | null
+          availability_status?: string | null
+          cancellation_rate?: number | null
+          completed_walks?: number | null
+          created_at?: string | null
+          experience_years?: number | null
+          is_accepting_requests?: boolean | null
+          last_online_at?: string | null
+          price_30_minutes?: number | null
+          profile_completed?: boolean | null
+          public_bio?: string | null
+          rating_average?: number | null
+          service_radius_km?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          approval_status?: string | null
+          availability_status?: string | null
+          cancellation_rate?: number | null
+          completed_walks?: number | null
+          created_at?: string | null
+          experience_years?: number | null
+          is_accepting_requests?: boolean | null
+          last_online_at?: string | null
+          price_30_minutes?: number | null
+          profile_completed?: boolean | null
+          public_bio?: string | null
+          rating_average?: number | null
+          service_radius_km?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       post_comments: {
         Row: {
           content: string
@@ -507,6 +660,7 @@ export type Database = {
           start_time: string
           status: string
           walk_type: string
+          walker_id: string | null
           walker_name: string | null
         }
         Insert: {
@@ -526,6 +680,7 @@ export type Database = {
           start_time?: string
           status?: string
           walk_type?: string
+          walker_id?: string | null
           walker_name?: string | null
         }
         Update: {
@@ -545,6 +700,7 @@ export type Database = {
           start_time?: string
           status?: string
           walk_type?: string
+          walker_id?: string | null
           walker_name?: string | null
         }
         Relationships: [
@@ -580,7 +736,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user" | "petshop"
+      app_role: "admin" | "moderator" | "user" | "petshop" | "petwalker"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -708,7 +864,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user", "petshop"],
+      app_role: ["admin", "moderator", "user", "petshop", "petwalker"],
     },
   },
 } as const
