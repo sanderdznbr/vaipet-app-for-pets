@@ -157,7 +157,7 @@ const Petshop = () => {
       const productIds = productsData.map(p => p.id);
 
       const [{ data: profilesData }, { data: imagesData }, { data: inventoryData }] = await Promise.all([
-        supabase.from('profiles').select('id, full_name').in('id', petshopIds),
+        supabase.from('profiles').select('id, full_name, avatar_url, bio').in('id', petshopIds),
         supabase.from('product_images').select('product_id, image_url').in('product_id', productIds),
         supabase.from('inventory').select('product_id, quantity').in('product_id', productIds),
       ]);

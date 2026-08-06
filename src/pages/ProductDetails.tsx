@@ -71,7 +71,7 @@ const ProductDetails = () => {
       // Buscar perfil do petshop
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('id, full_name')
+        .select('id, full_name, avatar_url, bio')
         .eq('id', productData.petshop_id)
         .single();
 
