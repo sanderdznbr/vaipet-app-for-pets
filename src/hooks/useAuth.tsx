@@ -37,15 +37,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchProfile = useCallback(async (userId: string) => {
+    // Abort previous request if any
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const requestId = ++requestIdRef.current;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    abortControllerRef.current = controller;
 
     setProfileStatus('loading');
     setProfileError(null);
 
+    let timeoutId: any;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        const error = new Error('Profile fetch timeout');
+        (error as any).isTimeout = true;
+        reject(error);
+      }, 10000);
+    });
+
     try {
-      // @ts-ignore - abortSignal might not be in the generated types but exists in postgrest-js
-      const { data, error } = await supabase
+      const fetchPromise = supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
@@ -53,12 +67,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // @ts-ignore
         .abortSignal(controller.signal);
 
+      // @ts-ignore
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
       clearTimeout(timeoutId);
 
-      // Verify if the user is still the same after the async call
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (currentUser?.id !== userId) {
-        console.warn('[AuthProvider] Profile fetch returned for a different user, ignoring.');
+      // Verify if this request is still the latest and for the correct user
+      if (requestId !== requestIdRef.current || userId !== currentUserIdRef.current) {
         return;
       }
 
@@ -76,10 +90,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (err: any) {
       clearTimeout(timeoutId);
-      if (err.name === 'AbortError' || err.message === 'Fetch is aborted') return;
+      
+      // If this request is no longer relevant, silent exit
+      if (requestId !== requestIdRef.current || userId !== currentUserIdRef.current) {
+        return;
+      }
+
+      if (err.name === 'AbortError' || err.message === 'Fetch is aborted') {
+        return;
+      }
+
       console.error('[AuthProvider] Profile fetch exception:', err);
       setProfileError(err);
       setProfileStatus('error');
+    } finally {
+      if (requestId === requestIdRef.current) {
+        abortControllerRef.current = null;
+      }
     }
   }, []);
 
