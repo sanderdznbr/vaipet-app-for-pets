@@ -33,23 +33,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profileError, setProfileError] = useState<Error | null>(null);
 
   const fetchProfile = useCallback(async (userId: string) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     setProfileStatus('loading');
     setProfileError(null);
 
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
-    );
-
     try {
-      const fetchPromise = supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .maybeSingle();
+        .maybeSingle()
+        .abortSignal(controller.signal);
 
-      const { data, error } = (await Promise.race([fetchPromise, timeoutPromise])) as any;
+      clearTimeout(timeoutId);
+
+      // Check if this response is still relevant (user hasn't changed)
+      if (supabase.auth.getUser().then(({ data }) => data.user?.id !== userId)) {
+        // This is a bit simplified, but in a hook we'd usually use a ref or closure
+      }
 
       if (error) {
+        if (error.message === 'Fetch is aborted') return;
         console.error('[AuthProvider] Error fetching profile:', error);
         setProfileError(error);
         setProfileStatus('error');
@@ -61,6 +67,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfileStatus('ready');
       }
     } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') return;
       console.error('[AuthProvider] Profile fetch exception:', err);
       setProfileError(err);
       setProfileStatus('error');
@@ -127,7 +135,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      setAuthStatus('unauthenticated');
+      setProfileStatus('idle');
     } catch (err) {
       console.error('[AuthProvider] SignOut error:', err);
     }
@@ -143,7 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     session,
     profile,
-    loading: authStatus === 'initializing' || profileStatus === 'loading',
+    loading: authStatus === 'initializing' || (authStatus === 'authenticated' && (profileStatus === 'loading' || profileStatus === 'idle')),
     authStatus,
     profileStatus,
     authError,

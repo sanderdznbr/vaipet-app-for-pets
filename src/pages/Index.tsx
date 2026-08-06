@@ -58,7 +58,7 @@ const Index = () => {
     }
   }, [authStatus, profileStatus, profile, navigate]);
 
-  const isLoading = authStatus === 'initializing' || (authStatus === 'authenticated' && profileStatus === 'loading');
+  const isLoading = authStatus === 'initializing' || (authStatus === 'authenticated' && (profileStatus === 'loading' || profileStatus === 'idle'));
   const isError = authStatus === 'error' || profileStatus === 'error' || profileStatus === 'missing';
   const isContentReady = authStatus === 'authenticated' && profileStatus === 'ready' && profile?.onboarding_completed !== false && profile?.role !== 'petshop';
 
@@ -98,8 +98,8 @@ const Index = () => {
             </button>
             <button 
               onClick={() => {
-                signOut();
-                navigate('/auth');
+                await signOut();
+                navigate('/auth', { replace: true });
               }}
               className="w-full py-3 px-4 bg-white border border-gray-200 rounded-2xl text-sm font-bold active:scale-95 transition-transform"
             >
