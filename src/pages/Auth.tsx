@@ -72,16 +72,24 @@ const Auth = () => {
 
   const triggerTransition = useCallback(() => {
     console.log('[Auth] Triggering transition, isMobile:', isMobile);
+    const searchParams = new URLSearchParams(window.location.search);
+    const redirectPath = searchParams.get('redirect');
+    
+    // Validate redirect path (must start with / and not with //)
+    const safeRedirect = redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//') 
+      ? redirectPath 
+      : '/';
+
     if (isMobile) {
       setAnimPhase('playing-anim2');
       sessionStorage.setItem('vaipet_index_splash_seen', 'true');
       setTimeout(() => {
-        console.log('[Auth] Animation finished, navigating to /');
-        navigate('/', { replace: true });
+        console.log('[Auth] Animation finished, navigating to:', safeRedirect);
+        navigate(safeRedirect, { replace: true });
       }, 3500);
       return;
     }
-    navigate('/', { replace: true });
+    navigate(safeRedirect, { replace: true });
   }, [navigate, isMobile]);
 
   const handleOAuth = async (provider: 'google' | 'apple') => {
