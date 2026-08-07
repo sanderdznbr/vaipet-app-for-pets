@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useHomeTheme } from '@/hooks/useHomeTheme';
-import { ArrowUpRight, Eye, EyeOff } from 'lucide-react';
+import { ArrowUpRight, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import logoAsset from "@/assets/vaipet-logo-new.png.asset.json";
 import splashAsset from "@/assets/animations/splash.gif.asset.json";
 import authBgAsset from "@/assets/auth/vipetauth_photo.png.asset.json";
