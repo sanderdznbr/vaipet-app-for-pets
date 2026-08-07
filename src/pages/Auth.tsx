@@ -85,11 +85,21 @@ const Auth = () => {
           }
         }
         
-        setTimeout(() => triggerTransition(), 800);
+        // We use a local transition call to avoid TDZ
+        const safeRedirect = new URLSearchParams(window.location.search).get('redirect') || '/';
+        const isSafe = safeRedirect.startsWith('/') && !safeRedirect.startsWith('//');
+        
+        if (isMobile) {
+          setAnimPhase('playing-anim2');
+          sessionStorage.setItem('vaipet_index_splash_seen', 'true');
+          setTimeout(() => navigate(isSafe ? safeRedirect : '/', { replace: true }), 3500);
+        } else {
+          navigate(isSafe ? safeRedirect : '/', { replace: true });
+        }
       }
     });
     return () => { subscription.unsubscribe(); };
-  }, [triggerTransition]);
+  }, [navigate, isMobile]);
 
   const triggerTransition = useCallback(() => {
     console.log('[Auth] Triggering transition, isMobile:', isMobile);
