@@ -1,12 +1,12 @@
 /**
  * REPOSITÓRIO GITHUB: O projeto está hospedado internamente no Lovable (ID: 5edb42fd-d1f8-4525-b087-71641899d629).
  * 
- * BASELINE STATUS: CONSOLIDADA E VALIDADA (Fidelity 100% types.ts).
- * 1. Todos os tipos corrigidos (avatar_url: text, birth_date: date, etc).
- * 2. Foreign Keys rigorosamente UUID -> UUID.
- * 3. RPCs sincronizadas (_status, _public_bio, etc).
- * 4. Pet Models 3D corrigido com pet_id.
- * 5. Security: RLS restrito, profiles protegidos, storage com owner check.
+ * BASELINE STATUS: CONSOLIDADA E VALIDADA (Zero-Trust Security).
+ * 1. Proteção de Colunas: perfis e métricas blindados contra alteração direta.
+ * 2. Validação Server-side: Candidaturas com regras de inserção e aprovação atômica.
+ * 3. Zero-Trust RLS: Políticas granulares para todas as 18 tabelas.
+ * 4. Storage Hardened: Buckets com validação de propriedade por pasta.
+ * 5. RPCs Hardened: SECURITY DEFINER com search_path e revogação de execução pública.
  */
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
