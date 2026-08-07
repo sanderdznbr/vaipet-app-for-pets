@@ -34,7 +34,9 @@ type AnimationPhase = 'idle' | 'playing-anim2';
 
 const Auth = () => {
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
-  const [signupIntent, setSignupIntent] = useState<'pet_owner' | 'petwalker' | null>(null);
+  const [signupIntent, setSignupIntent] = useState<'pet_owner' | 'petwalker' | null>(
+    (new URLSearchParams(window.location.search).get('signup_intent') as any) || null
+  );
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -148,6 +150,10 @@ const Auth = () => {
         if (password !== confirmPassword) {
           throw new Error('As senhas não coincidem');
         }
+        
+        // Final validation of intent before signup
+        const finalIntent = signupIntent || 'pet_owner';
+        
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -155,7 +161,7 @@ const Auth = () => {
             data: {
               full_name: fullName,
               phone: phone,
-              signup_intent: signupIntent || 'pet_owner'
+              signup_intent: finalIntent
             }
           }
         });
