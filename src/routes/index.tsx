@@ -1,9 +1,11 @@
 /**
- * BASELINE CONSOLIDADA:
+ * BASELINE CONSOLIDADA E VALIDADA:
  * - 18 TABELAS: profiles, user_roles, pets, petwalker_applications, petwalker_profiles, walk_sessions, petwalker_earnings, products, product_images, inventory, posts, post_likes, post_comments, notifications, locations, pet_documents, breed_photos, pet_models_3d.
- * - ARQUIVO: supabase/migrations/00000000000000_baseline_schema.sql (377 linhas, 13.9KB).
- * - HISTÓRICO: Diretório archive/ restaurado com 15 migrations para auditoria.
- * - STATUS: Estrutura completa versionada, segura e pronta para reconstrução de bancos vazios.
+ * - INTEGRIDADE: Colunas e tipos rigorosamente sincronizados com types.ts.
+ * - PRIVACIDADE: Profiles protegidos (SELECT bloqueado, acesso via get_public_profiles RPC).
+ * - SEGURANÇA: user_roles.role bloqueado para UPDATE por usuários comuns. RPCs de aprovação com travas transacionais.
+ * - STORAGE: Buckets pet-photos, pet-documents e product-images configurados com RLS.
+ * - ARQUIVO: supabase/migrations/00000000000000_baseline_schema.sql.
  */
 
 import { useEffect } from 'react';
