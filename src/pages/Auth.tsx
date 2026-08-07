@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useHomeTheme } from '@/hooks/useHomeTheme';
-import { ArrowUpRight, Eye, EyeOff } from 'lucide-react';
+import { ArrowUpRight, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import logoAsset from "@/assets/vaipet-logo-new.png.asset.json";
 import splashAsset from "@/assets/animations/splash.gif.asset.json";
 import authBgAsset from "@/assets/auth/vipetauth_photo.png.asset.json";
@@ -385,19 +385,20 @@ const Auth = () => {
                     </div>
                   </>
                 )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
+          <button
+            onClick={() => navigate('/petwalker/inscricao')}
+            className="mt-6 text-xs font-bold text-[#31D880] tracking-tight opacity-80 hover:opacity-100 transition-opacity"
+          >
+            Quero trabalhar como PetWalker
+          </button>
+        </div>
+      </div>
 
-                <button
-                  onClick={() => navigate('/petwalker/inscricao')}
-                  className="mt-4 text-xs font-bold text-[#31D880] tracking-tight opacity-80 hover:opacity-100 transition-opacity"
-                >
-                  Quero trabalhar como PetWalker
-                </button>
-              )}
-            </AnimatePresence>
-          </div>
-          </div>
-
-          <p className="text-[11px] font-medium leading-relaxed text-center mt-4" style={{ color: INK, opacity: 0.6 }}>
+      <p className="text-[11px] font-medium leading-relaxed text-center mt-4" style={{ color: INK, opacity: 0.6 }}>
             Ao continuar, você aceita os{' '}
             <Link to="/termos-de-uso" className="underline" style={{ color: INK }}>Termos</Link>
             {' '}e{' '}

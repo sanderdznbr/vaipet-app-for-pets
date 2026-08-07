@@ -15,7 +15,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   roles: AppRole[];
-  signupIntent: Database['public']['Enums']['signup_intent_type'] | null;
+  signupIntent: string | null;
   petwalkerApplication: Tables<'petwalker_applications'> | null;
   loading: boolean;
   authStatus: AuthStatus;
@@ -291,7 +291,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     profile,
     roles,
-    signupIntent: profile?.signup_intent || null,
+    signupIntent: (profile as any)?.signup_intent || null,
     petwalkerApplication,
     loading: authStatus === 'initializing' || (authStatus === 'authenticated' && (profileStatus === 'loading' || profileStatus === 'idle' || rolesStatus === 'loading' || rolesStatus === 'idle')),
     authStatus,
