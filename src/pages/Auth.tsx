@@ -67,21 +67,11 @@ const Auth = () => {
       console.log('[Auth] State change:', event, session?.user?.id);
       
       if (session && (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION')) {
-        // We use a local transition call to avoid TDZ
-        const safeRedirect = new URLSearchParams(window.location.search).get('redirect') || '/';
-        const isSafe = safeRedirect.startsWith('/') && !safeRedirect.startsWith('//');
-        
-        if (isMobile) {
-          setAnimPhase('playing-anim2');
-          sessionStorage.setItem('vaipet_index_splash_seen', 'true');
-          setTimeout(() => navigate(isSafe ? safeRedirect : '/', { replace: true }), 3500);
-        } else {
-          navigate(isSafe ? safeRedirect : '/', { replace: true });
-        }
+        triggerTransition();
       }
     });
     return () => { subscription.unsubscribe(); };
-  }, [navigate, isMobile]);
+  }, [triggerTransition]);
 
   const triggerTransition = useCallback(() => {
     console.log('[Auth] Triggering transition, isMobile:', isMobile);
@@ -365,7 +355,6 @@ const Auth = () => {
                   {isRegistering ? 'Já tem conta? Entre aqui' : 'Não tem conta? Crie uma'}
                 </button>
 
-                {!isRegistering && (
                   <>
                     <div className="relative my-2">
                       <div className="absolute inset-0 flex items-center">
@@ -410,17 +399,12 @@ const Auth = () => {
                       </button>
                     </div>
                   </>
-                )}
+                  </>
+
               </motion.div>
             )}
           </AnimatePresence>
           
-          <button
-            onClick={() => navigate('/petwalker/inscricao')}
-            className="mt-6 text-xs font-bold text-[#31D880] tracking-tight opacity-80 hover:opacity-100 transition-opacity"
-          >
-            Quero trabalhar como PetWalker
-          </button>
         </div>
       </div>
 
