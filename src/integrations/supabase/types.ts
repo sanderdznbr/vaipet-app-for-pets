@@ -726,7 +726,43 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      approve_petwalker_application: {
+        Args: { _application_id: string }
+        Returns: Json
+      }
+      get_public_profiles: {
+        Args: { user_ids: string[] }
+        Returns: {
+          avatar_url: string
+          bio: string
+          full_name: string
+          id: string
+        }[]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      reject_petwalker_application: {
+        Args: { _application_id: string; _reason: string }
+        Returns: Json
+      }
+      set_petwalker_availability: {
+        Args: { _status: string }
+        Returns: undefined
+      }
+      update_petwalker_operational_profile: {
+        Args: {
+          _experience_years: number
+          _price_30_minutes: number
+          _public_bio: string
+          _service_radius_km: number
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "petshop" | "petwalker"
