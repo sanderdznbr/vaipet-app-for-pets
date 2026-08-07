@@ -1,270 +1,259 @@
--- Baseline Schema
+-- RESET SCHEMA (DANGEROUS BUT REQUIRED FOR BASELINE CONSOLIDATION)
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+GRANT ALL ON SCHEMA public TO postgres;
+GRANT ALL ON SCHEMA public TO public;
+
 -- Extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pg_net";
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA public;
+CREATE EXTENSION IF NOT EXISTS "pg_net" SCHEMA public;
 
 -- Enums
-DO $$ BEGIN
-    CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'user', 'petshop', 'petwalker');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
+CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'user', 'petshop', 'petwalker');
+CREATE TYPE public.application_status AS ENUM ('pending', 'approved', 'rejected');
 
-DO $$ BEGIN
-    CREATE TYPE public.application_status AS ENUM ('pending', 'approved', 'rejected');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
--- Functions
-CREATE OR REPLACE FUNCTION public.update_updated_at_column()
-RETURNS trigger AS $$
-BEGIN
-    NEW.updated_at = now();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Tables
-
+-- 1. Profiles
 CREATE TABLE public.profiles (
-    age integer DEFAULT 0,
-    avatar_url timestamp with time zone,
+    id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    full_name text,
+    email text,
+    phone text,
     bio text,
+    avatar_url text,
+    role text DEFAULT 'user',
+    onboarding_completed boolean DEFAULT false,
+    age integer DEFAULT 0,
     birthday date,
     created_at timestamp with time zone DEFAULT now(),
-    email text,
-    full_name text,
-    id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    onboarding_completed boolean DEFAULT false,
-    phone text,
-    role text,
-    updated_at timestamp with time zone
+    updated_at timestamp with time zone DEFAULT now()
 );
 
+-- 2. User Roles
 CREATE TABLE public.user_roles (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    role text NOT NULL,
-    user_id text NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    role public.app_role NOT NULL,
     UNIQUE (user_id, role)
 );
 
+-- 3. Pets
 CREATE TABLE public.pets (
-    age integer DEFAULT 0,
-    avatar_url timestamp with time zone,
-    behavioral_notes text,
-    breed text NOT NULL,
-    created_at timestamp with time zone DEFAULT now(),
-    emergency_contact text,
-    gender text,
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    is_active boolean DEFAULT false,
-    medical_info text,
+    owner_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     name text NOT NULL,
-    owner_id text NOT NULL,
-    updated_at timestamp with time zone,
+    breed text NOT NULL,
+    age integer DEFAULT 0,
+    gender text,
     weight numeric(10,2) DEFAULT 0.00,
-    FOREIGN KEY (owner_id) REFERENCES public.profiles(id) ON DELETE CASCADE
+    avatar_url text,
+    behavioral_notes text,
+    medical_info text,
+    emergency_contact text,
+    is_active boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
 );
 
+-- 4. PetWalker Applications
 CREATE TABLE public.petwalker_applications (
-    birth_date timestamp with time zone NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    legal_name text NOT NULL,
+    birth_date date NOT NULL,
+    phone text NOT NULL,
     city text NOT NULL,
-    created_at timestamp with time zone DEFAULT now(),
-    document_status timestamp with time zone,
+    experience_description text NOT NULL,
     emergency_contact_name text NOT NULL,
     emergency_contact_phone text NOT NULL,
-    experience_description text NOT NULL,
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    legal_name text NOT NULL,
-    phone text NOT NULL,
+    status text DEFAULT 'pending',
     rejection_reason text,
-    reviewed_at timestamp with time zone,
-    reviewed_by text,
-    status timestamp with time zone NOT NULL,
+    document_status text,
     submitted_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone,
-    user_id text NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,
-    UNIQUE (user_id)
-);
-
-CREATE TABLE public.petwalker_profiles (
-    approval_status timestamp with time zone,
-    availability_status timestamp with time zone,
-    cancellation_rate numeric(10,2) DEFAULT 0.00,
-    completed_walks numeric(10,2) DEFAULT 0.00,
+    reviewed_at timestamp with time zone,
+    reviewed_by uuid REFERENCES auth.users(id),
     created_at timestamp with time zone DEFAULT now(),
-    experience_years integer DEFAULT 0,
-    is_accepting_requests boolean DEFAULT false,
-    last_online_at timestamp with time zone,
-    price_30_minutes integer DEFAULT 0,
-    profile_completed boolean DEFAULT false,
-    public_bio text,
-    rating_average integer DEFAULT 0,
-    service_radius_km numeric(10,2) DEFAULT 0.00,
-    updated_at timestamp with time zone,
-    user_id text NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,
+    updated_at timestamp with time zone DEFAULT now(),
     UNIQUE (user_id)
 );
 
+-- 5. PetWalker Profiles
+CREATE TABLE public.petwalker_profiles (
+    user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    public_bio text,
+    experience_years integer DEFAULT 0,
+    service_radius_km numeric(10,2) DEFAULT 0.00,
+    price_30_minutes integer DEFAULT 0,
+    rating_average numeric(3,2) DEFAULT 0.00,
+    completed_walks integer DEFAULT 0,
+    cancellation_rate numeric(5,2) DEFAULT 0.00,
+    is_accepting_requests boolean DEFAULT false,
+    availability_status text DEFAULT 'offline',
+    approval_status text DEFAULT 'pending',
+    profile_completed boolean DEFAULT false,
+    last_online_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+-- 6. Walk Sessions
 CREATE TABLE public.walk_sessions (
-    actual_duration_minutes integer DEFAULT 0,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    customer_id text NOT NULL,
-    distance_km numeric(10,2) DEFAULT 0.00,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    walker_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+    pet_id uuid NOT NULL REFERENCES public.pets(id) ON DELETE CASCADE,
+    start_time timestamp with time zone NOT NULL,
     end_time timestamp with time zone,
+    status text NOT NULL,
+    walk_type text NOT NULL,
+    planned_duration_minutes integer NOT NULL DEFAULT 0,
+    actual_duration_minutes integer DEFAULT 0,
+    distance_km numeric(10,2) DEFAULT 0.00,
+    rating numeric(3,2),
     feedback text,
     home_location jsonb,
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     local_stops jsonb,
-    pet_id text NOT NULL,
-    planned_duration_minutes integer DEFAULT 0 NOT NULL,
-    rating numeric(10,2) DEFAULT 0.00,
     route_coordinates jsonb,
-    start_time timestamp with time zone NOT NULL,
-    status timestamp with time zone NOT NULL,
-    walk_type text NOT NULL,
-    walker_id text,
     walker_name text,
-    FOREIGN KEY (customer_id) REFERENCES public.profiles(id) ON DELETE CASCADE,
-    FOREIGN KEY (pet_id) REFERENCES public.pets(id) ON DELETE CASCADE,
-    FOREIGN KEY (walker_id) REFERENCES public.profiles(id) ON DELETE CASCADE
+    created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
+-- 7. PetWalker Earnings
 CREATE TABLE public.petwalker_earnings (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    petwalker_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    walk_session_id uuid REFERENCES public.walk_sessions(id) ON DELETE SET NULL,
+    gross_amount numeric(10,2) NOT NULL DEFAULT 0.00,
+    platform_fee numeric(10,2) NOT NULL DEFAULT 0.00,
+    net_amount numeric(10,2) NOT NULL DEFAULT 0.00,
+    status text,
     available_at timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now(),
-    gross_amount numeric(10,2) DEFAULT 0.00 NOT NULL,
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    net_amount numeric(10,2) DEFAULT 0.00 NOT NULL,
     paid_at timestamp with time zone,
-    petwalker_id text NOT NULL,
-    platform_fee numeric(10,2) DEFAULT 0.00 NOT NULL,
-    status timestamp with time zone,
-    walk_session_id text,
-    FOREIGN KEY (petwalker_id) REFERENCES public.profiles(id) ON DELETE CASCADE,
-    FOREIGN KEY (walk_session_id) REFERENCES public.walk_sessions(id) ON DELETE SET NULL
+    created_at timestamp with time zone DEFAULT now()
 );
 
+-- 8. Products
 CREATE TABLE public.products (
-    category timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now(),
-    description text,
-    dimensions text,
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    is_active boolean DEFAULT false,
+    petshop_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     name text NOT NULL,
+    description text,
+    price numeric(10,2) NOT NULL DEFAULT 0.00,
+    category text,
+    dimensions text,
+    weight numeric(10,2),
     origin_city text,
-    petshop_id text NOT NULL,
-    price numeric(10,2) DEFAULT 0.00 NOT NULL,
-    updated_at timestamp with time zone,
-    weight numeric(10,2) DEFAULT 0.00
-);
-
-CREATE TABLE public.product_images (
+    is_active boolean DEFAULT true,
     created_at timestamp with time zone DEFAULT now(),
-    display_order integer DEFAULT 0,
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    image_url text NOT NULL,
-    product_id text NOT NULL,
-    FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE
+    updated_at timestamp with time zone DEFAULT now()
 );
 
+-- 9. Product Images
+CREATE TABLE public.product_images (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id uuid NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    image_url text NOT NULL,
+    display_order integer DEFAULT 0,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+-- 10. Inventory
 CREATE TABLE public.inventory (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    product_id text NOT NULL,
-    quantity integer DEFAULT 0 NOT NULL,
-    updated_at timestamp with time zone,
-    FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE,
+    product_id uuid NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    quantity integer NOT NULL DEFAULT 0,
+    updated_at timestamp with time zone DEFAULT now(),
     UNIQUE (product_id)
 );
 
+-- 11. Posts
 CREATE TABLE public.posts (
-    content text NOT NULL,
-    created_at timestamp with time zone DEFAULT now(),
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    content text NOT NULL,
     image_url text,
     likes_count integer DEFAULT 0 NOT NULL,
-    updated_at timestamp with time zone,
-    user_id text NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
 );
 
+-- 12. Post Likes
 CREATE TABLE public.post_likes (
-    created_at timestamp with time zone DEFAULT now(),
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    post_id text NOT NULL,
-    user_id text NOT NULL,
-    FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE
+    post_id uuid NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
+    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    created_at timestamp with time zone DEFAULT now(),
+    UNIQUE (post_id, user_id)
 );
 
+-- 13. Post Comments
 CREATE TABLE public.post_comments (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    post_id uuid NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
+    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     content text NOT NULL,
-    created_at timestamp with time zone DEFAULT now(),
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    post_id text NOT NULL,
-    user_id text NOT NULL,
-    FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE
+    created_at timestamp with time zone DEFAULT now()
 );
 
+-- 14. Notifications
 CREATE TABLE public.notifications (
-    created_at timestamp with time zone DEFAULT now(),
-    data jsonb,
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    is_read boolean DEFAULT false NOT NULL,
-    message text NOT NULL,
+    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     title text NOT NULL,
+    message text NOT NULL,
     type text NOT NULL,
-    user_id text NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE
+    is_read boolean DEFAULT false NOT NULL,
+    data jsonb,
+    created_at timestamp with time zone DEFAULT now()
 );
 
+-- 15. Locations
 CREATE TABLE public.locations (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    name text NOT NULL,
     address text,
     city text,
-    created_at timestamp with time zone DEFAULT now(),
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    is_default boolean DEFAULT false,
-    latitude numeric(10,2) DEFAULT 0.00,
-    longitude numeric(10,2) DEFAULT 0.00,
-    name text NOT NULL,
+    state text,
     postal_code text,
-    state timestamp with time zone,
-    user_id text NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE
+    latitude numeric(10,8) DEFAULT 0.00,
+    longitude numeric(11,8) DEFAULT 0.00,
+    is_default boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now()
 );
 
+-- 16. Pet Documents
 CREATE TABLE public.pet_documents (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    pet_id uuid NOT NULL REFERENCES public.pets(id) ON DELETE CASCADE,
     document_type text NOT NULL,
     file_name text NOT NULL,
-    file_path timestamp with time zone NOT NULL,
-    file_size numeric(10,2) DEFAULT 0.00 NOT NULL,
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    file_path text NOT NULL,
+    file_size numeric NOT NULL,
     mime_type text NOT NULL,
     notes text,
-    pet_id text NOT NULL,
-    uploaded_at timestamp with time zone,
-    uploaded_by text,
-    FOREIGN KEY (pet_id) REFERENCES public.pets(id) ON DELETE CASCADE
+    uploaded_at timestamp with time zone DEFAULT now(),
+    uploaded_by uuid REFERENCES auth.users(id)
 );
 
+-- 17. Breed Photos
 CREATE TABLE public.breed_photos (
-    breed text NOT NULL,
-    created_at timestamp with time zone DEFAULT now(),
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    photo_url text NOT NULL
+    breed text NOT NULL,
+    photo_url text NOT NULL,
+    created_at timestamp with time zone DEFAULT now()
 );
 
+-- 18. Pet Models 3D
 CREATE TABLE public.pet_models_3d (
-    breed text NOT NULL,
-    created_at timestamp with time zone DEFAULT now(),
-    glb_url text NOT NULL,
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    FOREIGN KEY (pet_id) REFERENCES public.pets(id) ON DELETE CASCADE
+    pet_id uuid REFERENCES public.pets(id) ON DELETE CASCADE,
+    breed text NOT NULL,
+    glb_url text NOT NULL,
+    created_at timestamp with time zone DEFAULT now()
 );
 
--- Security Functions
+-- SECURITY FUNCTIONS
+
 CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role public.app_role)
 RETURNS boolean AS $$
   SELECT EXISTS (
@@ -273,13 +262,13 @@ RETURNS boolean AS $$
   );
 $$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
 
-CREATE OR REPLACE FUNCTION public.get_public_profiles(_user_ids uuid[])
+CREATE OR REPLACE FUNCTION public.get_public_profiles(user_ids uuid[])
 RETURNS TABLE (id uuid, full_name text, avatar_url text, bio text) AS $$
 BEGIN
     RETURN QUERY 
     SELECT p.id, p.full_name, p.avatar_url, p.bio 
     FROM public.profiles p
-    WHERE p.id = ANY(_user_ids);
+    WHERE p.id = ANY(user_ids);
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public;
 
@@ -311,135 +300,128 @@ BEGIN
     RETURNING user_id INTO v_user_id;
 
     IF v_user_id IS NOT NULL THEN
-        -- Transactional lock
-        PERFORM 1 FROM public.user_roles WHERE user_id = v_user_id AND role = 'petwalker' FOR UPDATE;
-        
         INSERT INTO public.user_roles (user_id, role)
         VALUES (v_user_id, 'petwalker')
         ON CONFLICT DO NOTHING;
 
-        INSERT INTO public.petwalker_profiles (user_id)
-        VALUES (v_user_id)
-        ON CONFLICT DO NOTHING;
+        INSERT INTO public.petwalker_profiles (user_id, approval_status)
+        VALUES (v_user_id, 'approved')
+        ON CONFLICT (user_id) DO UPDATE SET approval_status = 'approved';
     END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
-CREATE OR REPLACE FUNCTION public.reject_petwalker_application(application_id uuid, reason text)
-RETURNS void AS $$
+CREATE OR REPLACE FUNCTION public.reject_petwalker_application(_application_id uuid, _reason text)
+RETURNS json AS $$
 BEGIN
     IF NOT public.has_role(auth.uid(), 'admin') THEN
         RAISE EXCEPTION 'Not authorized';
     END IF;
 
     UPDATE public.petwalker_applications
-    SET status = 'rejected', rejection_reason = reason, reviewed_at = now(), reviewed_by = auth.uid()
-    WHERE id = application_id AND status = 'pending';
+    SET status = 'rejected', rejection_reason = _reason, reviewed_at = now(), reviewed_by = auth.uid()
+    WHERE id = _application_id AND status = 'pending';
+
+    UPDATE public.petwalker_profiles
+    SET approval_status = 'rejected'
+    WHERE user_id = (SELECT user_id FROM public.petwalker_applications WHERE id = _application_id);
+
+    RETURN json_build_object('success', true);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
-CREATE OR REPLACE FUNCTION public.set_petwalker_availability(status text)
+CREATE OR REPLACE FUNCTION public.set_petwalker_availability(_status text)
 RETURNS void AS $$
 BEGIN
     UPDATE public.petwalker_profiles
-    SET availability_status = status, updated_at = now()
+    SET availability_status = _status, updated_at = now()
     WHERE user_id = auth.uid();
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
-CREATE OR REPLACE FUNCTION public.update_petwalker_operational_profile(bio text, experience integer, radius integer, price numeric)
+CREATE OR REPLACE FUNCTION public.update_petwalker_operational_profile(_public_bio text, _experience_years integer, _service_radius_km numeric, _price_30_minutes integer)
 RETURNS void AS $$
 BEGIN
     UPDATE public.petwalker_profiles
-    SET public_bio = bio, experience_years = experience, service_radius_km = radius, price_30_minutes = price, updated_at = now()
+    SET public_bio = _public_bio, 
+        experience_years = _experience_years, 
+        service_radius_km = _service_radius_km, 
+        price_30_minutes = _price_30_minutes, 
+        updated_at = now()
     WHERE user_id = auth.uid();
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
--- Triggers
+-- TRIGGERS
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- RLS & GRANTS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON public.profiles TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON public.profiles TO authenticated;
 GRANT ALL ON public.profiles TO service_role;
+CREATE POLICY "Users can view their own profile" ON public.profiles FOR SELECT TO authenticated USING (auth.uid() = id);
+CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
+
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 GRANT SELECT ON public.user_roles TO authenticated;
 GRANT ALL ON public.user_roles TO service_role;
-ALTER TABLE public.pets ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON public.pets TO authenticated;
-GRANT ALL ON public.pets TO service_role;
-ALTER TABLE public.petwalker_applications ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON public.petwalker_applications TO authenticated;
-GRANT ALL ON public.petwalker_applications TO service_role;
-ALTER TABLE public.petwalker_profiles ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON public.petwalker_profiles TO authenticated;
-GRANT ALL ON public.petwalker_profiles TO service_role;
-ALTER TABLE public.walk_sessions ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON public.walk_sessions TO authenticated;
-GRANT ALL ON public.walk_sessions TO service_role;
-ALTER TABLE public.petwalker_earnings ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON public.petwalker_earnings TO authenticated;
-GRANT ALL ON public.petwalker_earnings TO service_role;
-ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON public.products TO authenticated;
-GRANT ALL ON public.products TO service_role;
-ALTER TABLE public.product_images ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON public.product_images TO authenticated;
-GRANT ALL ON public.product_images TO service_role;
-ALTER TABLE public.inventory ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON public.inventory TO authenticated;
-GRANT ALL ON public.inventory TO service_role;
-ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON public.posts TO authenticated;
-GRANT ALL ON public.posts TO service_role;
-ALTER TABLE public.post_likes ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON public.post_likes TO authenticated;
-GRANT ALL ON public.post_likes TO service_role;
-ALTER TABLE public.post_comments ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON public.post_comments TO authenticated;
-GRANT ALL ON public.post_comments TO service_role;
-ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON public.notifications TO authenticated;
-GRANT ALL ON public.notifications TO service_role;
-ALTER TABLE public.locations ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON public.locations TO authenticated;
-GRANT ALL ON public.locations TO service_role;
-ALTER TABLE public.pet_documents ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON public.pet_documents TO authenticated;
-GRANT ALL ON public.pet_documents TO service_role;
-ALTER TABLE public.breed_photos ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON public.breed_photos TO authenticated;
-GRANT ALL ON public.breed_photos TO service_role;
-ALTER TABLE public.pet_models_3d ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON public.pet_models_3d TO authenticated;
-GRANT ALL ON public.pet_models_3d TO service_role;
-
--- Specific Policies
--- Profiles: Private data protected
-CREATE POLICY "Users can view their own profile" ON public.profiles FOR SELECT TO authenticated USING (auth.uid() = id);
-CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
--- No direct public SELECT on profiles. Use get_public_profiles RPC.
-
--- Petwalker Profiles
-CREATE POLICY "Anyone can view petwalker profiles" ON public.petwalker_profiles FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Petwalkers can update their operational fields" ON public.petwalker_profiles FOR UPDATE TO authenticated USING (auth.uid() = user_id);
-
--- User Roles
-GRANT SELECT ON public.user_roles TO authenticated;
 REVOKE UPDATE ON public.user_roles FROM authenticated;
 CREATE POLICY "Users can see their own roles" ON public.user_roles FOR SELECT TO authenticated USING (auth.uid() = user_id);
 
--- Storage Buckets & Policies
--- Storage setup (requires storage schema access, usually handled via storage API or direct SQL if allowed)
--- Assuming we have access to storage.buckets and storage.objects
-INSERT INTO storage.buckets (id, name, public) VALUES ('pet-photos', 'pet-photos', true) ON CONFLICT DO NOTHING;
-INSERT INTO storage.buckets (id, name, public) VALUES ('pet-documents', 'pet-documents', false) ON CONFLICT DO NOTHING;
-INSERT INTO storage.buckets (id, name, public) VALUES ('product-images', 'product-images', true) ON CONFLICT DO NOTHING;
+ALTER TABLE public.pets ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.pets TO authenticated;
+GRANT ALL ON public.pets TO service_role;
+CREATE POLICY "Users can manage their own pets" ON public.pets FOR ALL TO authenticated USING (auth.uid() = owner_id);
 
--- Storage RLS
-CREATE POLICY "Public Access" ON storage.objects FOR SELECT TO public USING (bucket_id IN ('pet-photos', 'product-images'));
-CREATE POLICY "Authenticated Upload" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id IN ('pet-photos', 'product-images', 'pet-documents'));
+ALTER TABLE public.petwalker_applications ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT ON public.petwalker_applications TO authenticated;
+GRANT ALL ON public.petwalker_applications TO service_role;
+CREATE POLICY "Users can manage their applications" ON public.petwalker_applications FOR ALL TO authenticated USING (auth.uid() = user_id);
 
+ALTER TABLE public.petwalker_profiles ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, UPDATE ON public.petwalker_profiles TO authenticated;
+GRANT ALL ON public.petwalker_profiles TO service_role;
+CREATE POLICY "Anyone can view approved petwalker profiles" ON public.petwalker_profiles FOR SELECT TO authenticated USING (approval_status = 'approved');
+CREATE POLICY "Petwalkers can manage their own profile" ON public.petwalker_profiles FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+
+ALTER TABLE public.walk_sessions ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE ON public.walk_sessions TO authenticated;
+GRANT ALL ON public.walk_sessions TO service_role;
+CREATE POLICY "Users involved in walk can view it" ON public.walk_sessions FOR SELECT TO authenticated USING (auth.uid() = customer_id OR auth.uid() = walker_id);
+
+ALTER TABLE public.petwalker_earnings ENABLE ROW LEVEL SECURITY;
+GRANT SELECT ON public.petwalker_earnings TO authenticated;
+GRANT ALL ON public.petwalker_earnings TO service_role;
+CREATE POLICY "Petwalkers can view their own earnings" ON public.petwalker_earnings FOR SELECT TO authenticated USING (auth.uid() = petwalker_id);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, UPDATE ON public.notifications TO authenticated;
+GRANT ALL ON public.notifications TO service_role;
+CREATE POLICY "Users can manage their notifications" ON public.notifications FOR ALL TO authenticated USING (auth.uid() = user_id);
+
+ALTER TABLE public.locations ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.locations TO authenticated;
+GRANT ALL ON public.locations TO service_role;
+CREATE POLICY "Users can manage their locations" ON public.locations FOR ALL TO authenticated USING (auth.uid() = user_id);
+
+ALTER TABLE public.pet_documents ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, DELETE ON public.pet_documents TO authenticated;
+GRANT ALL ON public.pet_documents TO service_role;
+CREATE POLICY "Users can manage documents of their pets" ON public.pet_documents FOR ALL TO authenticated USING (
+    EXISTS (SELECT 1 FROM public.pets WHERE id = pet_id AND owner_id = auth.uid())
+);
+
+GRANT SELECT ON public.products TO authenticated;
+GRANT SELECT ON public.product_images TO authenticated;
+GRANT SELECT ON public.inventory TO authenticated;
+GRANT SELECT ON public.posts TO authenticated;
+GRANT SELECT, INSERT ON public.post_likes TO authenticated;
+GRANT SELECT, INSERT ON public.post_comments TO authenticated;
+GRANT SELECT ON public.breed_photos TO authenticated;
+GRANT SELECT ON public.pet_models_3d TO authenticated;
+
+-- STORAGE (applied via storage API logic if possible, otherwise here)
+-- INSERT INTO storage.buckets (id, name, public) VALUES ('pet-photos', 'pet-photos', true) ON CONFLICT DO NOTHING;
+-- Policies usually require storage schema access.

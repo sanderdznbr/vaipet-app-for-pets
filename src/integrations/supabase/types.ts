@@ -104,7 +104,15 @@ export type Database = {
           state?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "locations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -124,7 +132,7 @@ export type Database = {
           is_read?: boolean
           message: string
           title: string
-          type?: string
+          type: string
           user_id: string
         }
         Update: {
@@ -137,7 +145,15 @@ export type Database = {
           type?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pet_documents: {
         Row: {
@@ -192,20 +208,31 @@ export type Database = {
           created_at: string | null
           glb_url: string
           id: string
+          pet_id: string | null
         }
         Insert: {
           breed: string
           created_at?: string | null
           glb_url: string
           id?: string
+          pet_id?: string | null
         }
         Update: {
           breed?: string
           created_at?: string | null
           glb_url?: string
           id?: string
+          pet_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pet_models_3d_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pets: {
         Row: {
@@ -256,7 +283,15 @@ export type Database = {
           updated_at?: string | null
           weight?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pets_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       petwalker_applications: {
         Row: {
@@ -273,7 +308,7 @@ export type Database = {
           rejection_reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
-          status: string
+          status: string | null
           submitted_at: string | null
           updated_at: string | null
           user_id: string
@@ -292,7 +327,7 @@ export type Database = {
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
-          status?: string
+          status?: string | null
           submitted_at?: string | null
           updated_at?: string | null
           user_id: string
@@ -311,7 +346,7 @@ export type Database = {
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
-          status?: string
+          status?: string | null
           submitted_at?: string | null
           updated_at?: string | null
           user_id?: string
@@ -334,12 +369,12 @@ export type Database = {
         Insert: {
           available_at?: string | null
           created_at?: string | null
-          gross_amount: number
+          gross_amount?: number
           id?: string
-          net_amount: number
+          net_amount?: number
           paid_at?: string | null
           petwalker_id: string
-          platform_fee: number
+          platform_fee?: number
           status?: string | null
           walk_session_id?: string | null
         }
@@ -356,6 +391,13 @@ export type Database = {
           walk_session_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "petwalker_earnings_petwalker_id_fkey"
+            columns: ["petwalker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "petwalker_earnings_walk_session_id_fkey"
             columns: ["walk_session_id"]
@@ -449,6 +491,13 @@ export type Database = {
             referencedRelation: "posts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "post_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       post_likes: {
@@ -476,6 +525,13 @@ export type Database = {
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -508,7 +564,15 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_images: {
         Row: {
@@ -585,7 +649,15 @@ export type Database = {
           updated_at?: string | null
           weight?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_petshop_id_fkey"
+            columns: ["petshop_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -685,9 +757,9 @@ export type Database = {
           planned_duration_minutes?: number
           rating?: number | null
           route_coordinates?: Json | null
-          start_time?: string
-          status?: string
-          walk_type?: string
+          start_time: string
+          status: string
+          walk_type: string
           walker_id?: string | null
           walker_name?: string | null
         }
@@ -713,10 +785,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "walk_sessions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "walk_sessions_pet_id_fkey"
             columns: ["pet_id"]
             isOneToOne: false
             referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "walk_sessions_walker_id_fkey"
+            columns: ["walker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -730,24 +816,15 @@ export type Database = {
         Args: { application_id: string }
         Returns: undefined
       }
-      get_public_profiles:
-        | {
-            Args: never
-            Returns: {
-              avatar_url: string
-              full_name: string
-              id: string
-            }[]
-          }
-        | {
-            Args: { user_ids: string[] }
-            Returns: {
-              avatar_url: string
-              bio: string
-              full_name: string
-              id: string
-            }[]
-          }
+      get_public_profiles: {
+        Args: { user_ids: string[] }
+        Returns: {
+          avatar_url: string
+          bio: string
+          full_name: string
+          id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -755,9 +832,10 @@ export type Database = {
         }
         Returns: boolean
       }
-      reject_petwalker_application:
-        | { Args: { _application_id: string; _reason: string }; Returns: Json }
-        | { Args: { application_id: string }; Returns: undefined }
+      reject_petwalker_application: {
+        Args: { _application_id: string; _reason: string }
+        Returns: Json
+      }
       set_petwalker_availability: {
         Args: { _status: string }
         Returns: undefined
