@@ -165,15 +165,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let mounted = true;
     const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (mounted) {
-        if (session) {
-          setSession(session);
-          setUser(session.user);
-          setAuthStatus('authenticated');
-        } else {
-          setAuthStatus('unauthenticated');
+      try {
+        const { data: { session } } = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Auth Timeout')), 10000))
+        ]);
+        if (mounted) {
+          if (session) {
+            setSession(session);
+            setUser(session.user);
+            setAuthStatus('authenticated');
+          } else {
+            setAuthStatus('unauthenticated');
+          }
         }
+      } catch (e) {
+        if (mounted) setAuthStatus('error');
       }
     };
     initAuth();
@@ -236,22 +243,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user, authStatus, fetchProfile, fetchRoles, fetchApplication]);
 
-  // Handle pending signup intent after login
+  // Handle pending signup intent after login (NOT inside onAuthStateChange)
   useEffect(() => {
     if (authStatus === 'authenticated' && user && profileStatus === 'ready') {
       const pendingIntentStr = localStorage.getItem('vaipet_pending_signup_intent');
       if (pendingIntentStr) {
         const processIntent = async () => {
+          const requestId = ++profileRequestIdRef.current; // Re-use requestId to avoid race
           try {
             const { intent, timestamp } = JSON.parse(pendingIntentStr);
             const now = Date.now();
-            if (now - timestamp < 30 * 60 * 1000) {
-              await (supabase.rpc as any)('set_signup_intent', { _intent: intent });
-              fetchProfile(user.id);
+            
+            // Validate: Only pet_owner or petwalker, within 30 minutes
+            if (
+              (intent === 'pet_owner' || intent === 'petwalker') && 
+              (now - timestamp < 30 * 60 * 1000)
+            ) {
+              const { error } = await Promise.race([
+                supabase.rpc('set_signup_intent', { _intent: intent }),
+                new Promise<any>((_, reject) => setTimeout(() => reject(new Error('RPC Timeout')), 10000))
+              ]);
+
+              if (error) {
+                console.error('Error applying intent:', error);
+                // Keep the intent in localStorage for retry unless it's a validation error
+                return;
+              }
+              
+              if (requestId === profileRequestIdRef.current) {
+                await fetchProfile(user.id);
+                localStorage.removeItem('vaipet_pending_signup_intent');
+              }
+            } else {
+              // Expired or invalid
+              localStorage.removeItem('vaipet_pending_signup_intent');
             }
           } catch (e) {
             console.error('Error processing intent:', e);
-          } finally {
             localStorage.removeItem('vaipet_pending_signup_intent');
           }
         };

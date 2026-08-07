@@ -1,11 +1,11 @@
 /**
- * ACCOUNT INTENT FLOW (RE-HARDENED)
+ * ACCOUNT INTENT FLOW (HARDENED & SYNCED)
  * 1. Intent Selection in Auth.tsx or SignupWizard.tsx
- * 2. AuthProvider processes pending intent from localStorage after OAuth login
- * 3. RoleLanding handles redirection priority: PetWalker role > Application status > Intent
- * 4. PetwalkerInscricao tracks application status via manual refresh or realtime subscription
- * 5. handle_new_user trigger correctly handles signup_intent and meta data
- * 6. Zero-Trust RLS prevents role elevation and direct operational profile reads
+ * 2. AuthProvider resiliently processes intent from localStorage with timeout/retry
+ * 3. RoleLanding handles redirection priority: PetWalker role > Petwalker Profile Status > Intent
+ * 4. PetwalkerInscricao tracks application status with real-time subscription & auth guard
+ * 5. handle_new_user trigger correctly captures phone and signup intent
+ * 6. set_petwalker_availability requires dual validation: role petwalker AND approved profile
  */
 export const RedirectIndex = () => {
   return (
@@ -13,11 +13,11 @@ export const RedirectIndex = () => {
       <div className="text-center space-y-4 max-w-md">
         <h1 className="text-2xl font-bold">Portal PetWalker</h1>
         <p className="text-muted-foreground">
-          O fluxo de intenção de conta foi totalmente implementado:
-          - Cadastro unificado com escolha de intenção.
-          - Redirecionamento inteligente PetWalker vs Dono de Pet.
-          - Acompanhamento de candidatura em tempo real.
-          - Segurança Zero-Trust validada.
+          O fluxo de intenção de conta foi corrigido e endurecido:
+          - Migrations reconciliadas sem duplicidade.
+          - Segurança da disponibilidade restaurada.
+          - Persistência OAuth resiliente.
+          - Roteamento operacional por petwalker_profiles.
         </p>
       </div>
     </div>

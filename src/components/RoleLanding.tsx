@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { SplashScreen } from '@/components/SplashScreen';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 const RoleLanding = () => {
   const { 
@@ -13,10 +14,29 @@ const RoleLanding = () => {
     roles,
     hasRole,
     applicationStatus,
-    refreshRoles
+    refreshRoles,
+    user
   } = useAuth();
 
   const [waitApproved, setWaitApproved] = useState(0);
+  const [petwalkerProfile, setPetwalkerProfile] = useState<any>(null);
+  const [pwProfileLoading, setPwProfileLoading] = useState(false);
+
+  // Fetch petwalker profile specifically for profile_completed check
+  useEffect(() => {
+    if (hasRole('petwalker') && user) {
+      setPwProfileLoading(true);
+      supabase
+        .from('petwalker_profiles')
+        .select('profile_completed')
+        .eq('user_id', user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          setPetwalkerProfile(data);
+          setPwProfileLoading(false);
+        });
+    }
+  }, [hasRole, user]);
 
   useEffect(() => {
     if (applicationStatus === 'approved' && !hasRole('petwalker') && waitApproved < 3) {
@@ -29,7 +49,15 @@ const RoleLanding = () => {
   }, [applicationStatus, hasRole, waitApproved, refreshRoles]);
 
   const isLoading = authStatus === 'initializing' || 
-                   (authStatus === 'authenticated' && (profileStatus === 'loading' || profileStatus === 'idle' || rolesStatus === 'loading' || rolesStatus === 'idle' || applicationStatus === 'loading' || applicationStatus === 'idle'));
+                   (authStatus === 'authenticated' && (
+                     profileStatus === 'loading' || 
+                     profileStatus === 'idle' || 
+                     rolesStatus === 'loading' || 
+                     rolesStatus === 'idle' || 
+                     applicationStatus === 'loading' || 
+                     applicationStatus === 'idle' ||
+                     pwProfileLoading
+                   ));
   
   const isError = authStatus === 'error' || profileStatus === 'error' || rolesStatus === 'error' || profileStatus === 'missing';
 
@@ -55,29 +83,23 @@ const RoleLanding = () => {
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-[#F7F5EF]">
         <h2 className="text-xl font-bold mb-2">Erro ao carregar dados</h2>
         <p className="text-gray-500 mb-6">Não conseguimos identificar seu destino.</p>
-        <button 
+        <Button 
           onClick={() => window.location.reload()}
-          className="px-6 py-3 bg-primary text-white rounded-xl font-bold"
+          className="px-6 py-3 font-bold"
         >
           Tentar novamente
-        </button>
+        </Button>
       </div>
     );
   }
 
   // 1. PetWalker Logic
   if (hasRole('petwalker')) {
-    // Check petwalker_profiles specifically for onboarding
-    // For now we use profiles.onboarding_completed as base
-    if (!profile?.onboarding_completed) {
+    // Decision based on petwalker_profiles.profile_completed
+    if (petwalkerProfile && !petwalkerProfile.profile_completed) {
       return <Navigate to="/petwalker/onboarding" replace />;
     }
     return <Navigate to="/petwalker" replace />;
-  }
-
-  // Pending candidate or rejected candidate -> track in /petwalker/inscricao
-  if (applicationStatus === 'pending' || applicationStatus === 'rejected') {
-    return <Navigate to="/petwalker/inscricao" replace />;
   }
 
   // Approved but role not synced yet
@@ -91,6 +113,11 @@ const RoleLanding = () => {
         </Button>
       </div>
     );
+  }
+
+  // Pending candidate or rejected candidate -> track in /petwalker/inscricao
+  if (applicationStatus === 'pending' || applicationStatus === 'rejected') {
+    return <Navigate to="/petwalker/inscricao" replace />;
   }
 
   // Intent PetWalker without application -> /petwalker/inscricao

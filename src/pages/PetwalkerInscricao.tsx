@@ -11,7 +11,7 @@ import { Tables } from '@/integrations/supabase/types';
 
 const PetwalkerInscricao = () => {
   const navigate = useNavigate();
-  const { user, profile, hasRole, applicationStatus, petwalkerApplication, refreshApplication, refreshRoles, refreshProfile, signOut } = useAuth();
+  const { user, profile, hasRole, applicationStatus, petwalkerApplication, refreshApplication, refreshRoles, refreshProfile, signOut, authStatus } = useAuth();
   const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -25,10 +25,14 @@ const PetwalkerInscricao = () => {
   });
 
   useEffect(() => {
+    if (authStatus === 'unauthenticated') {
+      navigate('/auth?redirect=/petwalker/inscricao', { replace: true });
+      return;
+    }
     if (hasRole('petwalker')) {
       navigate('/petwalker', { replace: true });
     }
-  }, [hasRole, navigate]);
+  }, [hasRole, navigate, authStatus]);
 
   const validateAge = (dateString: string) => {
     const today = new Date();
@@ -51,7 +55,8 @@ const PetwalkerInscricao = () => {
   const handleContinueAsOwner = async () => {
     setLoading(true);
     try {
-      await (supabase.rpc as any)('set_signup_intent', { _intent: 'pet_owner' });
+      const { error } = await supabase.rpc('set_signup_intent', { _intent: 'pet_owner' });
+      if (error) throw error;
       await refreshProfile();
       toast.success('Alterado para Dono(a) de Pet com sucesso!');
       navigate('/inicio');
@@ -65,7 +70,6 @@ const PetwalkerInscricao = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
-      toast.error('Você precisa estar logado para se inscrever.');
       navigate('/auth?redirect=/petwalker/inscricao');
       return;
     }
@@ -103,7 +107,16 @@ const PetwalkerInscricao = () => {
     }
   };
 
-  if (applicationStatus === 'loading' || applicationStatus === 'idle') return null;
+  if (authStatus === 'initializing' || applicationStatus === 'loading' || applicationStatus === 'idle') {
+    return (
+      <div className="min-h-screen bg-[#F7F5EF] flex items-center justify-center p-6 text-center">
+         <div className="animate-pulse flex flex-col items-center">
+           <div className="w-12 h-12 bg-gray-200 rounded-full mb-4"></div>
+           <div className="h-4 w-32 bg-gray-200 rounded"></div>
+         </div>
+      </div>
+    );
+  }
 
   if (applicationStatus === 'pending') {
     return (
