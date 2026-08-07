@@ -3,7 +3,6 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables, Database } from '@/integrations/supabase/types';
 
-// Use string for AppRole if enum is not yet in types.ts
 type AppRole = Database['public']['Enums']['app_role'];
 type SignupIntent = 'pet_owner' | 'petwalker';
 
@@ -15,7 +14,7 @@ type ApplicationStatus = 'idle' | 'loading' | 'none' | 'pending' | 'approved' | 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  profile: any | null; // Profile type might be missing signup_intent
+  profile: any | null;
   roles: AppRole[];
   signupIntent: SignupIntent | null;
   petwalkerApplication: Tables<'petwalker_applications'> | null;
@@ -67,20 +66,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRolesError(null);
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId)
-        .abortSignal(controller.signal);
+        .eq('user_id', userId) as any).abortSignal(controller.signal);
 
       if (requestId !== rolesRequestIdRef.current || userId !== currentUserIdRef.current) return;
 
       if (error) {
-        console.error('[AuthProvider] Roles error:', error);
         setRolesError(error);
         setRolesStatus('error');
       } else {
-        setRoles(data?.map(r => r.role as AppRole) || []);
+        setRoles(data?.map((r: any) => r.role as AppRole) || []);
         setRolesStatus('ready');
       }
     } catch (err: any) {
@@ -99,12 +96,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfileStatus('loading');
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .maybeSingle()
-        .abortSignal(controller.signal);
+        .maybeSingle() as any).abortSignal(controller.signal);
 
       if (requestId !== profileRequestIdRef.current || userId !== currentUserIdRef.current) return;
 
@@ -133,17 +129,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setApplicationStatus('loading');
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('petwalker_applications')
         .select('*')
         .eq('user_id', userId)
-        .maybeSingle()
-        .abortSignal(controller.signal);
+        .maybeSingle() as any).abortSignal(controller.signal);
 
       if (requestId !== appRequestIdRef.current || userId !== currentUserIdRef.current) return;
 
       if (error) {
-        console.error('[AuthProvider] App error:', error);
         setApplicationStatus('error');
       } else if (!data) {
         setPetwalkerApplication(null);
