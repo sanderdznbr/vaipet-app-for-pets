@@ -1,28 +1,18 @@
 /**
- * @task Consolidação de Baseline Finalizada e Validada (Zero-Trust + Storage)
+ * DIAGNÓSTICO E CORREÇÃO DA BASELINE - 07/08/2026 21:55 UTC
  * 
- * 1. STORAGE:
- *    - Buckets pet-photos (público), pet-documents (privado) e product-images (público) criados estruturalmente.
- *    - Policies de RLS configuradas para padrão canônico: {userId}/{categoria}/...
- *    - Limites de tamanho (5MB/10MB) e tipos MIME (Imagens/PDF) aplicados.
+ * 1. AÇÕES REALIZADAS:
+ * - Constraint 'valid_initial_status' removida (permitindo aprovação/rejeição via RPC).
+ * - Proteção de INSERT em petwalker_applications movida para RLS WITH CHECK (Zero-Trust).
+ * - RPC 'get_public_petwalker_profiles' IMPLEMENTADA (Security Definer, authenticated only).
+ * - Leitura direta de 'petwalker_profiles' BLOQUEADA para terceiros.
+ * - Caminhos de upload padronizados: {userId}/{categoria}/...
+ * - Policies de Storage consolidadas com validação rigorosa de prefixo {userId}/.
  * 
- * 2. FRONTEND:
- *    - Atualizados todos os caminhos de upload para o padrão seguro:
- *      - Perfis: {userId}/avatars/...
- *      - Pets: {userId}/pets/{petId}/...
- *      - Documentos: {userId}/pets/{petId}/documents/...
- *      - Produtos: {userId}/products/{productId}/...
- * 
- * 3. SEGURANÇA (Zero-Trust):
- *    - PetWalker Applications: Validação rígida no INSERT (status='pending', reviewed_by=NULL, etc).
- *    - PetWalker Profiles: Leitura direta bloqueada para terceiros.
- *    - RPC get_public_petwalker_profiles: Nova função segura para expor apenas dados públicos de walkers aprovados.
- *    - RLS Completa: Todas as 18 tabelas protegidas.
- * 
- * 4. INTEGRIDADE:
- *    - Baseline livre de DROP SCHEMA.
- *    - RPCs com SECURITY DEFINER e search_path fixo.
- *    - Triggers de updated_at restaurados.
+ * 2. VALIDAÇÃO:
+ * - Build e Lint verificados.
+ * - Migrações executáveis: baseline_schema + hardening_turn_2.
+ * - Archive: 15 migrações originais.
  */
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';

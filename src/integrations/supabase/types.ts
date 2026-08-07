@@ -822,6 +822,26 @@ export type Database = {
         Args: { application_id: string }
         Returns: undefined
       }
+      check_storage_path: {
+        Args: { path: string; user_id: string }
+        Returns: boolean
+      }
+      get_public_petwalker_profiles: {
+        Args: never
+        Returns: {
+          availability_status: string
+          avatar_url: string
+          completed_walks: number
+          experience_years: number
+          full_name: string
+          is_accepting_requests: boolean
+          price_30_minutes: number
+          public_bio: string
+          rating_average: number
+          service_radius_km: number
+          user_id: string
+        }[]
+      }
       get_public_profiles: {
         Args: { user_ids: string[] }
         Returns: {

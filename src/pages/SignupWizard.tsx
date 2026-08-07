@@ -270,10 +270,10 @@ const SignupWizard = () => {
       let avatarUrl: string | null = null;
       if (profilePhoto) {
         const fileExt = profilePhoto.name.split('.').pop();
-        const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+        const fileName = `${user.id}/avatars/${Date.now()}.${fileExt}`;
         const { data, error } = await supabase.storage
           .from('pet-photos')
-          .upload(`avatars/${fileName}`, profilePhoto, { cacheControl: '3600', upsert: true });
+          .upload(fileName, profilePhoto, { cacheControl: '3600', upsert: true });
         if (!error && data) {
           const { data: { publicUrl } } = supabase.storage.from('pet-photos').getPublicUrl(data.path);
           avatarUrl = publicUrl;
@@ -327,7 +327,7 @@ const SignupWizard = () => {
           for (let i = 0; i < petPhotos.length; i++) {
             const photo = petPhotos[i];
             const fileExt = photo.name.split('.').pop();
-            const fileName = `${user.id}/${petData.id}/${Date.now()}-${i}.${fileExt}`;
+            const fileName = `${user.id}/pets/${petData.id}/${Date.now()}-${i}.${fileExt}`;
             const { error: uploadError } = await supabase.storage.from('pet-photos').upload(fileName, photo);
             if (!uploadError && i === 0) {
               const { data: urlData } = supabase.storage.from('pet-photos').getPublicUrl(fileName);
