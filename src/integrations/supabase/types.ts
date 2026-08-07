@@ -17,19 +17,19 @@ export type Database = {
       breed_photos: {
         Row: {
           breed: string
-          created_at: string
+          created_at: string | null
           id: string
           photo_url: string
         }
         Insert: {
           breed: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           photo_url: string
         }
         Update: {
           breed?: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           photo_url?: string
         }
@@ -40,19 +40,19 @@ export type Database = {
           id: string
           product_id: string
           quantity: number
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
           id?: string
           product_id: string
           quantity?: number
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
           id?: string
           product_id?: string
           quantity?: number
-          updated_at?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -68,7 +68,7 @@ export type Database = {
         Row: {
           address: string | null
           city: string | null
-          created_at: string
+          created_at: string | null
           id: string
           is_default: boolean | null
           latitude: number | null
@@ -81,7 +81,7 @@ export type Database = {
         Insert: {
           address?: string | null
           city?: string | null
-          created_at?: string
+          created_at?: string | null
           id?: string
           is_default?: boolean | null
           latitude?: number | null
@@ -94,7 +94,7 @@ export type Database = {
         Update: {
           address?: string | null
           city?: string | null
-          created_at?: string
+          created_at?: string | null
           id?: string
           is_default?: boolean | null
           latitude?: number | null
@@ -108,7 +108,7 @@ export type Database = {
       }
       notifications: {
         Row: {
-          created_at: string
+          created_at: string | null
           data: Json | null
           id: string
           is_read: boolean
@@ -118,7 +118,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           data?: Json | null
           id?: string
           is_read?: boolean
@@ -128,7 +128,7 @@ export type Database = {
           user_id: string
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           data?: Json | null
           id?: string
           is_read?: boolean
@@ -149,7 +149,7 @@ export type Database = {
           mime_type: string
           notes: string | null
           pet_id: string
-          uploaded_at: string
+          uploaded_at: string | null
           uploaded_by: string | null
         }
         Insert: {
@@ -161,7 +161,7 @@ export type Database = {
           mime_type: string
           notes?: string | null
           pet_id: string
-          uploaded_at?: string
+          uploaded_at?: string | null
           uploaded_by?: string | null
         }
         Update: {
@@ -173,7 +173,7 @@ export type Database = {
           mime_type?: string
           notes?: string | null
           pet_id?: string
-          uploaded_at?: string
+          uploaded_at?: string | null
           uploaded_by?: string | null
         }
         Relationships: [
@@ -213,7 +213,7 @@ export type Database = {
           avatar_url: string | null
           behavioral_notes: string | null
           breed: string
-          created_at: string
+          created_at: string | null
           emergency_contact: string | null
           gender: string | null
           id: string
@@ -221,7 +221,7 @@ export type Database = {
           medical_info: string | null
           name: string
           owner_id: string
-          updated_at: string
+          updated_at: string | null
           weight: number | null
         }
         Insert: {
@@ -229,7 +229,7 @@ export type Database = {
           avatar_url?: string | null
           behavioral_notes?: string | null
           breed: string
-          created_at?: string
+          created_at?: string | null
           emergency_contact?: string | null
           gender?: string | null
           id?: string
@@ -237,7 +237,7 @@ export type Database = {
           medical_info?: string | null
           name: string
           owner_id: string
-          updated_at?: string
+          updated_at?: string | null
           weight?: number | null
         }
         Update: {
@@ -245,7 +245,7 @@ export type Database = {
           avatar_url?: string | null
           behavioral_notes?: string | null
           breed?: string
-          created_at?: string
+          created_at?: string | null
           emergency_contact?: string | null
           gender?: string | null
           id?: string
@@ -253,7 +253,7 @@ export type Database = {
           medical_info?: string | null
           name?: string
           owner_id?: string
-          updated_at?: string
+          updated_at?: string | null
           weight?: number | null
         }
         Relationships: []
@@ -422,21 +422,21 @@ export type Database = {
       post_comments: {
         Row: {
           content: string
-          created_at: string
+          created_at: string | null
           id: string
           post_id: string
           user_id: string
         }
         Insert: {
           content: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           post_id: string
           user_id: string
         }
         Update: {
           content?: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           post_id?: string
           user_id?: string
@@ -453,19 +453,19 @@ export type Database = {
       }
       post_likes: {
         Row: {
-          created_at: string
+          created_at: string | null
           id: string
           post_id: string
           user_id: string
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           post_id: string
           user_id: string
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           post_id?: string
           user_id?: string
@@ -483,50 +483,50 @@ export type Database = {
       posts: {
         Row: {
           content: string
-          created_at: string
+          created_at: string | null
           id: string
           image_url: string | null
           likes_count: number
-          updated_at: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
           content: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           image_url?: string | null
           likes_count?: number
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
           content?: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           image_url?: string | null
           likes_count?: number
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
       }
       product_images: {
         Row: {
-          created_at: string
+          created_at: string | null
           display_order: number | null
           id: string
           image_url: string
           product_id: string
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           display_order?: number | null
           id?: string
           image_url: string
           product_id: string
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           display_order?: number | null
           id?: string
           image_url?: string
@@ -545,7 +545,7 @@ export type Database = {
       products: {
         Row: {
           category: string | null
-          created_at: string
+          created_at: string | null
           description: string | null
           dimensions: string | null
           id: string
@@ -554,12 +554,12 @@ export type Database = {
           origin_city: string | null
           petshop_id: string
           price: number
-          updated_at: string
+          updated_at: string | null
           weight: number | null
         }
         Insert: {
           category?: string | null
-          created_at?: string
+          created_at?: string | null
           description?: string | null
           dimensions?: string | null
           id?: string
@@ -568,12 +568,12 @@ export type Database = {
           origin_city?: string | null
           petshop_id: string
           price?: number
-          updated_at?: string
+          updated_at?: string | null
           weight?: number | null
         }
         Update: {
           category?: string | null
-          created_at?: string
+          created_at?: string | null
           description?: string | null
           dimensions?: string | null
           id?: string
@@ -582,7 +582,7 @@ export type Database = {
           origin_city?: string | null
           petshop_id?: string
           price?: number
-          updated_at?: string
+          updated_at?: string | null
           weight?: number | null
         }
         Relationships: []
@@ -593,42 +593,42 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           birthday: string | null
-          created_at: string
+          created_at: string | null
           email: string | null
           full_name: string | null
           id: string
           onboarding_completed: boolean | null
           phone: string | null
           role: string | null
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
           age?: number | null
           avatar_url?: string | null
           bio?: string | null
           birthday?: string | null
-          created_at?: string
+          created_at?: string | null
           email?: string | null
           full_name?: string | null
           id: string
           onboarding_completed?: boolean | null
           phone?: string | null
           role?: string | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
           age?: number | null
           avatar_url?: string | null
           bio?: string | null
           birthday?: string | null
-          created_at?: string
+          created_at?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
           onboarding_completed?: boolean | null
           phone?: string | null
           role?: string | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -660,7 +660,7 @@ export type Database = {
           feedback: string | null
           home_location: Json | null
           id: string
-          local_stops: Json
+          local_stops: Json | null
           pet_id: string
           planned_duration_minutes: number
           rating: number | null
@@ -680,7 +680,7 @@ export type Database = {
           feedback?: string | null
           home_location?: Json | null
           id?: string
-          local_stops?: Json
+          local_stops?: Json | null
           pet_id: string
           planned_duration_minutes?: number
           rating?: number | null
@@ -700,7 +700,7 @@ export type Database = {
           feedback?: string | null
           home_location?: Json | null
           id?: string
-          local_stops?: Json
+          local_stops?: Json | null
           pet_id?: string
           planned_duration_minutes?: number
           rating?: number | null
