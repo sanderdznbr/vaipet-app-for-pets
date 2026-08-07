@@ -1,13 +1,12 @@
 /**
- * BASELINE CONSOLIDADA COM SUCESSO.
+ * REPOSITÓRIO GITHUB: O projeto está atualmente hospedado na infraestrutura interna do Lovable (ID: 5edb42fd-d1f8-4525-b087-71641899d629).
+ * Para conectar a um repositório GitHub externo, utilize o botão "GitHub" no menu superior da plataforma Lovable.
  * 
- * Verificação técnica realizada:
- * 1. Extração do schema real via introspection do Preview DB.
- * 2. Correção de tipos: avatar_url (text), birth_date (date), file_path (text).
- * 3. Correção de Foreign Keys: colunas UUID referenciando UUID.
- * 4. Segurança: Profiles protegidos; RLS exige posse de pasta no Storage.
- * 5. RPCs: Argumentos sincronizados (_status, _public_bio, etc).
- * 6. Auditoria: Diretório archive/ restaurado com migrations originais.
+ * BASELINE STATUS: CONSOLIDADA.
+ * 1. Schema real verificado (avatar_url: text, birth_date: date).
+ * 2. Foreign Keys corrigidas (UUID).
+ * 3. RPCs sincronizadas com o frontend.
+ * 4. Migrations arquivadas em /archive.
  */
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
