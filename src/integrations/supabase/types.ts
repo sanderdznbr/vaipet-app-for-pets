@@ -727,18 +727,27 @@ export type Database = {
     }
     Functions: {
       approve_petwalker_application: {
-        Args: { _application_id: string }
-        Returns: Json
+        Args: { application_id: string }
+        Returns: undefined
       }
-      get_public_profiles: {
-        Args: { user_ids: string[] }
-        Returns: {
-          avatar_url: string
-          bio: string
-          full_name: string
-          id: string
-        }[]
-      }
+      get_public_profiles:
+        | {
+            Args: never
+            Returns: {
+              avatar_url: string
+              full_name: string
+              id: string
+            }[]
+          }
+        | {
+            Args: { user_ids: string[] }
+            Returns: {
+              avatar_url: string
+              bio: string
+              full_name: string
+              id: string
+            }[]
+          }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -746,10 +755,9 @@ export type Database = {
         }
         Returns: boolean
       }
-      reject_petwalker_application: {
-        Args: { _application_id: string; _reason: string }
-        Returns: Json
-      }
+      reject_petwalker_application:
+        | { Args: { _application_id: string; _reason: string }; Returns: Json }
+        | { Args: { application_id: string }; Returns: undefined }
       set_petwalker_availability: {
         Args: { _status: string }
         Returns: undefined
@@ -766,6 +774,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "petshop" | "petwalker"
+      application_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -894,6 +903,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user", "petshop", "petwalker"],
+      application_status: ["pending", "approved", "rejected"],
     },
   },
 } as const
