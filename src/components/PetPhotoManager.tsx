@@ -53,7 +53,7 @@ export const PetPhotoManager = React.forwardRef<PetPhotoManagerHandle, PetPhotoM
         // but for now let's just make it work.
       }
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${petId}/${Date.now()}.${fileExt}`;
+      const fileName = `${user.id}/pets/${petId}/${Date.now()}.${fileExt}`;
       
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('pet-photos')
@@ -91,7 +91,7 @@ export const PetPhotoManager = React.forwardRef<PetPhotoManagerHandle, PetPhotoM
     try {
       const urlParts = photoUrl.split('/');
       const fileName = urlParts[urlParts.length - 1];
-      const filePath = `${user.id}/${petId}/${fileName}`;
+      const filePath = `${user.id}/pets/${petId}/${fileName}`;
 
       const { error } = await supabase.storage
         .from('pet-photos')

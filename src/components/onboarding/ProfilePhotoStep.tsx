@@ -57,10 +57,10 @@ export const ProfilePhotoStep: React.FC<ProfilePhotoStepProps> = ({ onNext }) =>
 
       if (photo) {
         const fileExt = photo.name.split('.').pop();
-        const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+        const fileName = `${user.id}/avatars/${Date.now()}.${fileExt}`;
         const { data, error } = await supabase.storage
           .from('pet-photos')
-          .upload(`avatars/${fileName}`, photo, { cacheControl: '3600', upsert: true });
+          .upload(fileName, photo, { cacheControl: '3600', upsert: true });
 
         if (!error && data) {
           const { data: { publicUrl } } = supabase.storage
