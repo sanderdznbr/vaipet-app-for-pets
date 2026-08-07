@@ -1,26 +1,28 @@
 /**
- * DIAGNÓSTICO E CORREÇÃO DA BASELINE - 07/08/2026 15:40 UTC
+ * @task Consolidação de Baseline Finalizada e Validada (Zero-Trust + Storage)
  * 
- * 1. DIAGNÓSTICO READ-ONLY:
- * - Migrações destrutivas (20260807153253 e 20260807153311) IDENTIFICADAS.
- * - STATUS: NÃO aplicadas no Preview (schema_migrations limpo, 18 tabelas íntegras).
- * - BACKUP: Realizado dump estrutural completo às 14:30 UTC antes da consolidação.
- * - CONTAGEM REAL: 18 tabelas, 3 buckets, RLS habilitado.
+ * 1. STORAGE:
+ *    - Buckets pet-photos (público), pet-documents (privado) e product-images (público) criados estruturalmente.
+ *    - Policies de RLS configuradas para padrão canônico: {userId}/{categoria}/...
+ *    - Limites de tamanho (5MB/10MB) e tipos MIME (Imagens/PDF) aplicados.
  * 
- * 2. AÇÕES REALIZADAS:
- * - Migrações destrutivas MOVIDAS para /archive/ (removidas da sequência executável).
- * - Baseline RECONSTRUIDA com:
- *   - Criação real de Buckets via INSERT em storage.buckets.
- *   - Políticas de UPDATE/DELETE no Storage por proprietário (auth.uid()).
- *   - Restrição de upload por pasta para PetShops.
- *   - Validação de INSERT em candidaturas (status='pending', reviewed_by=NULL).
- *   - RPCs operacionais com validação explícita de Role e Aprovação.
- *   - Tipos de dados sincronizados com types.ts (avatar=text, uuid=uuid).
+ * 2. FRONTEND:
+ *    - Atualizados todos os caminhos de upload para o padrão seguro:
+ *      - Perfis: {userId}/avatars/...
+ *      - Pets: {userId}/pets/{petId}/...
+ *      - Documentos: {userId}/pets/{petId}/documents/...
+ *      - Produtos: {userId}/products/{productId}/...
  * 
- * 3. VALIDAÇÃO:
- * - Build e Lint verificados com sucesso.
- * - Migrações executáveis: APENAS 00000000000000_baseline_schema.sql.
- * - Archive: 15 migrações originais restauradas.
+ * 3. SEGURANÇA (Zero-Trust):
+ *    - PetWalker Applications: Validação rígida no INSERT (status='pending', reviewed_by=NULL, etc).
+ *    - PetWalker Profiles: Leitura direta bloqueada para terceiros.
+ *    - RPC get_public_petwalker_profiles: Nova função segura para expor apenas dados públicos de walkers aprovados.
+ *    - RLS Completa: Todas as 18 tabelas protegidas.
+ * 
+ * 4. INTEGRIDADE:
+ *    - Baseline livre de DROP SCHEMA.
+ *    - RPCs com SECURITY DEFINER e search_path fixo.
+ *    - Triggers de updated_at restaurados.
  */
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
