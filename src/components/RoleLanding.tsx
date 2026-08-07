@@ -8,11 +8,14 @@ const RoleLanding = () => {
     profileStatus, 
     profile, 
     rolesStatus, 
-    hasRole 
+    roles,
+    hasRole,
+    petwalkerApplication,
+    applicationStatus
   } = useAuth();
 
   const isLoading = authStatus === 'initializing' || 
-                   (authStatus === 'authenticated' && (profileStatus === 'loading' || profileStatus === 'idle' || rolesStatus === 'loading' || rolesStatus === 'idle'));
+                   (authStatus === 'authenticated' && (profileStatus === 'loading' || profileStatus === 'idle' || rolesStatus === 'loading' || rolesStatus === 'idle' || applicationStatus === 'loading' || applicationStatus === 'idle'));
   
   const isError = authStatus === 'error' || profileStatus === 'error' || rolesStatus === 'error' || profileStatus === 'missing';
 
@@ -48,31 +51,52 @@ const RoleLanding = () => {
     );
   }
 
-  if (authStatus === 'authenticated' && profileStatus === 'ready' && rolesStatus === 'ready') {
-    // Priority: PetWalker -> PetShop -> Normal User
-    
-    // 1. PetWalker Logic
-    if (hasRole('petwalker')) {
-      // Assuming petwalker_profiles checks later, for now just to dashboard
-      // The requirement says: PetWalker aprovado -> /petwalker, incomplet -> /petwalker/onboarding
-      // Since we don't have the status here yet, we'll go to /petwalker and let it redirect if needed.
-      return <Navigate to="/petwalker" replace />;
+  // 1. PetWalker Logic
+  if (hasRole('petwalker')) {
+    // Role petwalker + perfil incompleto -> /petwalker/onboarding
+    if (!profile?.onboarding_completed) {
+      return <Navigate to="/petwalker/onboarding" replace />;
     }
-
-    // 2. PetShop Logic
-    if (profile?.role === 'petshop') {
-      return <Navigate to="/petshop-dashboard" replace />;
-    }
-
-    // 3. Normal User / Onboarding
-    if (profile?.onboarding_completed === false) {
-      return <Navigate to="/onboarding" replace />;
-    }
-
-    return <Navigate to="/inicio" replace />;
+    // Role petwalker + perfil completo -> /petwalker
+    return <Navigate to="/petwalker" replace />;
   }
 
-  return null;
+  // Intenção petwalker sem candidatura -> /petwalker/inscricao
+  if (profile?.signup_intent === 'petwalker' && applicationStatus === 'none') {
+    return <Navigate to="/petwalker/inscricao" replace />;
+  }
+
+  // Candidatura pendente -> acompanhamento em /petwalker/inscricao
+  if (applicationStatus === 'pending') {
+    return <Navigate to="/petwalker/inscricao" replace />;
+  }
+
+  // Candidatura rejeitada -> tela com motivo e opção para continuar como Dono(a) de Pet (handled in PetwalkerInscricao)
+  if (applicationStatus === 'rejected') {
+    return <Navigate to="/petwalker/inscricao" replace />;
+  }
+
+  // Candidatura aprovada sem role carregada -> aguardar roles
+  if (applicationStatus === 'approved' && !hasRole('petwalker')) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-[#F7F5EF]">
+        <h2 className="text-xl font-bold mb-2">Quase lá!</h2>
+        <p className="text-gray-500 mb-6">Sua candidatura foi aprovada. Estamos preparando seu perfil de PetWalker...</p>
+      </div>
+    );
+  }
+
+  // 2. PetShop Logic
+  if (profile?.role === 'petshop' || hasRole('petshop')) {
+    return <Navigate to="/petshop-dashboard" replace />;
+  }
+
+  // 3. Normal User / Onboarding
+  if (profile?.onboarding_completed === false) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return <Navigate to="/inicio" replace />;
 };
 
 export default RoleLanding;

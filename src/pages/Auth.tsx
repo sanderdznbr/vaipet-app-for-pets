@@ -76,7 +76,7 @@ const Auth = () => {
             // Valid for 30 minutes
             if (now - timestamp < 30 * 60 * 1000 && (intent === 'pet_owner' || intent === 'petwalker')) {
               console.log('[Auth] Applying pending signup intent:', intent);
-              await supabase.rpc('set_signup_intent', { _intent: intent });
+              await (supabase.rpc as any)('set_signup_intent', { _intent: intent });
             }
           } catch (e) {
             console.error('[Auth] Error processing pending intent:', e);
@@ -89,7 +89,7 @@ const Auth = () => {
       }
     });
     return () => { subscription.unsubscribe(); };
-  }, [navigate, triggerTransition]);
+  }, [triggerTransition]);
 
   const triggerTransition = useCallback(() => {
     console.log('[Auth] Triggering transition, isMobile:', isMobile);
