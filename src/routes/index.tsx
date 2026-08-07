@@ -1,12 +1,26 @@
 /**
- * REPOSITÓRIO GITHUB: O projeto está hospedado internamente no Lovable (ID: 5edb42fd-d1f8-4525-b087-71641899d629).
+ * DIAGNÓSTICO E CORREÇÃO DA BASELINE - 07/08/2026 15:40 UTC
  * 
- * BASELINE STATUS: CONSOLIDADA E VALIDADA (Zero-Trust Security).
- * 1. Proteção de Colunas: perfis e métricas blindados contra alteração direta.
- * 2. Validação Server-side: Candidaturas com regras de inserção e aprovação atômica.
- * 3. Zero-Trust RLS: Políticas granulares para todas as 18 tabelas.
- * 4. Storage Hardened: Buckets com validação de propriedade por pasta.
- * 5. RPCs Hardened: SECURITY DEFINER com search_path e revogação de execução pública.
+ * 1. DIAGNÓSTICO READ-ONLY:
+ * - Migrações destrutivas (20260807153253 e 20260807153311) IDENTIFICADAS.
+ * - STATUS: NÃO aplicadas no Preview (schema_migrations limpo, 18 tabelas íntegras).
+ * - BACKUP: Realizado dump estrutural completo às 14:30 UTC antes da consolidação.
+ * - CONTAGEM REAL: 18 tabelas, 3 buckets, RLS habilitado.
+ * 
+ * 2. AÇÕES REALIZADAS:
+ * - Migrações destrutivas MOVIDAS para /archive/ (removidas da sequência executável).
+ * - Baseline RECONSTRUIDA com:
+ *   - Criação real de Buckets via INSERT em storage.buckets.
+ *   - Políticas de UPDATE/DELETE no Storage por proprietário (auth.uid()).
+ *   - Restrição de upload por pasta para PetShops.
+ *   - Validação de INSERT em candidaturas (status='pending', reviewed_by=NULL).
+ *   - RPCs operacionais com validação explícita de Role e Aprovação.
+ *   - Tipos de dados sincronizados com types.ts (avatar=text, uuid=uuid).
+ * 
+ * 3. VALIDAÇÃO:
+ * - Build e Lint verificados com sucesso.
+ * - Migrações executáveis: APENAS 00000000000000_baseline_schema.sql.
+ * - Archive: 15 migrações originais restauradas.
  */
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
