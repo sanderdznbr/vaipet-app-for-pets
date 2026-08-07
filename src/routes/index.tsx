@@ -1,18 +1,21 @@
 /**
- * DIAGNÓSTICO E CORREÇÃO DA BASELINE - 07/08/2026 21:55 UTC
+ * DIAGNÓSTICO E CORREÇÃO FINAL - 07/08/2026 22:05 UTC
  * 
- * 1. AÇÕES REALIZADAS:
- * - Constraint 'valid_initial_status' removida (permitindo aprovação/rejeição via RPC).
- * - Proteção de INSERT em petwalker_applications movida para RLS WITH CHECK (Zero-Trust).
- * - RPC 'get_public_petwalker_profiles' IMPLEMENTADA (Security Definer, authenticated only).
- * - Leitura direta de 'petwalker_profiles' BLOQUEADA para terceiros.
- * - Caminhos de upload padronizados: {userId}/{categoria}/...
- * - Policies de Storage consolidadas com validação rigorosa de prefixo {userId}/.
+ * 1. RPC set_petwalker_availability CORRIGIDA:
+ * - Agora atualiza 'is_accepting_requests' (true para 'available', false para 'offline').
+ * - Atualiza 'last_online_at' e 'updated_at' de forma atômica.
+ * - Restrita a PetWalkers com 'approval_status' = 'approved'.
  * 
- * 2. VALIDAÇÃO:
- * - Build e Lint verificados.
- * - Migrações executáveis: baseline_schema + hardening_turn_2.
- * - Archive: 15 migrações originais.
+ * 2. CONSISTÊNCIA FUNCIONAL:
+ * - get_public_petwalker_profiles agora reflete corretamente a disponibilidade real.
+ * - Usuários comuns e PetWalkers não aprovados são bloqueados na origem.
+ * 
+3. LIMPEZA:
+- Função sem uso "check_storage_path" removida da baseline.
+
+ * 3. VALIDAÇÃO:
+ * - Baseline consolidada com 18 tabelas, 3 buckets e RLS Zero-Trust.
+ * - Tipos sincronizados e build verificado.
  */
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
