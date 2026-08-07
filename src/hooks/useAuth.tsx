@@ -14,7 +14,7 @@ type ApplicationStatus = 'idle' | 'loading' | 'none' | 'pending' | 'approved' | 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  profile: any | null;
+  profile: Tables<'profiles'> | null;
   roles: AppRole[];
   signupIntent: SignupIntent | null;
   petwalkerApplication: Tables<'petwalker_applications'> | null;
@@ -38,7 +38,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<Tables<'profiles'> | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [authStatus, setAuthStatus] = useState<AuthStatus>('initializing');
   const [profileStatus, setProfileStatus] = useState<ProfileStatus>('idle');
@@ -66,10 +66,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRolesError(null);
 
     try {
-      const { data, error } = await (supabase
+      const { data, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId) as any).abortSignal(controller.signal);
+        .eq('user_id', userId)
+        .abortSignal(controller.signal);
 
       if (requestId !== rolesRequestIdRef.current || userId !== currentUserIdRef.current) return;
 
@@ -96,11 +97,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfileStatus('loading');
 
     try {
-      const { data, error } = await (supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .maybeSingle() as any).abortSignal(controller.signal);
+        .maybeSingle()
+        .abortSignal(controller.signal);
 
       if (requestId !== profileRequestIdRef.current || userId !== currentUserIdRef.current) return;
 
@@ -129,11 +131,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setApplicationStatus('loading');
 
     try {
-      const { data, error } = await (supabase
+      const { data, error } = await supabase
         .from('petwalker_applications')
         .select('*')
         .eq('user_id', userId)
-        .maybeSingle() as any).abortSignal(controller.signal);
+        .maybeSingle()
+        .abortSignal(controller.signal);
 
       if (requestId !== appRequestIdRef.current || userId !== currentUserIdRef.current) return;
 
@@ -203,6 +206,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user, authStatus, fetchProfile, fetchRoles, fetchApplication]);
 
   const signOut = async () => {
+    if (profileAbortControllerRef.current) profileAbortControllerRef.current.abort();
+    if (rolesAbortControllerRef.current) rolesAbortControllerRef.current.abort();
+    if (appAbortControllerRef.current) appAbortControllerRef.current.abort();
+    
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
