@@ -33,6 +33,16 @@ import { Switch } from '@/components/ui/switch';
 import { biometric, prefs, isNative, haptic } from '@/lib/native';
 import { toast } from 'sonner';
 import { useHomeTheme } from '@/hooks/useHomeTheme';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { supabase } from '@/integrations/supabase/client';
 
 const BRAND = '#31D880';
 const DANGER = '#E5484D';
@@ -40,13 +50,15 @@ const DANGER = '#E5484D';
 const BIO_LOCK_KEY = 'vaipet.bioLock';
 
 const Configuracoes = () => {
-  const { signOut } = useAuth();
+  const { signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const { theme, toggle, palette } = useHomeTheme();
   const PAPER = palette.paper;
   const INK = palette.ink;
   const [bioAvailable, setBioAvailable] = useState(false);
   const [bioEnabled, setBioEnabled] = useState(false);
+  const [showPetwalkerDialog, setShowPetwalkerDialog] = useState(false);
+  const [isUpdatingIntent, setIsUpdatingIntent] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -76,6 +88,27 @@ const Configuracoes = () => {
     navigate('/auth');
   };
 
+  const handlePetwalkerClick = () => {
+    setShowPetwalkerDialog(true);
+  };
+
+  const confirmPetwalkerIntent = async () => {
+    setIsUpdatingIntent(true);
+    try {
+      const { error } = await supabase.rpc('set_signup_intent', { _intent: 'petwalker' });
+      if (error) throw error;
+      
+      await refreshProfile();
+      setShowPetwalkerDialog(false);
+      navigate('/petwalker/inscricao');
+    } catch (err) {
+      console.error('Error setting intent:', err);
+      toast.error('Erro ao atualizar seu perfil');
+    } finally {
+      setIsUpdatingIntent(false);
+    }
+  };
+
   type Item = {
     icon: React.ElementType;
     title: string;
@@ -91,7 +124,7 @@ const Configuracoes = () => {
       label: 'Conta',
       items: [
         { icon: User, title: 'Perfil', description: 'Editar informações pessoais', onClick: () => navigate('/perfil') },
-        { icon: Star, title: 'Quero ser PetWalker', description: 'Trabalhe passeando com pets', onClick: () => navigate('/petwalker/inscricao') },
+        { icon: Star, title: 'Quero ser PetWalker', description: 'Trabalhe passeando com pets', onClick: handlePetwalkerClick },
         { icon: PawPrint, title: 'Meus pets', description: 'Cadastros e saúde', onClick: () => navigate('/add-pet') },
         { icon: MapPin, title: 'Endereços', description: 'Casa, trabalho e outros', onClick: soon },
       ],
@@ -323,6 +356,36 @@ const Configuracoes = () => {
           </button>
         </div>
       </div>
+
+      <Dialog open={showPetwalkerDialog} onOpenChange={setShowPetwalkerDialog}>
+        <DialogContent className="rounded-3xl max-w-[90vw] sm:max-w-md border-none p-8" style={{ background: PAPER, color: INK }}>
+          <DialogHeader className="gap-2">
+            <DialogTitle className="text-2xl font-bold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+              Quer se tornar PetWalker?
+            </DialogTitle>
+            <DialogDescription className="text-[15px] leading-relaxed" style={{ color: INK, opacity: 0.7 }}>
+              Você precisará preencher uma candidatura, ter 18 anos ou mais e aguardar a análise da equipe VaiPet.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col sm:flex-col gap-3 mt-4">
+            <Button 
+              onClick={confirmPetwalkerIntent} 
+              disabled={isUpdatingIntent}
+              className="h-14 rounded-2xl font-bold text-lg w-full"
+              style={{ background: BRAND, color: '#0B1410' }}
+            >
+              {isUpdatingIntent ? 'Aguarde...' : 'Iniciar candidatura'}
+            </Button>
+            <Button 
+              variant="ghost" 
+              onClick={() => setShowPetwalkerDialog(false)}
+              className="h-14 rounded-2xl font-bold opacity-60 hover:opacity-100"
+            >
+              Agora não
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <BottomNavigation />
     </div>

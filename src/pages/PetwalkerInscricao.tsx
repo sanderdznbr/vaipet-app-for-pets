@@ -312,7 +312,7 @@ const PetwalkerInscricao = () => {
                   type="submit" 
                   className="w-full h-16 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20"
                 >
-                  {loading ? 'Processando...' : 'Revisar e Enviar Candidatura'}
+                  {loading ? 'Processando...' : 'Enviar candidatura'}
                 </Button>
               </motion.div>
             )}
