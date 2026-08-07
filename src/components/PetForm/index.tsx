@@ -146,7 +146,7 @@ export const PetForm: React.FC<PetFormProps> = ({ editId, isEditing }) => {
       for (let i = 0; i < photos.length; i++) {
         const photo = photos[i];
         const fileExt = photo.name.split('.').pop();
-        const fileName = `${user?.id}/${petId}/${Date.now()}-${i}.${fileExt}`;
+        const fileName = `${user?.id}/pets/${petId}/${Date.now()}-${i}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from('pet-photos')

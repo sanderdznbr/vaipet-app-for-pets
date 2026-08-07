@@ -193,7 +193,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ onSuccess, initialData
         for (let i = 0; i < images.length; i++) {
           const file = images[i];
           const fileName = `${productId}_${Date.now()}_${i}.${file.name.split('.').pop()}`;
-          const filePath = `${user.id}/${fileName}`;
+          const filePath = `${user.id}/products/${productId}/${Date.now()}_${i}.${file.name.split('.').pop()}`;
 
           const { error: uploadError } = await supabase.storage
             .from('product-images')

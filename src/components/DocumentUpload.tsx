@@ -71,7 +71,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       // Upload para storage
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${user.id}/${petId}/${documentType}/${fileName}`;
+      const filePath = `${user.id}/pets/${petId}/documents/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('pet-documents')

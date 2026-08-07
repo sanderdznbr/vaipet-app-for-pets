@@ -517,3 +517,42 @@ CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR E
 CREATE TRIGGER update_pets_updated_at BEFORE UPDATE ON public.pets FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER update_petwalker_profiles_updated_at BEFORE UPDATE ON public.petwalker_profiles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON public.products FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 6. STORAGE CONFIGURATION
+-- Ensure buckets exist
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES 
+    ('pet-photos', 'pet-photos', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp']),
+    ('pet-documents', 'pet-documents', false, 10485760, ARRAY['image/jpeg', 'image/png', 'image/webp', 'application/pdf']),
+    ('product-images', 'product-images', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp'])
+ON CONFLICT (id) DO UPDATE SET 
+    public = EXCLUDED.public, 
+    file_size_limit = EXCLUDED.file_size_limit, 
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- Storage Policies: Canonical path {userId}/{category}/...
+-- Pet Photos (Avatars, Pets, Posts)
+CREATE POLICY "Users manage own pet photos" ON storage.objects
+    FOR ALL TO authenticated
+    USING (bucket_id = 'pet-photos' AND (storage.foldername(name))[1] = auth.uid()::text)
+    WITH CHECK (bucket_id = 'pet-photos' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+CREATE POLICY "Public read pet photos" ON storage.objects
+    FOR SELECT TO public
+    USING (bucket_id = 'pet-photos');
+
+-- Pet Documents (Private)
+CREATE POLICY "Users manage own documents" ON storage.objects
+    FOR ALL TO authenticated
+    USING (bucket_id = 'pet-documents' AND (storage.foldername(name))[1] = auth.uid()::text)
+    WITH CHECK (bucket_id = 'pet-documents' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Product Images
+CREATE POLICY "Petshops manage own product images" ON storage.objects
+    FOR ALL TO authenticated
+    USING (bucket_id = 'product-images' AND (storage.foldername(name))[1] = auth.uid()::text)
+    WITH CHECK (bucket_id = 'product-images' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+CREATE POLICY "Public read product images" ON storage.objects
+    FOR SELECT TO public
+    USING (bucket_id = 'product-images');

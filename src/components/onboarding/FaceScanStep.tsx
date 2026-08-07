@@ -362,7 +362,7 @@ export const FaceScanStep: React.FC<FaceScanStepProps> = ({ onNext, onBack }) =>
       const res = await fetch(capturedImages.front);
       const blob = await res.blob();
       
-      const fileName = `avatars/${user.id}_verified_${Date.now()}.jpg`;
+      const fileName = `${user.id}/avatars/${Date.now()}.jpg`;
       const { data, error } = await supabase.storage
         .from('pet-photos')
         .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
