@@ -4,8 +4,13 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_net";
 
 -- Enums
-CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'user', 'petshop', 'petwalker');
-CREATE TYPE public.application_status AS ENUM ('pending', 'approved', 'rejected');
+DO $$ BEGIN
+    CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'user', 'petshop', 'petwalker');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE public.application_status AS ENUM ('pending', 'approved', 'rejected');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- Functions
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
@@ -157,7 +162,7 @@ CREATE TABLE public.products (
 
 CREATE TABLE public.product_images (
     created_at timestamp with time zone DEFAULT now(),
-    display_order numeric(10,2) DEFAULT 0.00,
+    display_order integer DEFAULT 0,
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     image_url text NOT NULL,
     product_id text NOT NULL,
@@ -255,7 +260,8 @@ CREATE TABLE public.pet_models_3d (
     breed text NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
     glb_url text NOT NULL,
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid()
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    FOREIGN KEY (pet_id) REFERENCES public.pets(id) ON DELETE CASCADE
 );
 
 -- Security Functions
@@ -305,6 +311,9 @@ BEGIN
     RETURNING user_id INTO v_user_id;
 
     IF v_user_id IS NOT NULL THEN
+        -- Transactional lock
+        PERFORM 1 FROM public.user_roles WHERE user_id = v_user_id AND role = 'petwalker' FOR UPDATE;
+        
         INSERT INTO public.user_roles (user_id, role)
         VALUES (v_user_id, 'petwalker')
         ON CONFLICT DO NOTHING;
@@ -424,12 +433,13 @@ REVOKE UPDATE ON public.user_roles FROM authenticated;
 CREATE POLICY "Users can see their own roles" ON public.user_roles FOR SELECT TO authenticated USING (auth.uid() = user_id);
 
 -- Storage Buckets & Policies
--- Storage setup
+-- Storage setup (requires storage schema access, usually handled via storage API or direct SQL if allowed)
+-- Assuming we have access to storage.buckets and storage.objects
 INSERT INTO storage.buckets (id, name, public) VALUES ('pet-photos', 'pet-photos', true) ON CONFLICT DO NOTHING;
 INSERT INTO storage.buckets (id, name, public) VALUES ('pet-documents', 'pet-documents', false) ON CONFLICT DO NOTHING;
 INSERT INTO storage.buckets (id, name, public) VALUES ('product-images', 'product-images', true) ON CONFLICT DO NOTHING;
 
--- Storage RLS (in storage.objects)
+-- Storage RLS
 CREATE POLICY "Public Access" ON storage.objects FOR SELECT TO public USING (bucket_id IN ('pet-photos', 'product-images'));
 CREATE POLICY "Authenticated Upload" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id IN ('pet-photos', 'product-images', 'pet-documents'));
 
