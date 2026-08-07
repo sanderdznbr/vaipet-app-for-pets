@@ -34,6 +34,7 @@ type AnimationPhase = 'idle' | 'playing-anim2';
 
 const Auth = () => {
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
+  const [signupIntent, setSignupIntent] = useState<'pet_owner' | 'petwalker' | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -42,6 +43,7 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [showIntentSelection, setShowIntentSelection] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [animPhase, setAnimPhase] = useState<AnimationPhase>('idle');
   const navigate = useNavigate();
@@ -93,11 +95,27 @@ const Auth = () => {
   }, [navigate, isMobile]);
 
   const handleOAuth = async (provider: 'google' | 'apple') => {
+    if (isRegistering && !signupIntent) {
+      setShowIntentSelection(true);
+      return;
+    }
+
     setOauthLoading(provider);
     try {
+      if (signupIntent) {
+        localStorage.setItem('vaipet_pending_signup_intent', JSON.stringify({
+          intent: signupIntent,
+          timestamp: Date.now()
+        }));
+      }
+
       console.log('[Auth] Starting OAuth:', provider);
-      const { error } = await lovable.auth.signInWithOAuth(provider, {
-        redirect_uri: window.location.origin,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: window.location.origin,
+          queryParams: signupIntent ? { signup_intent: signupIntent } : undefined
+        }
       });
       if (error) {
         console.error('[Auth] OAuth error:', error);
@@ -126,6 +144,7 @@ const Auth = () => {
             data: {
               full_name: fullName,
               phone: phone,
+              signup_intent: signupIntent || 'pet_owner'
             }
           }
         });
@@ -178,17 +197,63 @@ const Auth = () => {
           <div className="w-full flex flex-col gap-6">
           <div className="w-full">
             <AnimatePresence mode="wait">
-              <motion.div
-                key={isRegistering ? 'register' : 'login'}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
-                className="w-full flex flex-col gap-6"
-              >
-                <h2 className="text-2xl font-bold text-center" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                  {isRegistering ? 'Criar Conta' : 'Entrar no VaiPet'}
-                </h2>
+              {isRegistering && !signupIntent ? (
+                <motion.div
+                  key="intent-selection"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="w-full flex flex-col gap-6"
+                >
+                  <h2 className="text-2xl font-bold text-center" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                    Como você quer usar o VaiPet?
+                  </h2>
+                  
+                  <div className="flex flex-col gap-4">
+                    <button
+                      onClick={() => setSignupIntent('pet_owner')}
+                      className="p-6 rounded-2xl border-2 border-black/5 hover:border-[#31D880] text-left transition-all bg-white group"
+                    >
+                      <h3 className="text-lg font-bold mb-1">Dono(a) de Pet</h3>
+                      <p className="text-sm text-black/60">Quero cuidar dos meus pets, encontrar serviços e solicitar passeios.</p>
+                    </button>
+
+                    <button
+                      onClick={() => setSignupIntent('petwalker')}
+                      className="p-6 rounded-2xl border-2 border-black/5 hover:border-[#31D880] text-left transition-all bg-white group"
+                    >
+                      <h3 className="text-lg font-bold mb-1">PetWalker</h3>
+                      <p className="text-sm text-black/60">Quero trabalhar como passeador e receber solicitações de passeio.</p>
+                      <p className="text-[10px] mt-2 text-black/40 font-medium uppercase tracking-wider">Cadastro sujeito à análise • 18+ anos</p>
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => setIsRegistering(false)}
+                    className="text-sm font-semibold text-center underline opacity-60 hover:opacity-100 transition-opacity"
+                  >
+                    Já tem conta? Entre aqui
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={isRegistering ? 'register' : 'login'}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="w-full flex flex-col gap-6"
+                >
+                  <div className="flex items-center gap-2">
+                    {isRegistering && (
+                      <button onClick={() => setSignupIntent(null)} className="p-2 -ml-2 hover:bg-black/5 rounded-full transition-colors">
+                        <ArrowLeft size={20} />
+                      </button>
+                    )}
+                    <h2 className="text-2xl font-bold flex-1 text-center pr-8" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                      {isRegistering ? 'Criar Conta' : 'Entrar no VaiPet'}
+                    </h2>
+                  </div>
 
                 <form onSubmit={handleEmailAuth} className="flex flex-col gap-4">
                   {isRegistering && (
@@ -327,7 +392,7 @@ const Auth = () => {
                 >
                   Quero trabalhar como PetWalker
                 </button>
-              </motion.div>
+              )}
             </AnimatePresence>
           </div>
           </div>

@@ -1,13 +1,13 @@
 
 /**
- * Diagnostic status for the PetWalker Portal baseline.
- * Last check: 2026-08-07 22:15 UTC
+ * Status: Fluxo de Seleção de Intenção de Conta e Cadastro Unificado
+ * Last check: 2026-08-07 22:35 UTC
  * 
- * ✅ ARCHITECTURE: Zero-Trust (RLS + Security Definer RPCs)
- * ✅ STORAGE: Canonical paths {userId}/{category}/{fileName}
- * ✅ BUCKETS: pet-photos, pet-documents, product-images (Created via baseline)
- * ✅ DISPONIBILIDADE: set_petwalker_availability (Atomic + Role/Approval check)
- * ✅ CLEANUP: Removed check_storage_path
+ * ✅ DATABASE: Enum signup_intent_type + Coluna signup_intent em profiles
+ * ✅ SECURITY: handle_new_user validado + RPC set_signup_intent (Zero-Trust)
+ * ✅ UX: Seleção visual de "Como você quer usar o VaiPet?" antes do cadastro
+ * ✅ OAUTH: Preservação de intenção via localStorage e metadados
+ * ✅ PUBLIC: RPC get_public_petwalker_profiles para busca segura
  */
 export const RedirectIndex = () => {
   return (

@@ -243,17 +243,17 @@ const SignupWizard = () => {
         password,
         options: {
           emailRedirectTo: redirectUrl,
-          data: { full_name: fullName, phone, role: 'customer' }
+          data: { 
+            full_name: fullName, 
+            phone,
+            signup_intent: 'pet_owner'
+          }
         }
       });
 
       if (authError) {
         console.error('[SignupWizard] Auth error:', authError);
-        if (authError.message.includes('weak') || authError.message.includes('guess')) {
-          toast.error('Essa senha é muito fraca. Por favor, escolha uma senha mais forte (misture letras, números e símbolos).');
-        } else {
-          toast.error(authError.message);
-        }
+        toast.error(authError.message);
         setLoading(false);
         return;
       }
