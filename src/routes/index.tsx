@@ -1,7 +1,4 @@
 
-import { Database } from "../types";
-import { supabase } from "../client";
-
 /**
  * Diagnostic status for the PetWalker Portal baseline.
  * Last check: 2026-08-07 22:15 UTC
@@ -11,8 +8,6 @@ import { supabase } from "../client";
  * ✅ BUCKETS: pet-photos, pet-documents, product-images (Created via baseline)
  * ✅ DISPONIBILIDADE: set_petwalker_availability (Atomic + Role/Approval check)
  * ✅ CLEANUP: Removed check_storage_path
- * 
- * Commit Hash: $(git rev-parse --short HEAD)
  */
 export const RedirectIndex = () => {
   return (
