@@ -14,7 +14,7 @@ type ApplicationStatus = 'idle' | 'loading' | 'none' | 'pending' | 'approved' | 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  profile: any | null;
+  profile: Tables<'profiles'> | null;
   roles: AppRole[];
   signupIntent: SignupIntent | null;
   petwalkerApplication: Tables<'petwalker_applications'> | null;
@@ -38,7 +38,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<Tables<'profiles'> | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [authStatus, setAuthStatus] = useState<AuthStatus>('initializing');
   const [profileStatus, setProfileStatus] = useState<ProfileStatus>('idle');
@@ -66,10 +66,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRolesError(null);
 
     try {
-      const { data, error } = await (supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId) as any).abortSignal(controller.signal);
+      const { data, error } = await Promise.race([
+        (supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId) as any).abortSignal(controller.signal),
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+      ]);
 
       if (requestId !== rolesRequestIdRef.current || userId !== currentUserIdRef.current) return;
 
@@ -96,11 +99,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfileStatus('loading');
 
     try {
-      const { data, error } = await (supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle() as any).abortSignal(controller.signal);
+      const { data, error } = await Promise.race([
+        (supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle() as any).abortSignal(controller.signal),
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+      ]);
 
       if (requestId !== profileRequestIdRef.current || userId !== currentUserIdRef.current) return;
 
@@ -129,11 +135,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setApplicationStatus('loading');
 
     try {
-      const { data, error } = await (supabase
-        .from('petwalker_applications')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle() as any).abortSignal(controller.signal);
+      const { data, error } = await Promise.race([
+        (supabase
+          .from('petwalker_applications')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle() as any).abortSignal(controller.signal),
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+      ]);
 
       if (requestId !== appRequestIdRef.current || userId !== currentUserIdRef.current) return;
 
@@ -199,10 +208,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       fetchProfile(user.id);
       fetchRoles(user.id);
       fetchApplication(user.id);
+
+      const channel = supabase
+        .channel(`app-status-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'petwalker_applications',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            setPetwalkerApplication(payload.new as Tables<'petwalker_applications'>);
+            const newStatus = (payload.new as any).status as ApplicationStatus;
+            setApplicationStatus(newStatus);
+            if (newStatus === 'approved') {
+              fetchRoles(user.id);
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [user, authStatus, fetchProfile, fetchRoles, fetchApplication]);
 
+  // Handle pending signup intent after login
+  useEffect(() => {
+    if (authStatus === 'authenticated' && user && profileStatus === 'ready') {
+      const pendingIntentStr = localStorage.getItem('vaipet_pending_signup_intent');
+      if (pendingIntentStr) {
+        const processIntent = async () => {
+          try {
+            const { intent, timestamp } = JSON.parse(pendingIntentStr);
+            const now = Date.now();
+            if (now - timestamp < 30 * 60 * 1000) {
+              await (supabase.rpc as any)('set_signup_intent', { _intent: intent });
+              fetchProfile(user.id);
+            }
+          } catch (e) {
+            console.error('Error processing intent:', e);
+          } finally {
+            localStorage.removeItem('vaipet_pending_signup_intent');
+          }
+        };
+        processIntent();
+      }
+    }
+  }, [authStatus, user, profileStatus, fetchProfile]);
+
   const signOut = async () => {
+    if (profileAbortControllerRef.current) profileAbortControllerRef.current.abort();
+    if (rolesAbortControllerRef.current) rolesAbortControllerRef.current.abort();
+    if (appAbortControllerRef.current) appAbortControllerRef.current.abort();
+    
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

@@ -67,24 +67,6 @@ const Auth = () => {
       console.log('[Auth] State change:', event, session?.user?.id);
       
       if (session && (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION')) {
-        // Process pending signup intent for OAuth
-        const pendingIntentStr = localStorage.getItem('vaipet_pending_signup_intent');
-        if (pendingIntentStr) {
-          try {
-            const { intent, timestamp } = JSON.parse(pendingIntentStr);
-            const now = Date.now();
-            // Valid for 30 minutes
-            if (now - timestamp < 30 * 60 * 1000 && (intent === 'pet_owner' || intent === 'petwalker')) {
-              console.log('[Auth] Applying pending signup intent:', intent);
-              await (supabase.rpc as any)('set_signup_intent', { _intent: intent });
-            }
-          } catch (e) {
-            console.error('[Auth] Error processing pending intent:', e);
-          } finally {
-            localStorage.removeItem('vaipet_pending_signup_intent');
-          }
-        }
-        
         // We use a local transition call to avoid TDZ
         const safeRedirect = new URLSearchParams(window.location.search).get('redirect') || '/';
         const isSafe = safeRedirect.startsWith('/') && !safeRedirect.startsWith('//');

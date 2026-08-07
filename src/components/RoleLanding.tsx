@@ -1,6 +1,8 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { SplashScreen } from '@/components/SplashScreen';
+import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
 
 const RoleLanding = () => {
   const { 
@@ -10,9 +12,21 @@ const RoleLanding = () => {
     rolesStatus, 
     roles,
     hasRole,
-    petwalkerApplication,
-    applicationStatus
+    applicationStatus,
+    refreshRoles
   } = useAuth();
+
+  const [waitApproved, setWaitApproved] = useState(0);
+
+  useEffect(() => {
+    if (applicationStatus === 'approved' && !hasRole('petwalker') && waitApproved < 3) {
+      const timer = setTimeout(() => {
+        refreshRoles();
+        setWaitApproved(prev => prev + 1);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [applicationStatus, hasRole, waitApproved, refreshRoles]);
 
   const isLoading = authStatus === 'initializing' || 
                    (authStatus === 'authenticated' && (profileStatus === 'loading' || profileStatus === 'idle' || rolesStatus === 'loading' || rolesStatus === 'idle' || applicationStatus === 'loading' || applicationStatus === 'idle'));
@@ -53,37 +67,35 @@ const RoleLanding = () => {
 
   // 1. PetWalker Logic
   if (hasRole('petwalker')) {
-    // Role petwalker + perfil incompleto -> /petwalker/onboarding
+    // Check petwalker_profiles specifically for onboarding
+    // For now we use profiles.onboarding_completed as base
     if (!profile?.onboarding_completed) {
       return <Navigate to="/petwalker/onboarding" replace />;
     }
-    // Role petwalker + perfil completo -> /petwalker
     return <Navigate to="/petwalker" replace />;
   }
 
-  // Intenção petwalker sem candidatura -> /petwalker/inscricao
-  if (profile?.signup_intent === 'petwalker' && applicationStatus === 'none') {
+  // Pending candidate or rejected candidate -> track in /petwalker/inscricao
+  if (applicationStatus === 'pending' || applicationStatus === 'rejected') {
     return <Navigate to="/petwalker/inscricao" replace />;
   }
 
-  // Candidatura pendente -> acompanhamento em /petwalker/inscricao
-  if (applicationStatus === 'pending') {
-    return <Navigate to="/petwalker/inscricao" replace />;
-  }
-
-  // Candidatura rejeitada -> tela com motivo e opção para continuar como Dono(a) de Pet (handled in PetwalkerInscricao)
-  if (applicationStatus === 'rejected') {
-    return <Navigate to="/petwalker/inscricao" replace />;
-  }
-
-  // Candidatura aprovada sem role carregada -> aguardar roles
+  // Approved but role not synced yet
   if (applicationStatus === 'approved' && !hasRole('petwalker')) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-[#F7F5EF]">
         <h2 className="text-xl font-bold mb-2">Quase lá!</h2>
         <p className="text-gray-500 mb-6">Sua candidatura foi aprovada. Estamos preparando seu perfil de PetWalker...</p>
+        <Button onClick={() => refreshRoles()} className="mt-4">
+          Verificar agora
+        </Button>
       </div>
     );
+  }
+
+  // Intent PetWalker without application -> /petwalker/inscricao
+  if (profile?.signup_intent === 'petwalker' && applicationStatus === 'none') {
+    return <Navigate to="/petwalker/inscricao" replace />;
   }
 
   // 2. PetShop Logic
