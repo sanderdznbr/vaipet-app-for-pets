@@ -34,9 +34,7 @@ type AnimationPhase = 'idle' | 'playing-anim2';
 
 const Auth = () => {
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
-  const [signupIntent, setSignupIntent] = useState<'pet_owner' | 'petwalker' | null>(
-    (new URLSearchParams(window.location.search).get('signup_intent') as any) || null
-  );
+  const [signupIntent, setSignupIntent] = useState<'pet_owner' | 'petwalker' | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -239,8 +237,8 @@ const Auth = () => {
                       onClick={() => setSignupIntent('petwalker')}
                       className="p-6 rounded-2xl border-2 border-black/5 hover:border-[#31D880] text-left transition-all bg-white group"
                     >
-                      <h3 className="text-lg font-bold mb-1">PetWalker</h3>
-                      <p className="text-sm text-black/60">Quero trabalhar como passeador e receber solicitações de passeio.</p>
+                      <h3 className="text-lg font-bold mb-1">Quero ser PetWalker</h3>
+                      <p className="text-sm text-black/60">Crie sua conta e depois envie sua candidatura. Sujeito à análise. É necessário ter 18 anos ou mais.</p>
                       <p className="text-[10px] mt-2 text-black/40 font-medium uppercase tracking-wider">Cadastro sujeito à análise • 18+ anos</p>
                     </button>
                   </div>
@@ -261,13 +259,21 @@ const Auth = () => {
                   transition={{ duration: 0.3 }}
                   className="w-full flex flex-col gap-6"
                 >
-                  <div className="flex items-center gap-2">
-                    {isRegistering && (
-                      <button onClick={() => setSignupIntent(null)} className="p-2 -ml-2 hover:bg-black/5 rounded-full transition-colors">
-                        <ArrowLeft size={20} />
-                      </button>
-                    )}
-                    <h2 className="text-2xl font-bold flex-1 text-center pr-8" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-full flex items-center justify-between mb-2">
+                      {isRegistering && (
+                        <button onClick={() => setSignupIntent(null)} className="p-2 -ml-2 hover:bg-black/5 rounded-full transition-colors flex items-center gap-2 text-xs font-medium opacity-60">
+                          <ArrowLeft size={16} />
+                          <span>Alterar tipo</span>
+                        </button>
+                      )}
+                      {isRegistering && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 bg-black/5 rounded-full opacity-60">
+                          {signupIntent === 'pet_owner' ? 'Dono(a) de Pet' : 'Candidato PetWalker'}
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-2xl font-bold text-center" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
                       {isRegistering ? 'Criar Conta' : 'Entrar no VaiPet'}
                     </h2>
                   </div>
