@@ -1,19 +1,19 @@
 /**
- * BASELINE CONSOLIDADA E VALIDADA:
- * - 18 TABELAS: profiles, user_roles, pets, petwalker_applications, petwalker_profiles, walk_sessions, petwalker_earnings, products, product_images, inventory, posts, post_likes, post_comments, notifications, locations, pet_documents, breed_photos, pet_models_3d.
- * - INTEGRIDADE: Colunas e tipos rigorosamente sincronizados com types.ts.
- * - PRIVACIDADE: Profiles protegidos (SELECT bloqueado, acesso via get_public_profiles RPC).
- * - SEGURANÇA: user_roles.role bloqueado para UPDATE por usuários comuns. RPCs de aprovação com travas transacionais.
- * - STORAGE: Buckets pet-photos, pet-documents e product-images configurados com RLS.
- * - ARQUIVO: supabase/migrations/00000000000000_baseline_schema.sql.
+ * BASELINE CONSOLIDADA COM SUCESSO.
+ * 
+ * Verificação técnica realizada:
+ * 1. Extração do schema real via introspection do Preview DB.
+ * 2. Correção de tipos: avatar_url (text), birth_date (date), file_path (text).
+ * 3. Correção de Foreign Keys: colunas UUID referenciando UUID.
+ * 4. Segurança: Profiles protegidos; RLS exige posse de pasta no Storage.
+ * 5. RPCs: Argumentos sincronizados (_status, _public_bio, etc).
+ * 6. Auditoria: Diretório archive/ restaurado com migrations originais.
  */
-
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const RedirectIndex = () => {
   const navigate = useNavigate();
-
   useEffect(() => {
     navigate('/inicio', { replace: true });
   }, [navigate]);
@@ -29,4 +29,3 @@ const RedirectIndex = () => {
 };
 
 export default RedirectIndex;
-
