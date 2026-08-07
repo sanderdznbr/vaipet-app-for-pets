@@ -1,19 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { lovable } from '@/integrations/lovable/index';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useHomeTheme } from '@/hooks/useHomeTheme';
 import { ArrowUpRight, Eye, EyeOff, ArrowLeft } from 'lucide-react';
-import logoAsset from "@/assets/vaipet-logo-new.png.asset.json";
-import splashAsset from "@/assets/animations/splash.gif.asset.json";
-import authBgAsset from "@/assets/auth/vipetauth_photo.png.asset.json";
 import { motion, AnimatePresence } from 'framer-motion';
+import splashAsset from "@/assets/animations/splash.gif.asset.json";
 
 const BRAND = '#31D880';
-const LIME = '#E4FF7A';
 
 const GoogleIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24">
@@ -43,42 +39,19 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [showIntentSelection, setShowIntentSelection] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [animPhase, setAnimPhase] = useState<AnimationPhase>('idle');
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { theme, palette } = useHomeTheme();
+  const { palette } = useHomeTheme();
   const PAPER = palette.paper;
   const INK = palette.ink;
-
-  useEffect(() => {
-    const checkUser = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      console.log('[Auth] Initial check:', !!session, 'Error:', error);
-      if (session) {
-        console.log('[Auth] Found existing session, triggering transition');
-        triggerTransition();
-      }
-    };
-    checkUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[Auth] State change:', event, session?.user?.id);
-      
-      if (session && (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION')) {
-        triggerTransition();
-      }
-    });
-    return () => { subscription.unsubscribe(); };
-  }, [triggerTransition]);
 
   const triggerTransition = useCallback(() => {
     console.log('[Auth] Triggering transition, isMobile:', isMobile);
     const searchParams = new URLSearchParams(window.location.search);
     const redirectPath = searchParams.get('redirect');
     
-    // Validate redirect path (must start with / and not with //)
     const safeRedirect = redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//') 
       ? redirectPath 
       : '/';
@@ -95,12 +68,24 @@ const Auth = () => {
     navigate(safeRedirect, { replace: true });
   }, [navigate, isMobile]);
 
-  const handleOAuth = async (provider: 'google' | 'apple') => {
-    if (isRegistering && !signupIntent) {
-      setShowIntentSelection(true);
-      return;
-    }
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (session) {
+        triggerTransition();
+      }
+    };
+    checkUser();
 
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session && (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION')) {
+        triggerTransition();
+      }
+    });
+    return () => { subscription.unsubscribe(); };
+  }, [triggerTransition]);
+
+  const handleOAuth = async (provider: 'google' | 'apple') => {
     setOauthLoading(provider);
     try {
       if (signupIntent) {
@@ -110,7 +95,6 @@ const Auth = () => {
         }));
       }
 
-      console.log('[Auth] Starting OAuth:', provider);
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
@@ -119,11 +103,9 @@ const Auth = () => {
         }
       });
       if (error) {
-        console.error('[Auth] OAuth error:', error);
         toast.error(`Erro ao entrar com ${provider === 'google' ? 'Google' : 'Apple'}`);
       }
     } catch (e) {
-      console.error('[Auth] OAuth catch:', e);
       toast.error('Erro ao fazer login');
     } finally {
       setOauthLoading(null);
@@ -139,7 +121,6 @@ const Auth = () => {
           throw new Error('As senhas não coincidem');
         }
         
-        // Final validation of intent before signup
         const finalIntent = signupIntent || 'pet_owner';
         
         const { error } = await supabase.auth.signUp({
@@ -157,9 +138,6 @@ const Auth = () => {
           if (error.message.includes('User already registered')) {
             throw new Error('Este e-mail já está cadastrado. Tente fazer login.');
           }
-          if (error.message.includes('Password is known to be weak')) {
-            throw new Error('Sua senha é muito fraca. Tente uma combinação mais complexa com letras e números.');
-          }
           throw error;
         }
         toast.success('Cadastro realizado! Verifique seu e-mail ou faça login.');
@@ -171,16 +149,14 @@ const Auth = () => {
         });
         if (error) {
           if (error.message.includes('Invalid login credentials')) {
-            throw new Error('E-mail ou senha incorretos. Verifique seus dados e tente novamente.');
+            throw new Error('E-mail ou senha incorretos.');
           }
           throw error;
         }
         toast.success('Bem-vindo de volta!');
       }
-    } catch (err: unknown) {
-      const error = err as Error;
-      console.error('[Auth] Email auth error:', error);
-      toast.error(error.message || 'Ocorreu um erro. Tente novamente em alguns instantes.');
+    } catch (err: any) {
+      toast.error(err.message || 'Ocorreu um erro.');
     } finally {
       setIsLoading(false);
     }
@@ -189,18 +165,13 @@ const Auth = () => {
   return (
     <div
       className="min-h-[100dvh] w-full flex items-center justify-center overflow-hidden relative"
-      style={{ 
-        backgroundColor: PAPER, 
-        color: INK, 
-        fontFamily: "'DM Sans', system-ui, sans-serif" 
-      }}
+      style={{ backgroundColor: PAPER, color: INK, fontFamily: "'DM Sans', system-ui, sans-serif" }}
     >
       <main className="w-full flex items-center justify-center px-6 py-10 relative z-10 overflow-y-auto max-h-[100dvh]">
         <div className="w-full max-w-md flex flex-col gap-8 items-center">
           <img src="/vaipet-logo.svg" alt="VaiPet" className="w-24 h-auto" />
           
           <div className="w-full flex flex-col gap-6">
-          <div className="w-full">
             <AnimatePresence mode="wait">
               {isRegistering && !signupIntent ? (
                 <motion.div
@@ -268,153 +239,147 @@ const Auth = () => {
                     </h2>
                   </div>
 
-                <form onSubmit={handleEmailAuth} className="flex flex-col gap-4">
-                  {isRegistering && (
-                    <>
-                      <input
-                        type="text"
-                        placeholder="Nome Completo"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        required
-                        className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg"
-                      />
-                      <input
-                        type="tel"
-                        placeholder="Telefone"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        required
-                        className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg"
-                      />
-                    </>
-                  )}
-                  <input
-                    type="email"
-                    placeholder="E-mail"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg"
-                  />
-                  <div className="relative">
+                  <form onSubmit={handleEmailAuth} className="flex flex-col gap-4">
+                    {isRegistering && (
+                      <>
+                        <input
+                          type="text"
+                          placeholder="Nome Completo"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          required
+                          className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg"
+                        />
+                        <input
+                          type="tel"
+                          placeholder="Telefone"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          required
+                          className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg"
+                        />
+                      </>
+                    )}
                     <input
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Senha"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      type="email"
+                      placeholder="E-mail"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg pr-14"
+                      className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-5 top-1/2 -translate-y-1/2 text-black/40 hover:text-black/60 transition-colors"
-                    >
-                      {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
-                    </button>
-                  </div>
-
-                  {isRegistering && (
                     <div className="relative">
                       <input
-                        type={showConfirmPassword ? "text" : "password"}
-                        placeholder="Confirmar Senha"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Senha"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                         required
                         className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg pr-14"
                       />
                       <button
                         type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-5 top-1/2 -translate-y-1/2 text-black/40 hover:text-black/60 transition-colors"
                       >
-                        {showConfirmPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+                        {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
                       </button>
                     </div>
-                  )}
+
+                    {isRegistering && (
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          placeholder="Confirmar Senha"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          required
+                          className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg pr-14"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-5 top-1/2 -translate-y-1/2 text-black/40 hover:text-black/60 transition-colors"
+                        >
+                          {showConfirmPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+                        </button>
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full h-16 rounded-2xl font-bold text-white transition-all active:scale-[0.98] disabled:opacity-70 shadow-lg shadow-[#31D880]/20 text-lg mt-2"
+                      style={{ backgroundColor: '#31D880' }}
+                    >
+                      {isLoading ? 'Aguarde...' : (isRegistering ? 'Cadastrar' : 'Entrar')}
+                    </button>
+                  </form>
 
                   <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full h-16 rounded-2xl font-bold text-white transition-all active:scale-[0.98] disabled:opacity-70 shadow-lg shadow-[#31D880]/20 text-lg mt-2"
-                    style={{ backgroundColor: '#31D880' }}
+                    onClick={() => {
+                      setIsRegistering(!isRegistering);
+                      setSignupIntent(null);
+                    }}
+                    className="text-sm font-semibold text-center underline opacity-60 hover:opacity-100 transition-opacity"
                   >
-                    {isLoading ? 'Aguarde...' : (isRegistering ? 'Cadastrar' : 'Entrar')}
+                    {isRegistering ? 'Já tem conta? Entre aqui' : 'Não tem conta? Crie uma'}
                   </button>
-                </form>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-                <button
-                  onClick={() => {
-                    setIsRegistering(!isRegistering);
-                    setSignupIntent(null); // Reset intent when toggling
-                  }}
-                  className="text-sm font-semibold text-center underline opacity-60 hover:opacity-100 transition-opacity"
-                >
-                  {isRegistering ? 'Já tem conta? Entre aqui' : 'Não tem conta? Crie uma'}
-                </button>
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-black/10"></span>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="px-2 text-black/40" style={{ backgroundColor: PAPER }}>Ou continue com</span>
+              </div>
+            </div>
 
-                  <>
-                    <div className="relative my-2">
-                      <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t border-black/10"></span>
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="px-2 text-black/40" style={{ backgroundColor: PAPER }}>Ou continue com</span>
-                      </div>
-                    </div>
+            <div className="w-full flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => handleOAuth('google')}
+                disabled={oauthLoading !== null}
+                className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] disabled:opacity-60 border border-black/5 shadow-sm bg-white"
+                style={{ height: 64, borderRadius: 20, color: INK, fontFamily: "'Space Grotesk', sans-serif" }}
+              >
+                <span className="flex items-center gap-4">
+                  <span className="flex items-center justify-center bg-[#F8F9FA] border border-black/5" style={{ width: 36, height: 36, borderRadius: 10 }}>
+                    <GoogleIcon />
+                  </span>
+                  <span className="text-[15px] font-bold">Google</span>
+                </span>
+                <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
+              </button>
 
-                    <div className="w-full flex flex-col gap-3">
-                      <button
-                        type="button"
-                        onClick={() => handleOAuth('google')}
-                        disabled={oauthLoading !== null}
-                        className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] disabled:opacity-60 border border-black/5 shadow-sm bg-white"
-                        style={{ height: 64, borderRadius: 20, color: INK, fontFamily: "'Space Grotesk', sans-serif" }}
-                      >
-                        <span className="flex items-center gap-4">
-                          <span className="flex items-center justify-center bg-[#F8F9FA] border border-black/5" style={{ width: 36, height: 36, borderRadius: 10 }}>
-                            <GoogleIcon />
-                          </span>
-                          <span className="text-[15px] font-bold">Google</span>
-                        </span>
-                        <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleOAuth('apple')}
-                        disabled={oauthLoading !== null}
-                        className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] disabled:opacity-60 border border-black/5 shadow-sm bg-white"
-                        style={{ height: 64, borderRadius: 20, color: INK, fontFamily: "'Space Grotesk', sans-serif" }}
-                      >
-                        <span className="flex items-center gap-4">
-                          <span className="flex items-center justify-center bg-white border border-black/5 shadow-sm" style={{ width: 36, height: 36, borderRadius: 10 }}>
-                            <AppleIcon />
-                          </span>
-                          <span className="text-[15px] font-bold">Apple</span>
-                        </span>
-                        <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
-                      </button>
-                    </div>
-                  </>
-                  </>
-
-              </motion.div>
-            )}
-          </AnimatePresence>
-          
+              <button
+                type="button"
+                onClick={() => handleOAuth('apple')}
+                disabled={oauthLoading !== null}
+                className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] disabled:opacity-60 border border-black/5 shadow-sm bg-white"
+                style={{ height: 64, borderRadius: 20, color: INK, fontFamily: "'Space Grotesk', sans-serif" }}
+              >
+                <span className="flex items-center gap-4">
+                  <span className="flex items-center justify-center bg-white border border-black/5 shadow-sm" style={{ width: 36, height: 36, borderRadius: 10 }}>
+                    <AppleIcon />
+                  </span>
+                  <span className="text-[15px] font-bold">Apple</span>
+                </span>
+                <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <p className="text-[11px] font-medium leading-relaxed text-center mt-4" style={{ color: INK, opacity: 0.6 }}>
-            Ao continuar, você aceita os{' '}
-            <Link to="/termos-de-uso" className="underline" style={{ color: INK }}>Termos</Link>
-            {' '}e{' '}
-            <Link to="/politica-de-privacidade" className="underline" style={{ color: INK }}>Privacidade</Link>.
-          </p>
-        </div>
+        <p className="text-[11px] font-medium leading-relaxed text-center mt-8" style={{ color: INK, opacity: 0.6 }}>
+          Ao continuar, você aceita os{' '}
+          <Link to="/termos-de-uso" className="underline" style={{ color: INK }}>Termos</Link>
+          {' '}e{' '}
+          <Link to="/politica-de-privacidade" className="underline" style={{ color: INK }}>Privacidade</Link>.
+        </p>
 
         {animPhase === 'playing-anim2' && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none bg-[#F7F5EF]">
