@@ -1,6 +1,11 @@
 /**
- * Finalized: Account Intent Flow & Zero-Trust Hardening
- * GitHub HEAD: 3c9e82f (Simulated)
+ * ACCOUNT INTENT FLOW (RE-HARDENED)
+ * 1. Intent Selection in Auth.tsx or SignupWizard.tsx
+ * 2. AuthProvider processes pending intent from localStorage after OAuth login
+ * 3. RoleLanding handles redirection priority: PetWalker role > Application status > Intent
+ * 4. PetwalkerInscricao tracks application status via manual refresh or realtime subscription
+ * 5. handle_new_user trigger correctly handles signup_intent and meta data
+ * 6. Zero-Trust RLS prevents role elevation and direct operational profile reads
  */
 export const RedirectIndex = () => {
   return (
