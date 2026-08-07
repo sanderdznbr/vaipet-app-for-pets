@@ -162,7 +162,8 @@ const BreedSelector = ({
   );
 };
 
-const SignupWizard = () => {
+const SignupWizard = ({ initialIntent }: { initialIntent?: 'pet_owner' | 'petwalker' }) => {
+  const [signupIntent] = useState<'pet_owner' | 'petwalker'>(initialIntent || 'pet_owner');
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -246,7 +247,7 @@ const SignupWizard = () => {
           data: { 
             full_name: fullName, 
             phone,
-            signup_intent: 'pet_owner'
+            signup_intent: signupIntent
           }
         }
       });
@@ -338,7 +339,11 @@ const SignupWizard = () => {
       }
 
       toast.success('Conta criada com sucesso! 🎉');
-      navigate('/');
+      if (signupIntent === 'petwalker') {
+        navigate('/petwalker/inscricao');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       console.error(err);
       toast.error('Erro ao criar conta');
@@ -350,6 +355,10 @@ const SignupWizard = () => {
   const handleNext = () => {
     if (!canGoNext()) return;
     if (step < TOTAL_STEPS - 1) {
+      if (step === 2 && signupIntent === 'petwalker') {
+        handleComplete();
+        return;
+      }
       setStep(step + 1);
     } else {
       handleComplete();
