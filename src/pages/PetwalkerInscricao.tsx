@@ -83,6 +83,9 @@ const PetwalkerInscricao = () => {
 
     setLoading(true);
     try {
+      // Set signup intent first to ensure the user is registered as interested in petwalking
+      await supabase.rpc('set_signup_intent', { _intent: 'petwalker' });
+      
       const { error } = await supabase.from('petwalker_applications').insert([
         {
           user_id: user.id,
