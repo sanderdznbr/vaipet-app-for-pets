@@ -20,22 +20,54 @@ const RoleLanding = () => {
 
   const [waitApproved, setWaitApproved] = useState(0);
   const [petwalkerProfile, setPetwalkerProfile] = useState<any>(null);
-  const [pwProfileLoading, setPwProfileLoading] = useState(false);
+  const [pwProfileStatus, setPwProfileStatus] = useState<'idle' | 'loading' | 'ready' | 'missing' | 'error'>('idle');
+  const [pwProfileError, setPwProfileError] = useState<any>(null);
 
   // Fetch petwalker profile specifically for profile_completed check
   useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+
     if (hasRole('petwalker') && user) {
-      setPwProfileLoading(true);
-      supabase
-        .from('petwalker_profiles')
-        .select('profile_completed')
-        .eq('user_id', user.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          setPetwalkerProfile(data);
-          setPwProfileLoading(false);
-        });
+      setPwProfileStatus('loading');
+      setPwProfileError(null);
+
+      const fetchPwProfile = async () => {
+        try {
+          const { data, error } = await Promise.race([
+            (supabase
+              .from('petwalker_profiles')
+              .select('profile_completed')
+              .eq('user_id', user.id)
+              .maybeSingle() as any).abortSignal(controller.signal),
+            new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+          ]);
+
+          if (!mounted) return;
+
+          if (error) {
+            setPwProfileError(error);
+            setPwProfileStatus('error');
+          } else if (!data) {
+            setPwProfileStatus('missing');
+          } else {
+            setPetwalkerProfile(data);
+            setPwProfileStatus('ready');
+          }
+        } catch (err) {
+          if (!mounted) return;
+          setPwProfileError(err);
+          setPwProfileStatus('error');
+        }
+      };
+
+      fetchPwProfile();
     }
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
   }, [hasRole, user]);
 
   useEffect(() => {
@@ -56,10 +88,16 @@ const RoleLanding = () => {
                      rolesStatus === 'idle' || 
                      applicationStatus === 'loading' || 
                      applicationStatus === 'idle' ||
-                     pwProfileLoading
+                     (hasRole('petwalker') && pwProfileStatus === 'loading') ||
+                     (hasRole('petwalker') && pwProfileStatus === 'idle')
                    ));
   
-  const isError = authStatus === 'error' || profileStatus === 'error' || rolesStatus === 'error' || profileStatus === 'missing';
+  const isError = authStatus === 'error' || 
+                  profileStatus === 'error' || 
+                  rolesStatus === 'error' || 
+                  applicationStatus === 'error' ||
+                  profileStatus === 'missing' ||
+                  (hasRole('petwalker') && pwProfileStatus === 'error');
 
   if (isLoading) {
     return (
@@ -95,6 +133,9 @@ const RoleLanding = () => {
 
   // 1. PetWalker Logic
   if (hasRole('petwalker')) {
+    if (pwProfileStatus === 'missing') {
+      return <Navigate to="/petwalker/onboarding" replace />;
+    }
     // Decision based on petwalker_profiles.profile_completed
     if (petwalkerProfile && !petwalkerProfile.profile_completed) {
       return <Navigate to="/petwalker/onboarding" replace />;

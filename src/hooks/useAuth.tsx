@@ -51,6 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const currentUserIdRef = useRef<string | null>(null);
   const profileRequestIdRef = useRef<number>(0);
+  const intentRequestIdRef = useRef<number>(0);
   const rolesRequestIdRef = useRef<number>(0);
   const appRequestIdRef = useRef<number>(0);
   const profileAbortControllerRef = useRef<AbortController | null>(null);
@@ -249,38 +250,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const pendingIntentStr = localStorage.getItem('vaipet_pending_signup_intent');
       if (pendingIntentStr) {
         const processIntent = async () => {
-          const requestId = ++profileRequestIdRef.current; // Re-use requestId to avoid race
+          const requestId = ++intentRequestIdRef.current;
+          let intentData: any;
+          
           try {
-            const { intent, timestamp } = JSON.parse(pendingIntentStr);
-            const now = Date.now();
-            
-            // Validate: Only pet_owner or petwalker, within 30 minutes
-            if (
-              (intent === 'pet_owner' || intent === 'petwalker') && 
-              (now - timestamp < 30 * 60 * 1000)
-            ) {
-              const { error } = await Promise.race([
-                supabase.rpc('set_signup_intent', { _intent: intent }),
-                new Promise<any>((_, reject) => setTimeout(() => reject(new Error('RPC Timeout')), 10000))
-              ]);
+            intentData = JSON.parse(pendingIntentStr);
+          } catch (e) {
+            console.error('Invalid intent JSON:', e);
+            localStorage.removeItem('vaipet_pending_signup_intent');
+            return;
+          }
 
-              if (error) {
-                console.error('Error applying intent:', error);
-                // Keep the intent in localStorage for retry unless it's a validation error
-                return;
-              }
-              
-              if (requestId === profileRequestIdRef.current) {
-                await fetchProfile(user.id);
-                localStorage.removeItem('vaipet_pending_signup_intent');
-              }
-            } else {
-              // Expired or invalid
+          const { intent, timestamp } = intentData;
+          const now = Date.now();
+          
+          // Validate: Only pet_owner or petwalker, within 30 minutes
+          if (
+            (intent !== 'pet_owner' && intent !== 'petwalker') || 
+            (now - timestamp > 30 * 60 * 1000)
+          ) {
+            console.warn('Expired or invalid intent:', intent);
+            localStorage.removeItem('vaipet_pending_signup_intent');
+            return;
+          }
+
+          try {
+            const { error } = await Promise.race([
+              supabase.rpc('set_signup_intent', { _intent: intent }),
+              new Promise<any>((_, reject) => setTimeout(() => reject(new Error('RPC Timeout')), 10000))
+            ]);
+
+            if (error) {
+              console.error('Error applying intent:', error);
+              // Do NOT remove from localStorage on network/server error to allow retry
+              return;
+            }
+            
+            if (requestId === intentRequestIdRef.current) {
+              await fetchProfile(user.id);
               localStorage.removeItem('vaipet_pending_signup_intent');
             }
           } catch (e) {
-            console.error('Error processing intent:', e);
-            localStorage.removeItem('vaipet_pending_signup_intent');
+            console.error('Error processing intent RPC:', e);
+            // Do NOT remove on timeout/network error
           }
         };
         processIntent();

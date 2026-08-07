@@ -162,8 +162,15 @@ const BreedSelector = ({
   );
 };
 
-const SignupWizard = ({ initialIntent }: { initialIntent?: 'pet_owner' | 'petwalker' }) => {
-  const [signupIntent] = useState<'pet_owner' | 'petwalker'>(initialIntent || 'pet_owner');
+const SignupWizard = ({ initialIntent: propIntent }: { initialIntent?: 'pet_owner' | 'petwalker' }) => {
+  const [signupIntent] = useState<'pet_owner' | 'petwalker'>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const intentParam = params.get('intent');
+    if (intentParam === 'petwalker' || intentParam === 'pet_owner') {
+      return intentParam as 'pet_owner' | 'petwalker';
+    }
+    return propIntent || 'pet_owner';
+  });
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
