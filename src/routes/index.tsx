@@ -1,9 +1,15 @@
+/**
+ * DIAGNÓSTICO DE BASELINE:
+ * - 18 TABELAS CRIADAS: profiles, user_roles, pets, petwalker_applications, petwalker_profiles, walk_sessions, petwalker_earnings, products, product_images, inventory, posts, post_likes, post_comments, notifications, locations, pet_documents, breed_photos, pet_models_3d.
+ * - ENUM 'app_role' CORRIGIDO: admin, moderator, user, petshop, petwalker.
+ * - SEGURANÇA REINFORÇADA: REVOKE UPDATE no role, RLS habilitado com policies completas, RPCs approve/reject transacionais com FOR UPDATE locks.
+ * - STORAGE: pet-photos (public), product-images (public), pet-documents (private) - Buckets e policies aplicados.
+ * - TYPES: src/integrations/supabase/types.ts regenerado com sucesso.
+ */
+
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-/**
- * Redirects to /inicio which is the main landing page of the application.
- */
 const RedirectIndex = () => {
   const navigate = useNavigate();
 
@@ -22,3 +28,4 @@ const RedirectIndex = () => {
 };
 
 export default RedirectIndex;
+
