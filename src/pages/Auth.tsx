@@ -388,7 +388,7 @@ const Auth = () => {
               </motion.div>
             )}
           </AnimatePresence>
-
+          
           <button
             onClick={() => navigate('/petwalker/inscricao')}
             className="mt-6 text-xs font-bold text-[#31D880] tracking-tight opacity-80 hover:opacity-100 transition-opacity"
@@ -396,8 +396,9 @@ const Auth = () => {
             Quero trabalhar como PetWalker
           </button>
         </div>
+      </div>
 
-          <p className="text-[11px] font-medium leading-relaxed text-center mt-4" style={{ color: INK, opacity: 0.6 }}>
+      <p className="text-[11px] font-medium leading-relaxed text-center mt-4" style={{ color: INK, opacity: 0.6 }}>
             Ao continuar, você aceita os{' '}
             <Link to="/termos-de-uso" className="underline" style={{ color: INK }}>Termos</Link>
             {' '}e{' '}
