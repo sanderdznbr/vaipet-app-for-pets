@@ -409,7 +409,9 @@ export type Database = {
       }
       petwalker_profiles: {
         Row: {
-          approval_status: string | null
+          approval_status:
+            | Database["public"]["Enums"]["application_status"]
+            | null
           availability_status: string | null
           cancellation_rate: number | null
           completed_walks: number | null
@@ -426,7 +428,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          approval_status?: string | null
+          approval_status?:
+            | Database["public"]["Enums"]["application_status"]
+            | null
           availability_status?: string | null
           cancellation_rate?: number | null
           completed_walks?: number | null
@@ -443,7 +447,9 @@ export type Database = {
           user_id: string
         }
         Update: {
-          approval_status?: string | null
+          approval_status?:
+            | Database["public"]["Enums"]["application_status"]
+            | null
           availability_status?: string | null
           cancellation_rate?: number | null
           completed_walks?: number | null
