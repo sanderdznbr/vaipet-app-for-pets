@@ -1,5 +1,5 @@
 /**
- * DIAGNÓSTICO E CORREÇÃO DA DISPONIBILIDADE - 07/08/2026 22:00 UTC
+ * DIAGNÓSTICO E CORREÇÃO FINAL - 07/08/2026 22:05 UTC
  * 
  * 1. RPC set_petwalker_availability CORRIGIDA:
  * - Agora atualiza 'is_accepting_requests' (true para 'available', false para 'offline').
@@ -10,6 +10,9 @@
  * - get_public_petwalker_profiles agora reflete corretamente a disponibilidade real.
  * - Usuários comuns e PetWalkers não aprovados são bloqueados na origem.
  * 
+3. LIMPEZA:
+- Função sem uso "check_storage_path" removida da baseline.
+
  * 3. VALIDAÇÃO:
  * - Baseline consolidada com 18 tabelas, 3 buckets e RLS Zero-Trust.
  * - Tipos sincronizados e build verificado.
