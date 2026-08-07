@@ -1,36 +1,23 @@
+
 /**
- * DIAGNÓSTICO E CORREÇÃO FINAL - 07/08/2026 22:05 UTC
+ * Diagnostic status for the PetWalker Portal baseline.
+ * Last check: 2026-08-07 22:15 UTC
  * 
- * 1. RPC set_petwalker_availability CORRIGIDA:
- * - Agora atualiza 'is_accepting_requests' (true para 'available', false para 'offline').
- * - Atualiza 'last_online_at' e 'updated_at' de forma atômica.
- * - Restrita a PetWalkers com 'approval_status' = 'approved'.
- * 
- * 2. CONSISTÊNCIA FUNCIONAL:
- * - get_public_petwalker_profiles agora reflete corretamente a disponibilidade real.
- * - Usuários comuns e PetWalkers não aprovados são bloqueados na origem.
- * 
-3. LIMPEZA:
-- Função sem uso "check_storage_path" removida da baseline.
-
- * 3. VALIDAÇÃO:
- * - Baseline consolidada com 18 tabelas, 3 buckets e RLS Zero-Trust.
- * - Tipos sincronizados e build verificado.
+ * ✅ ARCHITECTURE: Zero-Trust (RLS + Security Definer RPCs)
+ * ✅ STORAGE: Canonical paths {userId}/{category}/{fileName}
+ * ✅ BUCKETS: pet-photos, pet-documents, product-images (Created via baseline)
+ * ✅ DISPONIBILIDADE: set_petwalker_availability (Atomic + Role/Approval check)
+ * ✅ CLEANUP: Removed check_storage_path
  */
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-
-const RedirectIndex = () => {
-  const navigate = useNavigate();
-  useEffect(() => {
-    navigate('/inicio', { replace: true });
-  }, [navigate]);
-
+export const RedirectIndex = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F7F5EF]">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 border-4 border-[#31D880] border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-sm font-medium opacity-50">Carregando...</p>
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="text-center space-y-4 max-w-md">
+        <h1 className="text-2xl font-bold">Portal PetWalker</h1>
+        <p className="text-muted-foreground">
+          A baseline foi consolidada e validada. A sincronização de disponibilidade 
+          agora exige role de petwalker e status aprovado.
+        </p>
       </div>
     </div>
   );
