@@ -15,6 +15,8 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   roles: AppRole[];
+  signupIntent: Database['public']['Enums']['signup_intent_type'] | null;
+  petwalkerApplication: Tables<'petwalker_applications'> | null;
   loading: boolean;
   authStatus: AuthStatus;
   profileStatus: ProfileStatus;
@@ -25,6 +27,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   refreshRoles: () => Promise<void>;
+  refreshApplication: () => Promise<void>;
   hasRole: (role: AppRole) => boolean;
 }
 
@@ -38,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authStatus, setAuthStatus] = useState<AuthStatus>('initializing');
   const [profileStatus, setProfileStatus] = useState<ProfileStatus>('idle');
   const [rolesStatus, setRolesStatus] = useState<RolesStatus>('idle');
+  const [petwalkerApplication, setPetwalkerApplication] = useState<Tables<'petwalker_applications'> | null>(null);
   const [authError, setAuthError] = useState<Error | null>(null);
   const [profileError, setProfileError] = useState<Error | null>(null);
   const [rolesError, setRolesError] = useState<Error | null>(null);
@@ -264,6 +268,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user) await fetchRoles(user.id);
   };
 
+  const refreshApplication = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('petwalker_applications')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    setPetwalkerApplication(data);
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      refreshApplication();
+    }
+  }, [user, refreshApplication]);
+
   const hasRole = (role: AppRole) => roles.includes(role);
 
   const value = {
@@ -271,6 +291,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     profile,
     roles,
+    signupIntent: profile?.signup_intent || null,
+    petwalkerApplication,
     loading: authStatus === 'initializing' || (authStatus === 'authenticated' && (profileStatus === 'loading' || profileStatus === 'idle' || rolesStatus === 'loading' || rolesStatus === 'idle')),
     authStatus,
     profileStatus,
@@ -281,6 +303,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signOut,
     refreshProfile,
     refreshRoles,
+    refreshApplication,
     hasRole
   };
 
