@@ -291,7 +291,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     profile,
     roles,
-    signupIntent: profile?.signup_intent || null,
+    signupIntent: (profile as any)?.signup_intent || null,
     petwalkerApplication,
     loading: authStatus === 'initializing' || (authStatus === 'authenticated' && (profileStatus === 'loading' || profileStatus === 'idle' || rolesStatus === 'loading' || rolesStatus === 'idle')),
     authStatus,

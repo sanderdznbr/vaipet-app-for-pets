@@ -15,8 +15,8 @@ export const RedirectIndex = () => {
       <div className="text-center space-y-4 max-w-md">
         <h1 className="text-2xl font-bold">Portal PetWalker</h1>
         <p className="text-muted-foreground">
-          A baseline foi consolidada e validada. A sincronização de disponibilidade 
-          agora exige role de petwalker e status aprovado.
+          A baseline foi consolidada e validada. O fluxo de intenção de conta (signup_intent) 
+          foi implementado e o build foi corrigido com sucesso.
         </p>
       </div>
     </div>
