@@ -678,9 +678,6 @@ export type Database = {
           onboarding_completed: boolean | null
           phone: string | null
           role: string | null
-          signup_intent:
-            | Database["public"]["Enums"]["signup_intent_type"]
-            | null
           updated_at: string | null
         }
         Insert: {
@@ -695,9 +692,6 @@ export type Database = {
           onboarding_completed?: boolean | null
           phone?: string | null
           role?: string | null
-          signup_intent?:
-            | Database["public"]["Enums"]["signup_intent_type"]
-            | null
           updated_at?: string | null
         }
         Update: {
@@ -712,9 +706,6 @@ export type Database = {
           onboarding_completed?: boolean | null
           phone?: string | null
           role?: string | null
-          signup_intent?:
-            | Database["public"]["Enums"]["signup_intent_type"]
-            | null
           updated_at?: string | null
         }
         Relationships: []
@@ -871,10 +862,6 @@ export type Database = {
         Args: { _status: string }
         Returns: undefined
       }
-      set_signup_intent: {
-        Args: { _intent: Database["public"]["Enums"]["signup_intent_type"] }
-        Returns: undefined
-      }
       update_petwalker_operational_profile: {
         Args: {
           _experience_years: number
@@ -888,7 +875,6 @@ export type Database = {
     Enums: {
       app_role: "admin" | "moderator" | "user" | "petshop" | "petwalker"
       application_status: "pending" | "approved" | "rejected"
-      signup_intent_type: "pet_owner" | "petwalker"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1018,7 +1004,6 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "moderator", "user", "petshop", "petwalker"],
       application_status: ["pending", "approved", "rejected"],
-      signup_intent_type: ["pet_owner", "petwalker"],
     },
   },
 } as const

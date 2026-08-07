@@ -6,15 +6,13 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, RefreshCw, LogOut } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 
 const PetwalkerInscricao = () => {
   const navigate = useNavigate();
-  const { user, hasRole } = useAuth();
+  const { user, profile, hasRole, applicationStatus, petwalkerApplication, refreshApplication, refreshRoles, refreshProfile, signOut } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [checking, setChecking] = useState(true);
-  const [existingApp, setExistingApp] = useState<Tables<'petwalker_applications'> | null>(null);
   
   const [formData, setFormData] = useState({
     legal_name: '',
@@ -29,30 +27,8 @@ const PetwalkerInscricao = () => {
   useEffect(() => {
     if (hasRole('petwalker')) {
       navigate('/petwalker', { replace: true });
-      return;
     }
-
-    const checkExisting = async () => {
-      if (!user) {
-        setChecking(false);
-        return;
-      }
-      try {
-        const { data, error } = await supabase
-          .from('petwalker_applications')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        
-        if (data) setExistingApp(data);
-      } catch (err) {
-        console.error('Error checking application:', err);
-      } finally {
-        setChecking(false);
-      }
-    };
-    checkExisting();
-  }, [user, hasRole, navigate]);
+  }, [hasRole, navigate]);
 
   const validateAge = (dateString: string) => {
     const today = new Date();
@@ -63,6 +39,27 @@ const PetwalkerInscricao = () => {
       age--;
     }
     return age >= 18;
+  };
+
+  const handleUpdateStatus = async () => {
+    setLoading(true);
+    await refreshApplication();
+    await refreshRoles();
+    setLoading(false);
+  };
+
+  const handleContinueAsOwner = async () => {
+    setLoading(true);
+    try {
+      await (supabase.rpc as any)('set_signup_intent', { _intent: 'pet_owner' });
+      await refreshProfile();
+      toast.success('Alterado para Dono(a) de Pet com sucesso!');
+      navigate('/inicio');
+    } catch (err) {
+      toast.error('Erro ao alterar intenção');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -97,7 +94,7 @@ const PetwalkerInscricao = () => {
       if (error) throw error;
 
       toast.success('Inscrição enviada com sucesso!');
-      navigate('/inicio');
+      await refreshApplication();
     } catch (err: unknown) {
       const error = err as Error;
       toast.error(error.message || 'Erro ao processar inscrição');
@@ -106,23 +103,58 @@ const PetwalkerInscricao = () => {
     }
   };
 
-  if (checking) return null;
+  if (applicationStatus === 'loading' || applicationStatus === 'idle') return null;
 
-  if (existingApp) {
+  if (applicationStatus === 'pending') {
     return (
       <div className="min-h-screen bg-[#F7F5EF] flex items-center justify-center p-6 text-center">
         <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-sm">
-          <div className="w-20 h-20 bg-[#F7F5EF] rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <span className="text-4xl">📄</span>
+          <div className="w-20 h-20 bg-[#FFF5F0] rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <span className="text-4xl text-[#F14A00]">⏳</span>
           </div>
-          <h1 className="text-2xl font-bold mb-2">Inscrição Enviada</h1>
+          <h1 className="text-2xl font-bold mb-2">Em Análise</h1>
           <p className="text-gray-500 mb-8">
-            Sua inscrição de status <strong>{existingApp.status}</strong> já está conosco. 
-            Aguarde nossa análise.
+            Sua candidatura está sendo revisada por nossa equipe. 
+            Isso geralmente leva de 24h a 48h úteis.
           </p>
-          <Button onClick={() => navigate('/inicio')} className="w-full h-14 rounded-2xl font-bold">
-            Voltar para Home
-          </Button>
+          <div className="flex flex-col gap-3">
+            <Button onClick={handleUpdateStatus} disabled={loading} className="w-full h-14 rounded-2xl font-bold flex gap-2">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar Status
+            </Button>
+            <Button variant="ghost" onClick={signOut} className="w-full h-14 rounded-2xl font-bold flex gap-2">
+              <LogOut className="w-4 h-4" />
+              Sair
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (applicationStatus === 'rejected') {
+    return (
+      <div className="min-h-screen bg-[#F7F5EF] flex items-center justify-center p-6 text-center">
+        <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-sm">
+          <div className="w-20 h-20 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <span className="text-4xl">❌</span>
+          </div>
+          <h1 className="text-2xl font-bold mb-2">Candidatura Rejeitada</h1>
+          <p className="text-red-500 text-sm mb-4">
+            Motivo: {petwalkerApplication?.rejection_reason || 'Não informado.'}
+          </p>
+          <p className="text-gray-500 mb-8">
+            Infelizmente sua candidatura não foi aprovada neste momento. 
+            Você ainda pode usar o VaiPet como Dono(a) de Pet.
+          </p>
+          <div className="flex flex-col gap-3">
+            <Button onClick={handleContinueAsOwner} disabled={loading} className="w-full h-14 rounded-2xl font-bold">
+              Continuar como Dono(a) de Pet
+            </Button>
+            <Button variant="ghost" onClick={signOut} className="w-full h-14 rounded-2xl font-bold">
+              Sair
+            </Button>
+          </div>
         </div>
       </div>
     );
