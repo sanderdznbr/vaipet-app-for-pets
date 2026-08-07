@@ -15,7 +15,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   roles: AppRole[];
-  signupIntent: (Database['public']['Enums'] as any)['signup_intent_type'] | null;
+  signupIntent: string | null;
   petwalkerApplication: Tables<'petwalker_applications'> | null;
   loading: boolean;
   authStatus: AuthStatus;
