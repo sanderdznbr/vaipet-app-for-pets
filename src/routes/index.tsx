@@ -1,11 +1,11 @@
 /**
- * PORTAL PETWALKER - STATUS DA CONSOLIDAÇÃO (REHARDENED v3)
+ * PORTAL PETWALKER - EXPERIÊNCIA DE USUÁRIO (REORGANIZADA)
  * 
- * 1. GERENCIADOR DE PACOTES: npm (oficializado). lockfile regenerado.
- * 2. AUTH RESILIENCE: Intent OAuth não é mais removida em erro de rede/timeout. requestId dedicado.
- * 3. ROLE LANDING: Tratamento de erros explícito para petwalker_profiles. Roteamento operacional blindado.
- * 4. SEGURANÇA: RPC set_petwalker_availability com validação dupla (role + approved).
- * 5. WIZARD: Validação estrita do parâmetro ?intent= (apenas pet_owner ou petwalker).
+ * 1. LOGIN: Interface limpa, focada em autenticação de contas existentes.
+ * 2. SELEÇÃO: Novo fluxo "Como você quer usar o VaiPet?" com dois cartões exclusivos.
+ * 3. CADASTRO: Indicação visual do tipo de conta e persistência de intenção resiliente.
+ * 4. CANDIDATURA: Formulário em 2 etapas (Dados Pessoais / Experiência) para usuários logados.
+ * 5. RETORNO: RoleLanding e AuthProvider integrados para reconhecimento pós-login.
  */
 export const RedirectIndex = () => {
   return (

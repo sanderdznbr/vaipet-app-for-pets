@@ -356,7 +356,10 @@ const Auth = () => {
                 </form>
 
                 <button
-                  onClick={() => setIsRegistering(!isRegistering)}
+                  onClick={() => {
+                    setIsRegistering(!isRegistering);
+                    setSignupIntent(null); // Reset intent when toggling
+                  }}
                   className="text-sm font-semibold text-center underline opacity-60 hover:opacity-100 transition-opacity"
                 >
                   {isRegistering ? 'Já tem conta? Entre aqui' : 'Não tem conta? Crie uma'}
