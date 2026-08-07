@@ -3,8 +3,21 @@ import re
 def parse_ts_types(content):
     tables = {}
     
-    # Simple regex to extract table rows from Database interface
-    # This is a bit fragile but should work for this structure
+    # Extract enums first
+    enums = {}
+    enum_matches = re.finditer(r'Enums: {\s+([\s\S]*?)\s+},', content)
+    for match in enum_matches:
+        enum_content = match.group(1)
+        for enum_line in enum_content.strip().split('\n'):
+            enum_line = enum_line.strip()
+            if not enum_line: continue
+            e_match = re.match(r'(\w+): "(.*)"', enum_line)
+            if e_match:
+                name = e_match.group(1)
+                values = [v.strip().strip("'") for v in e_match.group(2).split('|')]
+                enums[name] = values
+
+    # Extract tables
     table_matches = re.finditer(r'(\w+): {\s+Row: {([\s\S]*?)}\s+Insert:', content)
     for match in table_matches:
         table_name = match.group(1)
@@ -18,27 +31,34 @@ def parse_ts_types(content):
             col_match = re.match(r'(\w+): (.*)', line)
             if col_match:
                 name = col_match.group(1)
-                ts_type = col_match.group(2)
+                ts_type = col_match.group(2).replace('| null', '').strip()
                 
-                # Basic mapping from TS types to Postgres types
                 sql_type = "text"
-                if "number" in ts_type:
-                    sql_type = "numeric" if "number" in ts_type else "integer"
-                elif "boolean" in ts_type:
+                if ts_type == "number":
+                    sql_type = "numeric"
+                    # Refine numeric
+                    if any(x in name for x in ['count', 'quantity', 'age', 'duration', 'minutes', 'years', 'is_read']):
+                        sql_type = "integer"
+                elif ts_type == "boolean":
                     sql_type = "boolean"
-                elif "Json" in ts_type:
+                elif ts_type == "Json":
                     sql_type = "jsonb"
-                elif "string" in ts_type:
+                elif ts_type == "string":
                     if "at" in name or "time" in name:
                         sql_type = "timestamp with time zone"
+                    elif "date" in name or "birthday" in name:
+                         sql_type = "date"
                     else:
                         sql_type = "text"
                 
-                # Special cases based on name
                 if name == "id":
                     sql_type = "uuid"
                 
-                is_nullable = "null" in ts_type
+                # Check for enums
+                if ts_type in enums:
+                    sql_type = f"public.{ts_type}"
+
+                is_nullable = "null" in col_match.group(2)
                 
                 columns.append({
                     "name": name,
@@ -53,10 +73,6 @@ with open('src/integrations/supabase/types.ts', 'r') as f:
     content = f.read()
 
 tables = parse_ts_types(content)
-
-# We'll use this info to build the SQL
-# But we also need the relationships and constraints which are harder to parse correctly
-# For this task, I will combine the knowledge from types.ts with standard pet-shop schema conventions
 
 sql = """-- Baseline Schema
 -- Extensions
@@ -79,49 +95,87 @@ $$ LANGUAGE plpgsql;
 -- Tables
 """
 
-def get_pg_type(col_name, col_type, is_nullable):
+def get_pg_type(table_name, col_name, col_type, is_nullable):
     if col_name == 'id':
+        if table_name == 'profiles':
+             return 'uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE'
         return 'uuid PRIMARY KEY DEFAULT gen_random_uuid()'
     
     suffix = "" if is_nullable else " NOT NULL"
     
-    # Refine types based on common patterns
-    if col_name.endswith('_id') or col_name == 'user_id':
-        return f'uuid{suffix}'
-    if 'at' in col_name:
-        default = " DEFAULT now()" if 'created' in col_name else ""
-        return f'timestamp with time zone{default}{suffix}'
     if col_type == 'numeric':
-        # Default to integer if name implies count or duration
-        if any(x in col_name for x in ['count', 'quantity', 'age', 'duration', 'minutes', 'years']):
-             return f'integer DEFAULT 0{suffix}'
         return f'numeric(10,2) DEFAULT 0.00{suffix}'
+    if col_type == 'integer':
+        return f'integer DEFAULT 0{suffix}'
     if col_type == 'boolean':
         return f'boolean DEFAULT false{suffix}'
+    if col_type == 'timestamp with time zone':
+        default = " DEFAULT now()" if 'created' in col_name or 'submitted' in col_name else ""
+        return f'timestamp with time zone{default}{suffix}'
     
     return f'{col_type}{suffix}'
 
-for table_name, columns in tables.items():
+# Define table creation order to respect dependencies
+creation_order = [
+    'profiles', 'user_roles', 'pets', 'petwalker_applications', 'petwalker_profiles', 
+    'walk_sessions', 'petwalker_earnings', 'products', 'product_images', 'inventory',
+    'posts', 'post_likes', 'post_comments', 'notifications', 'locations', 
+    'pet_documents', 'breed_photos', 'pet_models_3d'
+]
+
+for table_name in creation_order:
+    if table_name not in tables: continue
+    columns = tables[table_name]
     sql += f"\nCREATE TABLE public.{table_name} (\n"
     col_defs = []
     for col in columns:
-        col_defs.append(f"    {col['name']} {get_pg_type(col['name'], col['type'], col['nullable'])}")
+        col_defs.append(f"    {col['name']} {get_pg_type(table_name, col['name'], col['type'], col['nullable'])}")
     
-    # Add foreign keys based on name conventions
-    for col in columns:
-        if col['name'] == 'user_id' or (table_name == 'profiles' and col['name'] == 'id'):
-             sql += f"    -- Foreign key for {col['name']} would be auth.users(id)\n"
-        elif col['name'].endswith('_id'):
-             ref_table = col['name'][:-3] + 's' # simplistic pluralization
-             # fix common ones
-             if ref_table == 'walkers': ref_table = 'petwalker_profiles'
-             if ref_table == 'owners': ref_table = 'profiles'
-             # sql += f"    -- Foreign key for {col['name']} -> {ref_table}(id)\n"
+    # Add foreign keys manually for accuracy
+    if table_name == 'user_roles':
+         col_defs.append("    FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE")
+         col_defs.append("    UNIQUE (user_id, role)")
+    elif table_name == 'pets':
+         col_defs.append("    FOREIGN KEY (owner_id) REFERENCES public.profiles(id) ON DELETE CASCADE")
+    elif table_name == 'petwalker_applications':
+         col_defs.append("    FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE")
+         col_defs.append("    UNIQUE (user_id)")
+    elif table_name == 'petwalker_profiles':
+         col_defs.append("    FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE")
+         col_defs.append("    UNIQUE (user_id)")
+    elif table_name == 'walk_sessions':
+         col_defs.append("    FOREIGN KEY (customer_id) REFERENCES public.profiles(id) ON DELETE CASCADE")
+         col_defs.append("    FOREIGN KEY (pet_id) REFERENCES public.pets(id) ON DELETE CASCADE")
+         col_defs.append("    FOREIGN KEY (walker_id) REFERENCES public.profiles(id) ON DELETE CASCADE")
+    elif table_name == 'petwalker_earnings':
+         col_defs.append("    FOREIGN KEY (petwalker_id) REFERENCES public.profiles(id) ON DELETE CASCADE")
+         col_defs.append("    FOREIGN KEY (walk_session_id) REFERENCES public.walk_sessions(id) ON DELETE SET NULL")
+    elif table_name == 'inventory':
+         col_defs.append("    FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE")
+         col_defs.append("    UNIQUE (product_id)")
+    elif table_name == 'product_images':
+         col_defs.append("    FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE")
+    elif table_name == 'post_likes':
+         col_defs.append("    FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE")
+         col_defs.append("    FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE")
+    elif table_name == 'post_comments':
+         col_defs.append("    FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE")
+         col_defs.append("    FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE")
+    elif table_name == 'posts':
+         col_defs.append("    FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE")
+    elif table_name == 'notifications':
+         col_defs.append("    FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE")
+    elif table_name == 'locations':
+         col_defs.append("    FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE")
+    elif table_name == 'pet_documents':
+         col_defs.append("    FOREIGN KEY (pet_id) REFERENCES public.pets(id) ON DELETE CASCADE")
+    elif table_name == 'pet_models_3d':
+         # pet_id or whatever it links to
+         pass
 
     sql += ",\n".join(col_defs)
     sql += "\n);\n"
 
-# Security functions
 sql += """
 -- Security Functions
 CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role public.app_role)
@@ -145,8 +199,8 @@ $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-    INSERT INTO public.profiles (id, full_name, avatar_url)
-    VALUES (NEW.id, NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'avatar_url');
+    INSERT INTO public.profiles (id, full_name, avatar_url, email)
+    VALUES (NEW.id, NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'avatar_url', NEW.email);
     
     INSERT INTO public.user_roles (user_id, role)
     VALUES (NEW.id, 'user');
@@ -194,6 +248,24 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
+CREATE OR REPLACE FUNCTION public.set_petwalker_availability(status text)
+RETURNS void AS $$
+BEGIN
+    UPDATE public.petwalker_profiles
+    SET availability_status = status, updated_at = now()
+    WHERE user_id = auth.uid();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION public.update_petwalker_operational_profile(bio text, experience integer, radius integer, price numeric)
+RETURNS void AS $$
+BEGIN
+    UPDATE public.petwalker_profiles
+    SET public_bio = bio, experience_years = experience, service_radius_km = radius, price_30_minutes = price, updated_at = now()
+    WHERE user_id = auth.uid();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
 -- Triggers
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
@@ -202,28 +274,37 @@ CREATE TRIGGER on_auth_user_created
 -- RLS & GRANTS
 """
 
-# Tables list for RLS
-table_names = list(tables.keys())
-for t in table_names:
+for t in creation_order:
+    if t not in tables: continue
     sql += f"ALTER TABLE public.{t} ENABLE ROW LEVEL SECURITY;\n"
     sql += f"GRANT SELECT ON public.{t} TO authenticated;\n"
     sql += f"GRANT ALL ON public.{t} TO service_role;\n"
 
 sql += """
 -- Specific Policies
-CREATE POLICY "Public profiles are readable through RPC only" ON public.profiles FOR SELECT TO authenticated USING (auth.uid() = id);
+-- Profiles: Private data protected
+CREATE POLICY "Users can view their own profile" ON public.profiles FOR SELECT TO authenticated USING (auth.uid() = id);
 CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
-CREATE POLICY "Petwalkers can see their own profile" ON public.petwalker_profiles FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Petwalkers can update their own profile" ON public.petwalker_profiles FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+-- No direct public SELECT on profiles. Use get_public_profiles RPC.
 
--- Storage Buckets (Manual addition for baseline)
--- Note: Buckets are in storage schema, but we define their structure here for the baseline
--- This is illustrative as we use the storage API, but policies are in storage.objects
+-- Petwalker Profiles
+CREATE POLICY "Anyone can view petwalker profiles" ON public.petwalker_profiles FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Petwalkers can update their operational fields" ON public.petwalker_profiles FOR UPDATE TO authenticated USING (auth.uid() = user_id);
 
--- GRANT SELECT ON public.user_roles TO authenticated;
-REVOKE ALL ON public.user_roles FROM authenticated;
+-- User Roles
 GRANT SELECT ON public.user_roles TO authenticated;
-REVOKE UPDATE (role) ON public.user_roles FROM authenticated;
+REVOKE UPDATE ON public.user_roles FROM authenticated;
+CREATE POLICY "Users can see their own roles" ON public.user_roles FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+-- Storage Buckets & Policies
+-- Storage setup
+INSERT INTO storage.buckets (id, name, public) VALUES ('pet-photos', 'pet-photos', true) ON CONFLICT DO NOTHING;
+INSERT INTO storage.buckets (id, name, public) VALUES ('pet-documents', 'pet-documents', false) ON CONFLICT DO NOTHING;
+INSERT INTO storage.buckets (id, name, public) VALUES ('product-images', 'product-images', true) ON CONFLICT DO NOTHING;
+
+-- Storage RLS (in storage.objects)
+CREATE POLICY "Public Access" ON storage.objects FOR SELECT TO public USING (bucket_id IN ('pet-photos', 'product-images'));
+CREATE POLICY "Authenticated Upload" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id IN ('pet-photos', 'product-images', 'pet-documents'));
 """
 
 print(sql)
