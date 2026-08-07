@@ -91,6 +91,7 @@ const Configuracoes = () => {
       label: 'Conta',
       items: [
         { icon: User, title: 'Perfil', description: 'Editar informações pessoais', onClick: () => navigate('/perfil') },
+        { icon: Star, title: 'Quero ser PetWalker', description: 'Trabalhe passeando com pets', onClick: () => navigate('/petwalker/inscricao') },
         { icon: PawPrint, title: 'Meus pets', description: 'Cadastros e saúde', onClick: () => navigate('/add-pet') },
         { icon: MapPin, title: 'Endereços', description: 'Casa, trabalho e outros', onClick: soon },
       ],

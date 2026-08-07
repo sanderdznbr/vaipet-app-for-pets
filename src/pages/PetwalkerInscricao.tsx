@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ChevronLeft, RefreshCw, LogOut } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Tables } from '@/integrations/supabase/types';
 
 const PetwalkerInscricao = () => {
@@ -14,6 +15,7 @@ const PetwalkerInscricao = () => {
   const { user, profile, hasRole, applicationStatus, petwalkerApplication, refreshApplication, refreshRoles, refreshProfile, signOut, authStatus } = useAuth();
   const [loading, setLoading] = useState(false);
   
+  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     legal_name: '',
     birth_date: '',
@@ -81,6 +83,9 @@ const PetwalkerInscricao = () => {
 
     setLoading(true);
     try {
+      // Set signup intent first to ensure the user is registered as interested in petwalking
+      await supabase.rpc('set_signup_intent', { _intent: 'petwalker' });
+      
       const { error } = await supabase.from('petwalker_applications').insert([
         {
           user_id: user.id,
@@ -176,95 +181,142 @@ const PetwalkerInscricao = () => {
   return (
     <div className="min-h-screen bg-[#F7F5EF] pb-10">
       <div className="max-w-md mx-auto p-6">
-        <button onClick={() => navigate(-1)} className="mb-6 flex items-center gap-2 text-gray-500 font-medium">
-          <ChevronLeft size={20} />
-          Voltar
-        </button>
+        <div className="flex items-center justify-between mb-6">
+          <button 
+            onClick={() => {
+              if (step > 1) setStep(step - 1);
+              else navigate('/inicio');
+            }} 
+            className="flex items-center gap-2 text-gray-500 font-medium text-sm"
+          >
+            <ChevronLeft size={18} />
+            {step === 1 ? 'Continuar depois' : 'Voltar'}
+          </button>
+          <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">
+            Etapa {step} de 2
+          </span>
+        </div>
 
-        <h1 className="text-2xl font-bold mb-2">Seja um PetWalker</h1>
-        <p className="text-gray-500 mb-8">Ganhe dinheiro passeando com pets na sua região.</p>
+        <h1 className="text-2xl font-bold mb-1">Seja um PetWalker</h1>
+        <p className="text-sm text-gray-500 mb-8">
+          {step === 1 ? 'Dados pessoais para sua identificação.' : 'Experiência e contatos de segurança.'}
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-sm font-bold ml-1">Nome Completo (Conforme documento)</label>
-            <Input 
-              required 
-              className="h-14 rounded-2xl bg-white border-none shadow-sm"
-              value={formData.legal_name}
-              onChange={e => setFormData({...formData, legal_name: e.target.value})}
-            />
-          </div>
+          <AnimatePresence mode="wait">
+            {step === 1 ? (
+              <motion.div
+                key="step1"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <div className="space-y-2">
+                  <label className="text-sm font-bold ml-1">Nome Completo (Conforme documento)</label>
+                  <Input 
+                    required 
+                    className="h-14 rounded-2xl bg-white border-none shadow-sm"
+                    value={formData.legal_name}
+                    onChange={e => setFormData({...formData, legal_name: e.target.value})}
+                  />
+                </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-bold ml-1">Data de Nascimento</label>
-            <Input 
-              required 
-              type="date"
-              className="h-14 rounded-2xl bg-white border-none shadow-sm"
-              value={formData.birth_date}
-              onChange={e => setFormData({...formData, birth_date: e.target.value})}
-            />
-          </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold ml-1">Data de Nascimento</label>
+                  <Input 
+                    required 
+                    type="date"
+                    className="h-14 rounded-2xl bg-white border-none shadow-sm"
+                    value={formData.birth_date}
+                    onChange={e => setFormData({...formData, birth_date: e.target.value})}
+                  />
+                </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-bold ml-1">Telefone WhatsApp</label>
-            <Input 
-              required 
-              placeholder="(00) 00000-0000"
-              className="h-14 rounded-2xl bg-white border-none shadow-sm"
-              value={formData.phone}
-              onChange={e => setFormData({...formData, phone: e.target.value})}
-            />
-          </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold ml-1">Telefone WhatsApp</label>
+                  <Input 
+                    required 
+                    placeholder="(00) 00000-0000"
+                    className="h-14 rounded-2xl bg-white border-none shadow-sm"
+                    value={formData.phone}
+                    onChange={e => setFormData({...formData, phone: e.target.value})}
+                  />
+                </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-bold ml-1">Cidade</label>
-            <Input 
-              required 
-              className="h-14 rounded-2xl bg-white border-none shadow-sm"
-              value={formData.city}
-              onChange={e => setFormData({...formData, city: e.target.value})}
-            />
-          </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold ml-1">Cidade</label>
+                  <Input 
+                    required 
+                    className="h-14 rounded-2xl bg-white border-none shadow-sm"
+                    value={formData.city}
+                    onChange={e => setFormData({...formData, city: e.target.value})}
+                  />
+                </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-bold ml-1">Sua Experiência</label>
-            <Textarea 
-              required 
-              placeholder="Descreva brevemente seu contato anterior com animais..."
-              className="min-h-[120px] rounded-2xl bg-white border-none shadow-sm p-4"
-              value={formData.experience_description}
-              onChange={e => setFormData({...formData, experience_description: e.target.value})}
-            />
-          </div>
+                <Button 
+                  type="button"
+                  onClick={() => {
+                    if (formData.legal_name && formData.birth_date && formData.phone && formData.city) {
+                      setStep(2);
+                    } else {
+                      toast.error('Preencha todos os campos obrigatórios');
+                    }
+                  }}
+                  className="w-full h-16 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20"
+                >
+                  Próxima Etapa
+                </Button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <div className="space-y-2">
+                  <label className="text-sm font-bold ml-1">Sua Experiência</label>
+                  <Textarea 
+                    required 
+                    placeholder="Descreva brevemente seu contato anterior com animais..."
+                    className="min-h-[120px] rounded-2xl bg-white border-none shadow-sm p-4"
+                    value={formData.experience_description}
+                    onChange={e => setFormData({...formData, experience_description: e.target.value})}
+                  />
+                </div>
 
-          <div className="pt-4 border-t border-gray-200">
-            <h3 className="font-bold mb-4">Contato de Emergência</h3>
-            <div className="space-y-4">
-              <Input 
-                required 
-                placeholder="Nome do contato"
-                className="h-14 rounded-2xl bg-white border-none shadow-sm"
-                value={formData.emergency_contact_name}
-                onChange={e => setFormData({...formData, emergency_contact_name: e.target.value})}
-              />
-              <Input 
-                required 
-                placeholder="Telefone do contato"
-                className="h-14 rounded-2xl bg-white border-none shadow-sm"
-                value={formData.emergency_contact_phone}
-                onChange={e => setFormData({...formData, emergency_contact_phone: e.target.value})}
-              />
-            </div>
-          </div>
+                <div className="pt-4 border-t border-gray-200">
+                  <h3 className="font-bold mb-4">Contato de Emergência</h3>
+                  <div className="space-y-4">
+                    <Input 
+                      required 
+                      placeholder="Nome do contato"
+                      className="h-14 rounded-2xl bg-white border-none shadow-sm"
+                      value={formData.emergency_contact_name}
+                      onChange={e => setFormData({...formData, emergency_contact_name: e.target.value})}
+                    />
+                    <Input 
+                      required 
+                      placeholder="Telefone do contato"
+                      className="h-14 rounded-2xl bg-white border-none shadow-sm"
+                      value={formData.emergency_contact_phone}
+                      onChange={e => setFormData({...formData, emergency_contact_phone: e.target.value})}
+                    />
+                  </div>
+                </div>
 
-          <Button 
-            disabled={loading}
-            type="submit" 
-            className="w-full h-16 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20"
-          >
-            {loading ? 'Processando...' : 'Enviar Candidatura'}
-          </Button>
+                <Button 
+                  disabled={loading}
+                  type="submit" 
+                  className="w-full h-16 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20"
+                >
+                  {loading ? 'Processando...' : 'Revisar e Enviar Candidatura'}
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </form>
       </div>
     </div>
