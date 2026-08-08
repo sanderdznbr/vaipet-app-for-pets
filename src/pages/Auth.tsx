@@ -235,9 +235,9 @@ const Auth = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg"
+                    className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg"
                   />
-                  <button type="submit" disabled={isLoading} className="w-full h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
+                  <button type="submit" disabled={isLoading} className="w-full h-14 sm:h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
                     {isLoading ? 'Enviando...' : 'Enviar link de recuperação'}
                   </button>
                 </form>
