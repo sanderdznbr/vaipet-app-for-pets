@@ -1192,10 +1192,8 @@ const SearchWalk = () => {
           e opacidade entre camadas, não de rotateX (que distorcia a queda). */}
       {weather && isRainCode(weather.code) && (() => {
         const rain = classifyRain(weather.code, weather.precip);
-        // Distribui a contagem total em 3 camadas de profundidade.
         const layers = [
           {
-            // Far — ao fundo, finíssimas e pálidas.
             key: 'far',
             count: Math.round(rain.drops * 0.45),
             widthMul: 0.6,
@@ -1205,7 +1203,6 @@ const SearchWalk = () => {
             blur: 1.1,
           },
           {
-            // Mid — corpo principal da chuva.
             key: 'mid',
             count: Math.round(rain.drops * 0.35),
             widthMul: 1.0,
@@ -1215,7 +1212,6 @@ const SearchWalk = () => {
             blur: 0.4,
           },
           {
-            // Near — poucas gotas grossas/rápidas em primeiro plano.
             key: 'near',
             count: Math.round(rain.drops * 0.2),
             widthMul: 1.7,
