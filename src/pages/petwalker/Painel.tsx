@@ -112,7 +112,30 @@ const PetwalkerPainel = () => {
   return (
     <PetwalkerProtectedRoute>
       <div className="min-h-screen bg-[#F7F5EF] pb-24">
-        <Header />
+        <header className="px-5 pt-8 pb-4 bg-white/50 backdrop-blur-sm sticky top-0 z-50">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-1">
+              <img src="/vaipet-logo.svg" alt="VaiPet" className="w-24 h-auto" />
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">Portal PetWalker</p>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <NotificationSheet />
+              <button
+                onClick={() => navigate('/petwalker/perfil')}
+                className="w-10 h-10 rounded-full overflow-hidden bg-secondary border border-border/60 cursor-pointer active:scale-95 transition-transform"
+              >
+                {user?.user_metadata?.avatar_url ? (
+                  <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-secondary text-ink">
+                    <User size={20} />
+                  </div>
+                )}
+              </button>
+            </div>
+          </div>
+        </header>
+
         
         <main className="p-6 space-y-6 max-w-lg mx-auto">
           {/* Status Card */}
