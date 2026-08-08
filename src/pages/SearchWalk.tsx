@@ -619,8 +619,7 @@ const SearchWalk = () => {
     const ctrl = new AbortController();
     const t = setTimeout(async () => {
       try {
-        // Use Google Places API (New) via our edge function so POI coverage
-        // matches Google Maps (malls, restaurants, parks, etc.).
+        // Google Places search via Edge Function.
         const { data, error } = await supabase.functions.invoke('places-search', {
           body: {
             query: q,
