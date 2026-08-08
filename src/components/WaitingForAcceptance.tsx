@@ -7,13 +7,8 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 interface WaitingForAcceptanceProps {
-  onAccepted: (data: any) => void;
   onTimeout: () => void;
   onCancel: () => void;
-  petwalkerName?: string;
-  petwalkerAvatar?: string;
-  petwalkerRating?: number;
-  petwalkerWalks?: number;
   isDarkMode?: boolean;
   userLocation?: [number, number] | null;
 }
