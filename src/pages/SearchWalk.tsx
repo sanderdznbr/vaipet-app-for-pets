@@ -1013,8 +1013,23 @@ const SearchWalk = () => {
         lng: s.lng,
         lat: s.lat,
       }));
+      // Create scheduled date in local time first, then convert to ISO for persistence
+      let scheduledForIso = null;
+      if (scheduleMode === 'later') {
+        const [year, month, day] = scheduleDate.split('-').map(Number);
+        const [hour, minute] = scheduleTime.split(':').map(Number);
+        const localDate = new Date(year, month - 1, day, hour, minute);
+        
+        if (localDate <= new Date()) {
+          toast.error('Agendamento deve ser para o futuro');
+          setSearchStatus('idle');
+          return;
+        }
+        scheduledForIso = localDate.toISOString();
+      }
+
       const { data, error } = await supabase.from('walk_sessions').insert({
-        pet_id: selectedPets[0].id,
+        pet_id: selectedPets[0]?.id || null,
         pet_ids: selectedPets.map(p => p.id),
         category: selectedPets.length > 1 ? 'collective' : 'individual',
         customer_id: user.id,
@@ -1027,10 +1042,7 @@ const SearchWalk = () => {
         local_stops: orderedStops,
         home_location: userLocation ? { lng: userLocation[0], lat: userLocation[1] } : null,
         request_mode: scheduleMode === 'now' ? 'now' : 'scheduled',
-        scheduled_for: scheduleMode === 'later' ? `${scheduleDate}T${scheduleTime}:00Z` : null,
-        price_per_minute_cents: quote?.price_per_minute_cents,
-        pricing_surcharge_cents: quote?.surcharge_cents,
-        total_price_cents: quote?.total_price_cents,
+        scheduled_for: scheduledForIso,
         pricing_version: quote?.pricing_version
       } as any).select().single();
       if (error) throw error;
