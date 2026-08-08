@@ -906,25 +906,15 @@ export type Database = {
         Args: { _intent: Database["public"]["Enums"]["signup_intent_type"] }
         Returns: undefined
       }
-      update_petwalker_operational_profile:
-        | {
-            Args: {
-              _experience_years: number
-              _price_30_minutes: number
-              _public_bio: string
-              _service_radius_km: number
-            }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              _experience_years: number
-              _price_30_minutes: number
-              _public_bio: string
-              _service_radius_km: number
-            }
-            Returns: undefined
-          }
+      update_petwalker_operational_profile: {
+        Args: {
+          _experience_years: number
+          _price_30_minutes: number
+          _public_bio: string
+          _service_radius_km: number
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "petshop" | "petwalker"
