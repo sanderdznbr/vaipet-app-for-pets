@@ -349,11 +349,7 @@ const SearchWalk = () => {
     const TRAILING_DEBOUNCE_MS = 600;     // ensure last sample is applied
     const SNAP_DISTANCE_M = 60;           // huge jump → reset filter (teleport)
 
-    // Exponential moving average with accuracy-aware alpha.
-    //   alpha ∈ [0.08, 0.6]
-    //   - high accuracy (≤10m) → alpha ≈ 0.45 (responsive)
-    //   - low accuracy  (≥50m) → alpha ≈ 0.08 (very smooth)
-    //   - large jump (>15m)    → boost alpha so we don't lag real movement
+    // Accuracy-aware EMA smoothing.
     const smoothLocation = (raw: [number, number], accuracy?: number): [number, number] => {
       const prev = emaPosRef.current;
       if (!prev) {
