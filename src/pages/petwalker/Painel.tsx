@@ -13,8 +13,10 @@ import { useNavigate } from 'react-router-dom';
 
 const PetwalkerPainel = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeRequest, setActiveRequest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
   const [isOnline, setIsOnline] = useState(false);
   const [trackingEnabled, setTrackingEnabled] = useState(false);
 
