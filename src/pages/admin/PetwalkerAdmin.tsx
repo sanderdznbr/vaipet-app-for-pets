@@ -91,7 +91,8 @@ const PetwalkerAdmin = () => {
 
   const fetchStats = useCallback(async () => {
     try {
-      const { data, error } = await supabase.rpc('get_admin_application_stats');
+      // Using generic type casting to avoid TS mismatch with outdated local types
+      const { data, error } = await (supabase.rpc('get_admin_application_stats') as any);
       if (error) throw error;
       if (data && data.length > 0) {
         setStats({
