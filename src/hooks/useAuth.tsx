@@ -115,11 +115,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfileError(error);
         setProfileStatus('error');
       } else if (!data) {
-        setProfileStatus('missing');
+        // Attempt recovery if profile is missing
+        try {
+          await supabase.rpc('ensure_current_user_profile');
+          const { data: retryData, error: retryError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle();
+            
+          if (retryError || !retryData) {
+            setProfileStatus('missing');
+          } else {
+            setProfile(retryData);
+            setProfileStatus('ready');
+          }
+        } catch (e) {
+          setProfileStatus('missing');
+        }
       } else {
         setProfile(data);
         setProfileStatus('ready');
       }
+
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       if (requestId !== profileRequestIdRef.current) return;
