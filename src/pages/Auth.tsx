@@ -53,6 +53,22 @@ const Auth = () => {
     }
   }, [searchParams]);
 
+  const translateError = (message: string) => {
+    if (message.includes('Invalid login credentials')) {
+      return 'E-mail ou senha incorretos.';
+    }
+    if (message.includes('User already registered')) {
+      return 'Este e-mail já está cadastrado.';
+    }
+    if (message.includes('Password is too short')) {
+      return 'A senha deve ter pelo menos 6 caracteres.';
+    }
+    if (message.includes('Email not confirmed')) {
+      return 'Por favor, confirme seu e-mail.';
+    }
+    return message;
+  };
+
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -81,7 +97,7 @@ const Auth = () => {
         navigate('/inicio');
       }
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(translateError(error.message));
     } finally {
       setIsLoading(false);
     }
@@ -97,7 +113,7 @@ const Auth = () => {
       if (error) throw error;
       toast.success('Link de recuperação enviado para seu e-mail!');
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(translateError(error.message));
     } finally {
       setIsLoading(false);
     }
@@ -116,7 +132,7 @@ const Auth = () => {
       toast.success('Senha atualizada com sucesso!');
       navigate('/auth');
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(translateError(error.message));
     } finally {
       setIsLoading(false);
     }
@@ -133,7 +149,7 @@ const Auth = () => {
       });
       if (error) throw error;
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(translateError(error.message));
       setOauthLoading(null);
     }
   };
