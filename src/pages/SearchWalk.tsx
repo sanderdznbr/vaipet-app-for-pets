@@ -958,7 +958,7 @@ const SearchWalk = () => {
     }
   };
 
-  const handleAccepted = async (sessionData: any) => {
+  const handleAccepted = useCallback(async (sessionData: any) => {
     if (searchStatusRef.current === 'walking' || !user) return;
 
     preloadDog3DAsset().catch(() => {});
@@ -1011,7 +1011,7 @@ const SearchWalk = () => {
         }
       }
     }
-  };
+  }, [user, walkerMarker, userLocation, addRouteToMap]);
 
   // Cliente autorizou o retorno via chat: marca isReturning, atualiza
   // o banco para 'returning' e a UI assume a fase de "voltando para casa".
