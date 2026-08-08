@@ -1073,7 +1073,7 @@ const SearchWalk = () => {
           table: 'walk_sessions',
           filter: `id=eq.${currentSessionId}`
         },
-        (payload) => {
+        (payload: any) => {
           const newStatus = payload.new.current_status;
           if (newStatus === 'accepted' && searchStatusRef.current !== 'walking') {
             handleAccepted(payload.new);
