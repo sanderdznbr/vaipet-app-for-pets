@@ -1,1 +1,0 @@
-/* Manual restore point */
