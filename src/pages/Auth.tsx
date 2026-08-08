@@ -87,6 +87,12 @@ const Auth = () => {
   }, [triggerTransition]);
 
   const handleOAuth = async (provider: 'google' | 'apple') => {
+    // Proteção: não iniciar OAuth se estiver registrando mas sem intenção selecionada
+    if (isRegistering && !signupIntent) {
+      toast.error('Selecione como deseja usar o VaiPet antes de continuar');
+      return;
+    }
+
     setOauthLoading(provider);
     try {
       if (isRegistering && signupIntent) {
@@ -330,48 +336,52 @@ const Auth = () => {
               )}
             </AnimatePresence>
 
-            <div className="relative my-2">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-black/10"></span>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="px-2 text-black/40" style={{ backgroundColor: PAPER }}>Ou continue com</span>
-              </div>
-            </div>
+            {(!isRegistering || (isRegistering && signupIntent)) && (
+              <>
+                <div className="relative my-2">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-black/10"></span>
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="px-2 text-black/40" style={{ backgroundColor: PAPER }}>Ou continue com</span>
+                  </div>
+                </div>
 
-            <div className="w-full flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={() => handleOAuth('google')}
-                disabled={oauthLoading !== null}
-                className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] disabled:opacity-60 border border-black/5 shadow-sm bg-white"
-                style={{ height: 64, borderRadius: 20, color: INK, fontFamily: "'Space Grotesk', sans-serif" }}
-              >
-                <span className="flex items-center gap-4">
-                  <span className="flex items-center justify-center bg-[#F8F9FA] border border-black/5" style={{ width: 36, height: 36, borderRadius: 10 }}>
-                    <GoogleIcon />
-                  </span>
-                  <span className="text-[15px] font-bold">Google</span>
-                </span>
-                <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
-              </button>
+                <div className="w-full flex flex-col gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleOAuth('google')}
+                    disabled={oauthLoading !== null}
+                    className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] disabled:opacity-60 border border-black/5 shadow-sm bg-white"
+                    style={{ height: 64, borderRadius: 20, color: INK, fontFamily: "'Space Grotesk', sans-serif" }}
+                  >
+                    <span className="flex items-center gap-4">
+                      <span className="flex items-center justify-center bg-[#F8F9FA] border border-black/5" style={{ width: 36, height: 36, borderRadius: 10 }}>
+                        <GoogleIcon />
+                      </span>
+                      <span className="text-[15px] font-bold">Google</span>
+                    </span>
+                    <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => handleOAuth('apple')}
-                disabled={oauthLoading !== null}
-                className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] disabled:opacity-60 border border-black/5 shadow-sm bg-white"
-                style={{ height: 64, borderRadius: 20, color: INK, fontFamily: "'Space Grotesk', sans-serif" }}
-              >
-                <span className="flex items-center gap-4">
-                  <span className="flex items-center justify-center bg-white border border-black/5 shadow-sm" style={{ width: 36, height: 36, borderRadius: 10 }}>
-                    <AppleIcon />
-                  </span>
-                  <span className="text-[15px] font-bold">Apple</span>
-                </span>
-                <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
-              </button>
-            </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOAuth('apple')}
+                    disabled={oauthLoading !== null}
+                    className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] disabled:opacity-60 border border-black/5 shadow-sm bg-white"
+                    style={{ height: 64, borderRadius: 20, color: INK, fontFamily: "'Space Grotesk', sans-serif" }}
+                  >
+                    <span className="flex items-center gap-4">
+                      <span className="flex items-center justify-center bg-white border border-black/5 shadow-sm" style={{ width: 36, height: 36, borderRadius: 10 }}>
+                        <AppleIcon />
+                      </span>
+                      <span className="text-[15px] font-bold">Apple</span>
+                    </span>
+                    <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                </div>
+              </>
+            )}
             <p className="text-[11px] font-medium leading-relaxed text-center mt-6 w-full" style={{ color: INK, opacity: 0.6 }}>
               Ao continuar, você aceita os{' '}
               <Link to="/termos-de-uso" className="underline" style={{ color: INK }}>Termos</Link>
