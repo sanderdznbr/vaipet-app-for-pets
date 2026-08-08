@@ -1814,7 +1814,7 @@ const SearchWalk = () => {
                               onDragStart={(e) => {
                                 dragIndexRef.current = i;
                                 e.dataTransfer.effectAllowed = 'move';
-                                try { e.dataTransfer.setData('text/plain', String(i)); } catch {}
+                                try { e.dataTransfer.setData('text/plain', String(i)); } catch (err) { console.error('Drag data error:', err); }
                               }}
                               onDragOver={(e) => {
                                 e.preventDefault();
