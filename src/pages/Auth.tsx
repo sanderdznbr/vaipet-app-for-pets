@@ -211,7 +211,29 @@ const Auth = () => {
     }
   };
 
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      toast.error('As senhas não coincidem');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast.success('Senha atualizada com sucesso!');
+      setIsRecoveryMode(false);
+      triggerTransition();
+    } catch (err) {
+      const error = err as Error;
+      toast.error(error.message || 'Erro ao atualizar senha.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
+
 
     <div
       className="min-h-[100dvh] w-full flex items-center justify-center overflow-hidden relative"
