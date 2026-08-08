@@ -807,25 +807,22 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
-          offer_status: Database["public"]["Enums"]["walk_status"] | null
+          offer_status: Database["public"]["Enums"]["walk_offer_status"] | null
           session_id: string
-          status: string | null
           walker_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
-          offer_status?: Database["public"]["Enums"]["walk_status"] | null
+          offer_status?: Database["public"]["Enums"]["walk_offer_status"] | null
           session_id: string
-          status?: string | null
           walker_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
-          offer_status?: Database["public"]["Enums"]["walk_status"] | null
+          offer_status?: Database["public"]["Enums"]["walk_offer_status"] | null
           session_id?: string
-          status?: string | null
           walker_id?: string
         }
         Relationships: [
@@ -1250,18 +1247,31 @@ export type Database = {
         Returns: undefined
       }
       cancel_walk_session: { Args: { _session_id: string }; Returns: undefined }
-      create_walk_request: {
-        Args: {
-          _duration_minutes: number
-          _meeting_point_address: string
-          _meeting_point_lat: number
-          _meeting_point_lng: number
-          _pet_id: string
-          _request_mode: Database["public"]["Enums"]["walk_request_mode"]
-          _scheduled_for?: string
-        }
-        Returns: string
-      }
+      create_walk_request:
+        | {
+            Args: {
+              _duration_minutes: number
+              _meeting_point_address: string
+              _meeting_point_lat: number
+              _meeting_point_lng: number
+              _pet_id: string
+              _request_mode: Database["public"]["Enums"]["walk_request_mode"]
+              _scheduled_for?: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _duration_minutes: number
+              _meeting_point_address?: string
+              _meeting_point_lat?: number
+              _meeting_point_lng?: number
+              _pet_id: string
+              _request_mode: Database["public"]["Enums"]["walk_request_mode"]
+              _scheduled_for?: string
+            }
+            Returns: string
+          }
       decline_walk_offer: { Args: { _session_id: string }; Returns: undefined }
       disablelongtransactions: { Args: never; Returns: string }
       dropgeometrycolumn:
@@ -1415,8 +1425,6 @@ export type Database = {
       get_available_walk_offers: {
         Args: never
         Returns: {
-          created_at: string
-          customer_id: string
           customer_name: string
           distance_meters: number
           id: string
@@ -1504,7 +1512,24 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_beta_petwalker: { Args: { _user_id: string }; Returns: boolean }
       longtransactionsenabled: { Args: never; Returns: boolean }
+      petwalker_arrive_pickup: {
+        Args: { _session_id: string }
+        Returns: undefined
+      }
+      petwalker_complete_walk: {
+        Args: { _distance_km: number; _session_id: string }
+        Returns: undefined
+      }
+      petwalker_start_heading: {
+        Args: { _session_id: string }
+        Returns: undefined
+      }
+      petwalker_start_walk: {
+        Args: { _session_id: string }
+        Returns: undefined
+      }
       populate_geometry_columns:
         | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }
         | { Args: { use_typmod?: boolean }; Returns: string }
@@ -2163,6 +2188,7 @@ export type Database = {
       app_role: "admin" | "moderator" | "user" | "petshop" | "petwalker"
       application_status: "pending" | "approved" | "rejected"
       signup_intent_type: "pet_owner" | "petwalker"
+      walk_offer_status: "pending" | "accepted" | "declined" | "expired"
       walk_request_mode: "now" | "scheduled"
       walk_session_status:
         | "searching"
@@ -2324,6 +2350,7 @@ export const Constants = {
       app_role: ["admin", "moderator", "user", "petshop", "petwalker"],
       application_status: ["pending", "approved", "rejected"],
       signup_intent_type: ["pet_owner", "petwalker"],
+      walk_offer_status: ["pending", "accepted", "declined", "expired"],
       walk_request_mode: ["now", "scheduled"],
       walk_session_status: [
         "searching",
