@@ -277,12 +277,56 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
         </div>
       </div>
       {isOperational && walk.current_status !== 'completed' && walk.current_status !== 'cancelled' && (
-        <div className="fixed bottom-6 left-4 right-4 z-50">
+        <div className="fixed bottom-6 left-4 right-4 z-50 flex flex-col gap-3">
+          {walk.current_status === 'accepted' && (
+            <button 
+              onClick={async () => {
+                const { error } = await supabase.rpc('petwalker_start_heading', { _session_id: walk.id });
+                if (!error) window.location.reload();
+              }}
+              className="w-full bg-[#31D880] text-ink font-extrabold py-4 rounded-2xl shadow-xl active:scale-95 transition-transform"
+            >
+              Iniciar Deslocamento
+            </button>
+          )}
+          {walk.current_status === 'heading_to_pickup' && (
+            <button 
+              onClick={async () => {
+                const { error } = await supabase.rpc('petwalker_arrive_pickup', { _session_id: walk.id });
+                if (!error) window.location.reload();
+              }}
+              className="w-full bg-blue-500 text-white font-extrabold py-4 rounded-2xl shadow-xl active:scale-95 transition-transform"
+            >
+              Cheguei no Local
+            </button>
+          )}
+          {walk.current_status === 'arrived' && (
+            <button 
+              onClick={async () => {
+                const { error } = await supabase.rpc('petwalker_start_walk', { _session_id: walk.id });
+                if (!error) window.location.reload();
+              }}
+              className="w-full bg-orange-500 text-white font-extrabold py-4 rounded-2xl shadow-xl active:scale-95 transition-transform"
+            >
+              Iniciar Passeio
+            </button>
+          )}
+          {walk.current_status === 'in_progress' && (
+            <button 
+              onClick={async () => {
+                const { error } = await supabase.rpc('petwalker_complete_walk', { _session_id: walk.id });
+                if (!error) navigate('/petwalker/painel');
+              }}
+              className="w-full bg-purple-600 text-white font-extrabold py-4 rounded-2xl shadow-xl active:scale-95 transition-transform"
+            >
+              Finalizar Passeio
+            </button>
+          )}
           <button 
             onClick={() => navigate('/petwalker/painel')}
-            className="w-full bg-[#31D880] text-ink font-extrabold py-4 rounded-2xl shadow-xl active:scale-95 transition-transform"
+            className="w-full bg-card text-foreground border border-border/40 font-bold py-3 rounded-2xl active:scale-95 transition-transform text-sm"
           >
-            Encerrar e voltar ao Painel
+            Voltar ao Painel
           </button>
         </div>
       )}
