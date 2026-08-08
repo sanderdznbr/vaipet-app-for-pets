@@ -10,7 +10,7 @@ interface AdminProtectedRouteProps {
 }
 
 export const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = ({ children }) => {
-  const { user, roles, rolesStatus, loading, authStatus } = useAuth();
+  const { user, roles, rolesStatus, loading, authStatus, refreshRoles } = useAuth();
   const location = useLocation();
 
   if (loading || rolesStatus === 'loading' || authStatus === 'initializing') {
@@ -40,7 +40,7 @@ export const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = ({ childr
             <p className="text-muted-foreground">Não conseguimos validar suas permissões de acesso no momento.</p>
           </div>
           <Button 
-            onClick={() => window.location.reload()} 
+            onClick={() => refreshRoles()} 
             className="w-full h-12 rounded-2xl font-bold"
           >
             Tentar novamente

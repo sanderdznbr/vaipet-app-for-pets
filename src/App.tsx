@@ -96,7 +96,7 @@ const App = () => {
           <Route path="/" element={<RoleLanding />} />
           <Route path="/search-walk" element={<SearchWalk />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/signup" element={<SignupWizard initialIntent={new URLSearchParams(window.location.search).get('intent') as any} />} />
+          <Route path="/signup" element={<SignupWizard initialIntent={new URLSearchParams(window.location.search).get('intent') as 'pet_owner' | 'petwalker' | null} />} />
           <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
           <Route path="/termos-de-uso" element={<TermsOfUse />} />
           <Route path="/onboarding" element={<Onboarding />} />

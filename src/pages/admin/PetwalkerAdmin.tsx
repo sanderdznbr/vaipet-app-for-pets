@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -65,9 +65,10 @@ const PetwalkerAdmin = () => {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [processingAction, setProcessingAction] = useState(false);
+  const [stats, setStats] = useState({ pending: 0, approved: 0, rejected: 0 });
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
 
-  const fetchApplications = async (status: string, isRefresh = false) => {
+  const fetchApplications = useCallback(async (status: string, isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
@@ -80,16 +81,33 @@ const PetwalkerAdmin = () => {
       setApplications(data || []);
     } catch (err) {
       console.error('Error fetching applications:', err);
-      toast.error('Erro ao carroredar candidaturas');
+      toast.error('Erro ao carregar candidaturas');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_admin_application_stats');
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setStats({
+          pending: Number(data[0].pending_count),
+          approved: Number(data[0].approved_count),
+          rejected: Number(data[0].rejected_count)
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching stats:', err);
+    }
+  }, []);
 
   useEffect(() => {
     fetchApplications(activeTab);
-  }, [activeTab]);
+    fetchStats();
+  }, [activeTab, fetchApplications, fetchStats]);
 
   const handleViewDetails = async (appId: string) => {
     setSelectedAppId(appId);
@@ -112,6 +130,7 @@ const PetwalkerAdmin = () => {
 
   const handleApprove = async () => {
     if (!details || processingAction) return;
+    setShowApproveConfirm(false);
     setProcessingAction(true);
     try {
       const { error } = await supabase.rpc('approve_petwalker_application', {
@@ -122,6 +141,7 @@ const PetwalkerAdmin = () => {
       setSelectedAppId(null);
       setDetails(null);
       fetchApplications(activeTab);
+      fetchStats();
     } catch (err: unknown) {
       const error = err as Error;
       console.error('Error approving:', error);
@@ -149,6 +169,7 @@ const PetwalkerAdmin = () => {
       setSelectedAppId(null);
       setDetails(null);
       fetchApplications(activeTab);
+      fetchStats();
     } catch (err: unknown) {
       const error = err as Error;
       console.error('Error rejecting:', error);
@@ -208,7 +229,7 @@ const PetwalkerAdmin = () => {
               fontFamily: 'Space Grotesk, sans-serif'
             }}
           >
-            {tab === 'pending' ? 'Pendentes' : tab === 'approved' ? 'Aprovadas' : 'Rejeitadas'}
+            {tab === 'pending' ? `Pendentes (${stats.pending})` : tab === 'approved' ? `Aprovadas (${stats.approved})` : `Rejeitadas (${stats.rejected})`}
           </button>
         ))}
       </div>
@@ -333,7 +354,7 @@ const PetwalkerAdmin = () => {
                       <XCircle className="w-5 h-5 mr-2" /> Rejeitar
                     </Button>
                     <Button 
-                      onClick={handleApprove}
+                      onClick={() => setShowApproveConfirm(true)}
                       disabled={processingAction}
                       className="h-14 rounded-2xl font-bold"
                       style={{ background: '#31D880', color: '#0B1410' }}
@@ -370,6 +391,33 @@ const PetwalkerAdmin = () => {
               {processingAction ? <RefreshCcw className="w-5 h-5 animate-spin" /> : 'Confirmar Rejeição'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Approve Confirmation Dialog */}
+      <Dialog open={showApproveConfirm} onOpenChange={setShowApproveConfirm}>
+        <DialogContent className="max-w-[85vw] sm:max-w-sm rounded-[32px] p-6" style={{ background: PAPER, color: INK }}>
+          <DialogHeader>
+            <DialogTitle style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Aprovar Candidato?</DialogTitle>
+            <DialogDescription>
+              Deseja realmente aprovar a candidatura de <strong>{details?.legal_name}</strong>?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-6 flex flex-col gap-3">
+            <Button 
+              onClick={handleApprove}
+              disabled={processingAction}
+              className="w-full h-14 rounded-2xl font-bold bg-[#31D880] text-[#0B1410] hover:bg-[#2bbd70]"
+            >
+              {processingAction ? <RefreshCcw className="w-5 h-5 animate-spin" /> : 'Confirmar Aprovação'}
+            </Button>
+            <Button 
+              variant="ghost"
+              onClick={() => setShowApproveConfirm(false)}
+              className="w-full h-12 rounded-2xl font-bold opacity-60"
+            >
+              Cancelar
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
