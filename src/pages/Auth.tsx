@@ -336,7 +336,8 @@ const Auth = () => {
               )}
             </AnimatePresence>
 
-            {(!isRegistering || (isRegistering && signupIntent)) && (
+            {!isRegistering && (
+
               <>
                 <div className="relative my-2">
                   <div className="absolute inset-0 flex items-center">
