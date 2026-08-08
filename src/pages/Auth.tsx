@@ -144,6 +144,9 @@ const Auth = () => {
           if (error.message.includes('User already registered')) {
             throw new Error('Este e-mail já está cadastrado. Tente fazer login.');
           }
+          if (error.message.includes('Password is known to be weak')) {
+            throw new Error('Esta senha é muito fraca e fácil de adivinhar. Por favor, escolha outra mais forte.');
+          }
           throw error;
         }
         toast.success('Cadastro realizado! Verifique seu e-mail ou faça login.');
@@ -168,6 +171,7 @@ const Auth = () => {
       setIsLoading(false);
     }
   };
+
 
   return (
     <div
