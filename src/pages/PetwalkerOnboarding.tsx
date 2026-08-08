@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,9 +10,10 @@ import { ChevronLeft } from 'lucide-react';
 
 const PetwalkerOnboarding = () => {
   const navigate = useNavigate();
-  const { user, refreshProfile, authStatus } = useAuth();
+  const { user, authStatus } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [errorMessage, setErrorMessage] = useState('');
   const [formData, setFormData] = useState({
     public_bio: '',
     experience_years: 0,
@@ -20,47 +21,54 @@ const PetwalkerOnboarding = () => {
     price_30_minutes: 30,
   });
 
+  const loadProfile = useCallback(async () => {
+    if (!user) return;
+    setStatus('loading');
+    setErrorMessage('');
+    try {
+      const { data, error } = await supabase
+        .from('petwalker_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      if (data) {
+        // If profile is already completed and approved, don't stay here
+        if (data.profile_completed && data.approval_status === 'approved') {
+          navigate('/petwalker', { replace: true });
+          return;
+        }
+
+        setFormData({
+          public_bio: data.public_bio || '',
+          experience_years: data.experience_years || 0,
+          service_radius_km: Number(data.service_radius_km) || 5,
+          price_30_minutes: Number(data.price_30_minutes) || 30,
+        });
+        setStatus('ready');
+      } else {
+        setStatus('error');
+        setErrorMessage('Perfil de PetWalker não encontrado. Entre em contato com o suporte.');
+      }
+    } catch (err) {
+      console.error('Error loading profile:', err);
+      setStatus('error');
+      setErrorMessage('Erro ao carregar dados do perfil. Tente novamente.');
+    }
+  }, [user, navigate]);
+
   useEffect(() => {
     if (authStatus === 'unauthenticated') {
       navigate(`/auth?redirect=${encodeURIComponent('/petwalker/onboarding')}`, { replace: true });
       return;
     }
 
-    const loadProfile = async () => {
-      if (!user) return;
-      try {
-        const { data, error } = await supabase
-          .from('petwalker_profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        
-        if (data) {
-          // If profile is already completed and approved, don't stay here
-          if (data.profile_completed && data.approval_status === 'approved') {
-            navigate('/petwalker', { replace: true });
-            return;
-          }
-
-          setFormData({
-            public_bio: data.public_bio || '',
-            experience_years: data.experience_years || 0,
-            service_radius_km: data.service_radius_km || 5,
-            price_30_minutes: Number(data.price_30_minutes) || 30,
-          });
-        }
-      } catch (err) {
-        console.error('Error loading profile:', err);
-        toast.error('Erro ao carregar perfil. Tente novamente.');
-      } finally {
-        setInitialLoading(false);
-      }
-    };
-
-    if (authStatus === 'authenticated') {
+    if (authStatus === 'authenticated' && user) {
       loadProfile();
     }
-  }, [user, authStatus, navigate]);
+  }, [user, authStatus, navigate, loadProfile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +76,7 @@ const PetwalkerOnboarding = () => {
     
     setLoading(true);
     try {
-      // price_30_minutes must be integer for the RPC
+      // price_30_minutes must be integer, service_radius_km numeric
       const { error } = await supabase.rpc('update_petwalker_operational_profile', {
         _public_bio: formData.public_bio,
         _experience_years: formData.experience_years,
@@ -95,20 +103,39 @@ const PetwalkerOnboarding = () => {
       }
     } catch (err: unknown) {
       console.error('Submit error:', err);
-      const error = err as any;
-      toast.error(error.message || error.details || 'Erro ao atualizar perfil');
+      let msg = 'Erro ao atualizar perfil';
+      if (err instanceof Error) {
+        msg = err.message;
+      } else if (typeof err === 'object' && err !== null) {
+        const errorObj = err as Record<string, unknown>;
+        if (typeof errorObj.details === 'string') msg = errorObj.details;
+        else if (typeof errorObj.message === 'string') msg = errorObj.message;
+      }
+      
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  if (initialLoading) {
+  if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F7F5EF]">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-gray-500 font-medium">Carregando dados...</p>
-          <Button variant="ghost" onClick={() => window.location.reload()}>Tentar novamente</Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F5EF] p-6">
+        <div className="flex flex-col items-center gap-4 text-center max-w-sm">
+          <p className="text-red-500 font-medium">{errorMessage}</p>
+          <Button onClick={loadProfile}>Tentar novamente</Button>
+          <Button variant="ghost" onClick={() => navigate('/inicio')}>Voltar para o início</Button>
         </div>
       </div>
     );

@@ -88,20 +88,12 @@ const RoleLanding = () => {
   const isLoading = authStatus === 'initializing' || 
                    (authStatus === 'authenticated' && (
                      profileStatus === 'loading' || 
-                     profileStatus === 'idle' || 
                      rolesStatus === 'loading' || 
-                     rolesStatus === 'idle' || 
-                     applicationStatus === 'loading' || 
-                     applicationStatus === 'idle' ||
-                     (hasRole('petwalker') && pwProfileStatus === 'loading') ||
-                     (hasRole('petwalker') && pwProfileStatus === 'idle')
+                     (hasRole('petwalker') && pwProfileStatus === 'loading')
                    ));
   
-  const isError = authStatus === 'error' || 
-                  profileStatus === 'error' || 
+  const isError = profileStatus === 'error' || 
                   rolesStatus === 'error' || 
-                  (profile?.signup_intent === 'petwalker' && applicationStatus === 'error') ||
-                  profileStatus === 'missing' ||
                   (hasRole('petwalker') && pwProfileStatus === 'error');
 
 
@@ -129,19 +121,16 @@ const RoleLanding = () => {
         <p className="text-gray-500 mb-2">Não conseguimos identificar seu destino.</p>
         
         <div className="text-[10px] text-gray-400 mb-6 font-mono uppercase">
-          {profileStatus === 'missing' && 'PROFILE_MISSING'}
           {profileStatus === 'error' && 'PROFILE_LOAD_FAILED'}
           {rolesStatus === 'error' && 'ROLES_LOAD_FAILED'}
-          {applicationStatus === 'error' && 'APPLICATION_LOAD_FAILED'}
           {pwProfileStatus === 'error' && 'PETWALKER_PROFILE_LOAD_FAILED'}
         </div>
 
         <Button 
           onClick={() => {
-            if (profileStatus === 'error' || profileStatus === 'missing') refreshProfile();
+            if (profileStatus === 'error') refreshProfile();
             if (rolesStatus === 'error') refreshRoles();
-            if (applicationStatus === 'error') refreshApplication();
-            if (pwProfileStatus === 'error') window.location.reload(); // Complex to trigger internal re-fetch easily
+            if (pwProfileStatus === 'error') window.location.reload(); 
           }}
           className="px-6 py-3 font-bold"
         >
