@@ -72,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { data, error } = await Promise.race([
         /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-        (supabase.from('user_roles').select('role').eq('user_id', userId) as unknown as { abortSignal: (s: AbortSignal) => any }).abortSignal(controller.signal),
+        (supabase.from('user_roles').select('role').eq('user_id', userId) as unknown as { abortSignal: (s: AbortSignal) => unknown }).abortSignal(controller.signal),
         new Promise<{ data: null; error: Error }>((_, reject) => 
           setTimeout(() => reject(new Error('Timeout')), 10000)
         )
@@ -106,7 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { data, error } = await Promise.race([
         /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-        (supabase.from('profiles').select('*').eq('id', userId).maybeSingle() as unknown as { abortSignal: (s: AbortSignal) => any }).abortSignal(controller.signal),
+        (supabase.from('profiles').select('*').eq('id', userId).maybeSingle() as unknown as { abortSignal: (s: AbortSignal) => unknown }).abortSignal(controller.signal),
         new Promise<{ data: null; error: Error }>((_, reject) => 
           setTimeout(() => reject(new Error('Timeout')), 10000)
         )
@@ -158,7 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { data, error } = await Promise.race([
         /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-        (supabase.from('petwalker_applications').select('*').eq('user_id', userId).maybeSingle() as unknown as { abortSignal: (s: AbortSignal) => any }).abortSignal(controller.signal),
+        (supabase.from('petwalker_applications').select('*').eq('user_id', userId).maybeSingle() as unknown as { abortSignal: (s: AbortSignal) => unknown }).abortSignal(controller.signal),
         new Promise<{ data: null; error: Error }>((_, reject) => 
           setTimeout(() => reject(new Error('Timeout')), 10000)
         )

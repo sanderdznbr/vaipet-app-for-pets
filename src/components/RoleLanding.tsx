@@ -40,7 +40,7 @@ const RoleLanding = () => {
         try {
           const { data, error } = await Promise.race([
             /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-        (supabase.from('petwalker_profiles').select('*').eq('user_id', user.id).maybeSingle() as unknown as { abortSignal: (s: AbortSignal) => any }).abortSignal(controller.signal),
+        (supabase.from('petwalker_profiles').select('*').eq('user_id', user.id).maybeSingle() as unknown as { abortSignal: (s: AbortSignal) => unknown }).abortSignal(controller.signal),
             new Promise<{ data: null; error: Error }>((_, reject) => 
               setTimeout(() => reject(new Error('Timeout')), 10000)
             )
