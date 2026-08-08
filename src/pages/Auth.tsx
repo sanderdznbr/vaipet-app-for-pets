@@ -585,6 +585,7 @@ const Auth = () => {
             </p>
           </div>
         </div>
+        </div>
       </main>
 
       {animPhase === 'playing-anim2' && (
@@ -603,6 +604,7 @@ const Auth = () => {
 };
 
 export default Auth;
+
 
 
 
