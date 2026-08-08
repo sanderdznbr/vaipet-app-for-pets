@@ -1104,9 +1104,7 @@ const SearchWalk = () => {
   const handleGoHome = () => { setShowCancelDialog(false); navigate('/'); };
   const handleSearchAnother = () => { setShowCancelDialog(false); cleanupPreviousSearch(); setSearchStatus('idle'); setTimeout(handleSearch, 500); };
 
-  // Cancelamento de um passeio EM ANDAMENTO: marca o flag, dispara o
-  // retorno (mesma animação do "voltando para casa") e quando o pet chega,
-  // o WalkInProgress chama handleCancelComplete que finaliza o cancelamento.
+  // Active walk cancellation logic.
   const [isCancellingWalk, setIsCancellingWalk] = useState(false);
   const handleCancelWalk = async () => {
     setIsCancellingWalk(true);
