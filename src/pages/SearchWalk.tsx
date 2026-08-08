@@ -563,7 +563,7 @@ const SearchWalk = () => {
         m.setConfigProperty('basemap', 'theme', isDay ? 'faded' : 'default');
         
         if (isDay) {
-          // Explicitly set the pastel palette for day mode as requested
+          // Pastel day mode.
           m.setConfigProperty('basemap', 'colorLand', "#F2F1E8");
           m.setConfigProperty('basemap', 'colorWater', "#D5E8E5");
           m.setConfigProperty('basemap', 'colorGreenspace', "#C5DEBC");
