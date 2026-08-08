@@ -18,6 +18,7 @@ import { generateRandomWalker, buildBetaWalker, pickTransportForDistance, Transp
 import { preloadDog3DAsset } from '@/lib/dog3dLayer';
 import { preloadCheckpointAsset } from '@/lib/checkpoint3dLayer';
 import { SlideToConfirm } from '../components/SlideToConfirm';
+import { toast } from 'sonner';
 
 interface Pet {
   id: string;
@@ -137,7 +138,14 @@ const SearchWalk = () => {
   const [selectedMinutes, setSelectedMinutes] = useState(30);
   const [scheduleMode, setScheduleMode] = useState<'now' | 'later'>('now');
 
-  const [quote, setQuote] = useState<any>(null);
+  const [quote, setQuote] = useState<{
+    duration_minutes: number;
+    price_per_minute_cents: number;
+    request_surcharge_cents: number;
+    total_price_cents: number;
+    pricing_version: number;
+    request_mode: string;
+  } | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
@@ -150,10 +158,14 @@ const SearchWalk = () => {
         _request_mode: mode
       });
       if (error) throw error;
-      setQuote(data);
-    } catch (err: any) {
+      if (data && (data as any[]).length > 0) {
+        setQuote((data as any[])[0]);
+      } else {
+        setQuote(null);
+      }
+    } catch (err: unknown) {
       console.error('Quote error:', err);
-      setQuoteError(err.message || 'Erro ao calcular orçamento');
+      setQuoteError('Orçamento indisponível');
       setQuote(null);
     } finally {
       setQuoteLoading(false);
@@ -1002,8 +1014,23 @@ const SearchWalk = () => {
         lng: s.lng,
         lat: s.lat,
       }));
+      // Create scheduled date in local time first, then convert to ISO for persistence
+      let scheduledForIso = null;
+      if (scheduleMode === 'later') {
+        const [year, month, day] = scheduleDate.split('-').map(Number);
+        const [hour, minute] = scheduleTime.split(':').map(Number);
+        const localDate = new Date(year, month - 1, day, hour, minute);
+        
+        if (localDate <= new Date()) {
+          toast.error('Agendamento deve ser para o futuro');
+          setSearchStatus('idle');
+          return;
+        }
+        scheduledForIso = localDate.toISOString();
+      }
+
       const { data, error } = await supabase.from('walk_sessions').insert({
-        pet_id: selectedPets[0].id,
+        pet_id: selectedPets[0]?.id || null,
         pet_ids: selectedPets.map(p => p.id),
         category: selectedPets.length > 1 ? 'collective' : 'individual',
         customer_id: user.id,
@@ -1016,10 +1043,7 @@ const SearchWalk = () => {
         local_stops: orderedStops,
         home_location: userLocation ? { lng: userLocation[0], lat: userLocation[1] } : null,
         request_mode: scheduleMode === 'now' ? 'now' : 'scheduled',
-        scheduled_for: scheduleMode === 'later' ? `${scheduleDate}T${scheduleTime}:00Z` : null,
-        price_per_minute_cents: quote?.price_per_minute_cents,
-        pricing_surcharge_cents: quote?.surcharge_cents,
-        total_price_cents: quote?.total_price_cents,
+        scheduled_for: scheduledForIso,
         pricing_version: quote?.pricing_version
       } as any).select().single();
       if (error) throw error;

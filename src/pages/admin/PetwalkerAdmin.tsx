@@ -91,10 +91,10 @@ const PetwalkerAdmin = () => {
 
   const fetchStats = useCallback(async () => {
     try {
-      const { data, error } = await supabase.rpc('get_admin_application_stats' as any);
+      const { data, error } = await supabase.rpc('get_admin_application_stats');
       if (error) throw error;
-      if (data && data.length > 0) {
-        const statsRow = data[0];
+      if (data && (data as any[]).length > 0) {
+        const statsRow = (data as any[])[0];
         setStats({
           pending: Number(statsRow.pending_count || 0),
           approved: Number(statsRow.approved_count || 0),

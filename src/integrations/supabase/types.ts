@@ -889,6 +889,14 @@ export type Database = {
         Returns: undefined
       }
       ensure_current_user_profile: { Args: never; Returns: undefined }
+      get_admin_application_stats: {
+        Args: never
+        Returns: {
+          approved_count: number
+          pending_count: number
+          rejected_count: number
+        }[]
+      }
       get_petwalker_application_admin: {
         Args: { _application_id: string }
         Returns: {
@@ -949,7 +957,14 @@ export type Database = {
           _duration_minutes: number
           _request_mode: Database["public"]["Enums"]["walk_request_mode"]
         }
-        Returns: Json
+        Returns: {
+          duration_minutes: number
+          price_per_minute_cents: number
+          pricing_version: number
+          request_mode: Database["public"]["Enums"]["walk_request_mode"]
+          request_surcharge_cents: number
+          total_price_cents: number
+        }[]
       }
       has_role: {
         Args: {
