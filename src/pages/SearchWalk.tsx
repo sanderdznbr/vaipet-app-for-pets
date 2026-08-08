@@ -1197,11 +1197,6 @@ const SearchWalk = () => {
       supabase.removeChannel(channel);
     };
   }, [currentSessionId]);
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentSessionId, searchStatus]);
   const handleOpenChat = () => alert('Chat com o PetWalker Beta será aberto em breve!');
   const handleRequestPhotos = () => alert('Solicitação de fotos enviada!');
   const handleTimeout = () => { cleanupPreviousSearch(); setSearchStatus('idle'); setTimeout(handleSearch, 1000); };
