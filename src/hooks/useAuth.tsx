@@ -112,7 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .from('profiles')
           .select('*')
           .eq('id', userId)
-          .maybeSingle()
+          .maybeSingle() as any)
           .abortSignal(controller.signal),
         new Promise<{ data: null; error: Error }>((_, reject) => 
           setTimeout(() => reject(new Error('Timeout')), 10000)
@@ -168,7 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .from('petwalker_applications')
           .select('*')
           .eq('user_id', userId)
-          .maybeSingle()
+          .maybeSingle() as any)
           .abortSignal(controller.signal),
         new Promise<{ data: null; error: Error }>((_, reject) => 
           setTimeout(() => reject(new Error('Timeout')), 10000)
@@ -309,7 +309,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             const { error } = await Promise.race([
               supabase.rpc('set_signup_intent', { _intent: intent as SignupIntent }),
-              new Promise<any>((_, reject) => setTimeout(() => reject(new Error('RPC Timeout')), 10000))
+              new Promise<{ error: Error | null }>((_, reject) => setTimeout(() => reject(new Error('RPC Timeout')), 10000))
             ]);
 
             if (error) {
