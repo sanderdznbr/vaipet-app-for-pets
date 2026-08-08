@@ -1187,9 +1187,7 @@ const SearchWalk = () => {
         <div ref={mapContainer} className="w-full h-full" />
       </div>
 
-      {/* Rain overlay — 3 layers paralaxe (far/mid/near) + splashes na
-          faixa inferior. Sensação 3D vem da diferença de tamanho, velocidade
-          e opacidade entre camadas, não de rotateX (que distorcia a queda). */}
+      {/* Rain overlay (parallax + splashes). */}
       {weather && isRainCode(weather.code) && (() => {
         const rain = classifyRain(weather.code, weather.precip);
         const layers = [
