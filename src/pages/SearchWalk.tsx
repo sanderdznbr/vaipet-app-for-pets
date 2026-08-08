@@ -947,57 +947,72 @@ const SearchWalk = () => {
 
       if (rpcError) throw rpcError;
       setCurrentSessionId(sessionId);
+      setSearchStatus('waiting');
+      setIsSearching(false);
 
-      // Simulation delay for UI/camera flow
-      setTimeout(() => {
-        setSearchStatus('found');
-        setWalker(generateRandomWalker());
-        
-        if (map.current && userLocation) {
-          const wLoc = generateRandomWalkerLocation(userLocation);
-          setWalkerLocation(wLoc);
-          const el = document.createElement('div');
-          el.className = 'relative w-10 h-10';
-          el.innerHTML = `<div class="absolute inset-0 rounded-full bg-blue-500 animate-pulse opacity-30"></div><div class="relative w-10 h-10 rounded-full border-2 border-blue-500 overflow-hidden bg-white shadow-lg"><img src="/vaipet-logo.svg" alt="Walker" class="w-full h-full object-contain p-1" /></div>`;
-          walkerMarker.current = new mapboxgl.Marker(el, { anchor: 'bottom' }).setLngLat(wLoc).addTo(map.current);
-          
-          map.current.flyTo({
-            center: wLoc,
-            zoom: 16,
-            pitch: 55,
-            speed: 0.7,
-            curve: 1.5,
-            essential: true,
-          });
-
-          const onArrival = () => {
-            map.current?.off('moveend', onArrival);
-            setTimeout(() => addRouteToMap(userLocation, wLoc), 250);
-          };
-          map.current.once('moveend', onArrival);
-        }
-        
-        setTimeout(() => { 
-          setSearchStatus('waiting'); 
-          setIsSearching(false); 
-        }, 4200);
-      }, 3000);
-
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Error starting search:', e);
-      toast.error(e.message || 'Erro ao iniciar busca');
+      toast.error(e instanceof Error ? e.message : 'Erro ao iniciar busca');
       setIsSearching(false);
       setSearchStatus('idle');
     }
   };
 
-  const handleAccepted = async () => {
-    // Throttling acceptance to prevent double-calls or race conditions during transition
-    if (searchStatusRef.current === 'walking' || !user || selectedPets.length === 0) return;
+  const handleAccepted = async (sessionData: any) => {
+    if (searchStatusRef.current === 'walking' || !user) return;
 
-    // Pre-warm the dog GLB so it's parsed and ready in memory before the
-    // petwalker confirms the pickup code — avoids any pop-in at walk start.
     preloadDog3DAsset().catch(() => {});
+    preloadCheckpointAsset().catch(() => {});
+    
+    setSearchStatus('walking');
+    
+    // Disarm watchdog if needed (though we rely more on sessionData now)
+    sessionCreatedRef.current = true;
+    if (recoveryTimeoutRef.current) {
+      clearTimeout(recoveryTimeoutRef.current);
+      recoveryTimeoutRef.current = null;
+    }
+
+    if (walkerMarker.current) { walkerMarker.current.remove(); walkerMarker.current = null; }
+    
+    const startTime = sessionData.start_time ? new Date(sessionData.start_time).getTime() : Date.now();
+    setWalkStartTime(startTime);
+    
+    // Fetch walker profile and location
+    if (sessionData.walker_id) {
+      const { data: walkerProfile } = await supabase
+        .from('petwalker_profiles')
+        .select('*, profiles(full_name, avatar_url)')
+        .eq('user_id', sessionData.walker_id)
+        .single();
+      
+      if (walkerProfile) {
+        setWalker({
+          id: walkerProfile.user_id,
+          name: (walkerProfile.profiles as any)?.full_name || 'Pet Walker',
+          avatar: (walkerProfile.profiles as any)?.avatar_url || '',
+          rating: Number(walkerProfile.rating_average || 0),
+          completedWalks: Number(walkerProfile.completed_walks || 0),
+          bio: walkerProfile.public_bio || '',
+          transport: 'walking' // default
+        });
+        
+        const loc = walkerProfile.last_known_location as { coordinates: [number, number] } | null;
+        if (loc?.coordinates) {
+          const wLoc: [number, number] = [loc.coordinates[0], loc.coordinates[1]];
+          setWalkerLocation(wLoc);
+          
+          if (map.current) {
+             const el = document.createElement('div');
+             el.className = 'relative w-10 h-10';
+             el.innerHTML = `<div class="absolute inset-0 rounded-full bg-[#31D880] animate-pulse opacity-30"></div><div class="relative w-10 h-10 rounded-full border-2 border-[#31D880] overflow-hidden bg-white shadow-lg"><img src="${(walkerProfile.profiles as any)?.avatar_url || '/vaipet-logo.svg'}" alt="Walker" class="w-full h-full object-cover" /></div>`;
+             walkerMarker.current = new mapboxgl.Marker(el, { anchor: 'bottom' }).setLngLat(wLoc).addTo(map.current);
+             addRouteToMap(userLocationRef.current || userLocation || [0, 0], wLoc);
+          }
+        }
+      }
+    }
+  };
     preloadCheckpointAsset().catch(() => {});
     
     setSearchStatus('walking');
