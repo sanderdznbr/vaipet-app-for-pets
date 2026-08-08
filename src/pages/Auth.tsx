@@ -155,8 +155,9 @@ const Auth = () => {
         }
         toast.success('Bem-vindo de volta!');
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Ocorreu um erro.');
+    } catch (err) {
+      const error = err as Error;
+      toast.error(error.message || 'Ocorreu um erro.');
     } finally {
       setIsLoading(false);
     }
