@@ -371,15 +371,14 @@ const Auth = () => {
                 <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
               </button>
             </div>
+            <p className="text-[11px] font-medium leading-relaxed text-center mt-6 w-full" style={{ color: INK, opacity: 0.6 }}>
+              Ao continuar, você aceita os{' '}
+              <Link to="/termos-de-uso" className="underline" style={{ color: INK }}>Termos</Link>
+              {' '}e{' '}
+              <Link to="/politica-de-privacidade" className="underline" style={{ color: INK }}>Privacidade</Link>.
+            </p>
           </div>
         </div>
-
-        <p className="text-[11px] font-medium leading-relaxed text-center mt-8" style={{ color: INK, opacity: 0.6 }}>
-          Ao continuar, você aceita os{' '}
-          <Link to="/termos-de-uso" className="underline" style={{ color: INK }}>Termos</Link>
-          {' '}e{' '}
-          <Link to="/politica-de-privacidade" className="underline" style={{ color: INK }}>Privacidade</Link>.
-        </p>
 
         {animPhase === 'playing-anim2' && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none bg-[#F7F5EF]">
