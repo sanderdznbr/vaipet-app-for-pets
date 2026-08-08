@@ -1425,6 +1425,7 @@ export type Database = {
       get_available_walk_offers: {
         Args: never
         Returns: {
+          customer_id: string
           customer_name: string
           distance_meters: number
           id: string
