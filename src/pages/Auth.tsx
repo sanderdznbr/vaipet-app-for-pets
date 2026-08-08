@@ -266,6 +266,7 @@ const Auth = () => {
       </header>
 
       <main className="w-full flex flex-col items-center px-6 pt-52 pb-10 relative z-10 overflow-y-auto max-h-[100dvh]">
+
         <div className="w-full max-w-md flex flex-col gap-6">
             <AnimatePresence mode="wait">
               {isRecoveryMode ? (
