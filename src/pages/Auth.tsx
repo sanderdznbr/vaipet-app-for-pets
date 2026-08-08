@@ -40,8 +40,10 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [animPhase, setAnimPhase] = useState<AnimationPhase>('idle');
+
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { palette } = useHomeTheme();
