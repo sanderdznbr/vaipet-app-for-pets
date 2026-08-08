@@ -92,6 +92,7 @@ export const WaitingForAcceptance: React.FC<WaitingForAcceptanceProps> = ({
     }, 1000);
     
     // REMOVED acceptanceTimer: Relying solely on real PetWalker acceptance
+    // The monitoring is now handled in SearchWalk.tsx via Realtime
     return () => clearInterval(timer);
   }, [onTimeout]);
 

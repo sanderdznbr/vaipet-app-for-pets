@@ -1160,6 +1160,35 @@ const SearchWalk = () => {
     setWalkDuration(dur);
     setSearchStatus('reviewing');
   };
+
+  useEffect(() => {
+    if (!currentSessionId || searchStatus !== 'waiting') return;
+
+    const channel = supabase
+      .channel(`walk-session-${currentSessionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'walk_sessions',
+          filter: `id=eq.${currentSessionId}`
+        },
+        (payload) => {
+          const newStatus = payload.new.current_status;
+          if (newStatus === 'accepted') {
+            handleAccepted();
+          } else if (newStatus === 'expired' || newStatus === 'cancelled') {
+            handleTimeout();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentSessionId, searchStatus]);
   const handleOpenChat = () => alert('Chat com o PetWalker Beta será aberto em breve!');
   const handleRequestPhotos = () => alert('Solicitação de fotos enviada!');
   const handleTimeout = () => { cleanupPreviousSearch(); setSearchStatus('idle'); setTimeout(handleSearch, 1000); };
