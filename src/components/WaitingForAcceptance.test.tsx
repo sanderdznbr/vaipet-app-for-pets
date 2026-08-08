@@ -27,20 +27,17 @@ vi.mock("@/lib/mapStyle", () => ({
 }));
 
 const renderWaiting = (props: Partial<Parameters<typeof WaitingForAcceptance>[0]> = {}) => {
-  const onAccepted = vi.fn();
   const onTimeout = vi.fn();
   const onCancel = vi.fn();
   const utils = render(
     <WaitingForAcceptance
-      onAccepted={onAccepted}
       onTimeout={onTimeout}
       onCancel={onCancel}
-      petwalkerName="João"
       userLocation={[-46.6333, -23.5505]}
       {...props}
     />,
   );
-  return { onAccepted, onTimeout, onCancel, ...utils };
+  return { onTimeout, onCancel, ...utils };
 };
 
 describe("WaitingForAcceptance", () => {
