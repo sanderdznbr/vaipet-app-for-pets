@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .from('user_roles')
           .select('role')
           .eq('user_id', userId)
-          .abortSignal(controller.signal),
+           as any).abortSignal(controller.signal),
         new Promise<{ data: null; error: Error }>((_, reject) => 
           setTimeout(() => reject(new Error('Timeout')), 10000)
         )
@@ -90,7 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRoles(data?.map((r) => r.role as AppRole) || []);
         setRolesStatus('ready');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err.name === 'AbortError') return;
       if (requestId !== rolesRequestIdRef.current) return;
       setRolesError(err instanceof Error ? err : new Error(String(err)));
@@ -139,7 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setProfile(retryData);
             setProfileStatus('ready');
           }
-        } catch (e) {
+        } catch (e: unknown) {
           setProfileStatus('missing');
         }
       } else {
@@ -187,7 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setPetwalkerApplication(data);
         setApplicationStatus(data.status as ApplicationStatus);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err.name === 'AbortError') return;
       if (requestId !== appRequestIdRef.current) return;
       setApplicationError(err instanceof Error ? err : new Error(String(err)));
@@ -214,7 +214,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setAuthStatus('unauthenticated');
           }
         }
-      } catch (e) {
+      } catch (e: unknown) {
         if (mounted) setAuthStatus('error');
       }
     };
@@ -288,7 +288,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           try {
             intentData = JSON.parse(pendingIntentStr);
-          } catch (e) {
+          } catch (e: unknown) {
             console.error('Invalid intent JSON:', e);
             localStorage.removeItem('vaipet_pending_signup_intent');
             return;
@@ -321,7 +321,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               await fetchProfile(user.id);
               localStorage.removeItem('vaipet_pending_signup_intent');
             }
-          } catch (e) {
+          } catch (e: unknown) {
             console.error('Error processing intent RPC:', e);
           }
         };

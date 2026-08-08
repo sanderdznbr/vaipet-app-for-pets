@@ -44,7 +44,7 @@ const RoleLanding = () => {
               .select('*')
               .eq('user_id', user.id)
               .maybeSingle()
-              .abortSignal(controller.signal),
+               as any).abortSignal(controller.signal),
             new Promise<{ data: null; error: Error }>((_, reject) => 
               setTimeout(() => reject(new Error('Timeout')), 10000)
             )
