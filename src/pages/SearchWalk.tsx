@@ -878,7 +878,7 @@ const SearchWalk = () => {
           pitch: 45,
           bearing: 0,
           essential: true,
-          easing: (t) => 1 - Math.pow(1 - t, 3),
+          easing: (t: number) => 1 - Math.pow(1 - t, 3),
         } as any);
       }
     } catch {
