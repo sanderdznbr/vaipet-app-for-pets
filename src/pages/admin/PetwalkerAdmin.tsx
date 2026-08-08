@@ -65,6 +65,7 @@ const PetwalkerAdmin = () => {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [processingAction, setProcessingAction] = useState(false);
   const [stats, setStats] = useState({ pending: 0, approved: 0, rejected: 0 });
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
 
@@ -90,7 +91,7 @@ const PetwalkerAdmin = () => {
 
   const fetchStats = useCallback(async () => {
     try {
-      const { data, error } = await supabase.rpc('get_admin_application_stats');
+      const { data, error } = await supabase.rpc('get_admin_application_stats' as any);
       if (error) throw error;
       if (data && data.length > 0) {
         setStats({
