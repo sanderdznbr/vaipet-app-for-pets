@@ -1,3 +1,6 @@
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 /**
  * PORTAL PETWALKER - FASE 2: PRECIFICAÇÃO E PERFIL SIMPLIFICADO
  * 
@@ -6,9 +9,6 @@
  * 3. SIMPLIFICAÇÃO: PetWalker não define mais preço ou raio (regra de negócio da plataforma).
  * 4. SEGURANÇA: RPCs com SECURITY DEFINER e validações rigorosas de duração e modalidade.
  */
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-
 export const RedirectIndex = () => {
   const navigate = useNavigate();
   
@@ -19,7 +19,7 @@ export const RedirectIndex = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-[#F7F5EF]">
       <div className="text-center space-y-4 max-w-md">
-        <h1 className="text-2xl font-bold">Portal PetWalker</h1>
+        <h1 className="text-2xl font-bold">Portal VaiPet</h1>
         <p className="text-muted-foreground animate-pulse">
           Redirecionando para o início...
         </p>
