@@ -239,11 +239,34 @@ const Auth = () => {
       className="min-h-[100dvh] w-full flex items-center justify-center overflow-hidden relative"
       style={{ backgroundColor: PAPER, color: INK, fontFamily: "'DM Sans', system-ui, sans-serif" }}
     >
-      <main className="w-full flex items-center justify-center px-6 py-10 relative z-10 overflow-y-auto max-h-[100dvh]">
-        <div className="w-full max-w-md flex flex-col gap-8 items-center">
+      <header className="fixed top-0 left-0 right-0 z-20 flex flex-col items-center gap-6 py-10 pointer-events-none">
+        <div className="w-full max-w-md px-6 flex flex-col items-center gap-6 pointer-events-auto">
           <img src="/vaipet-logo.svg" alt="VaiPet" className="w-24 h-auto" />
           
-          <div className="w-full flex flex-col gap-6">
+          <div className="w-full h-10 flex items-center">
+            <AnimatePresence>
+              {(isForgotPassword || (isRegistering && signupIntent)) && (
+                <motion.button
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  onClick={() => {
+                    if (isForgotPassword) setIsForgotPassword(false);
+                    else setSignupIntent(null);
+                  }}
+                  className="p-2 -ml-2 hover:bg-black/5 rounded-full transition-colors flex items-center gap-2 text-xs font-medium opacity-60"
+                >
+                  <ArrowLeft size={16} />
+                  <span>Voltar</span>
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </header>
+
+      <main className="w-full flex flex-col items-center px-6 pt-52 pb-10 relative z-10 overflow-y-auto max-h-[100dvh]">
+        <div className="w-full max-w-md flex flex-col gap-6">
             <AnimatePresence mode="wait">
               {isRecoveryMode ? (
                 <motion.div
@@ -319,10 +342,7 @@ const Auth = () => {
                   className="w-full flex flex-col gap-6"
                 >
                   <div className="flex flex-col items-center gap-2">
-                    <button onClick={() => setIsForgotPassword(false)} className="p-2 -ml-2 self-start hover:bg-black/5 rounded-full transition-colors flex items-center gap-2 text-xs font-medium opacity-60">
-                      <ArrowLeft size={16} />
-                      <span>Voltar</span>
-                    </button>
+
                     <h2 className="text-2xl font-bold text-center" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
                       Recuperar Senha
                     </h2>
@@ -399,23 +419,16 @@ const Auth = () => {
                   className="w-full flex flex-col gap-6"
                 >
                   <div className="flex flex-col items-center gap-2">
-                    <div className="w-full flex items-center justify-between mb-2">
-                      {isRegistering && (
-                        <button onClick={() => setSignupIntent(null)} className="p-2 -ml-2 hover:bg-black/5 rounded-full transition-colors flex items-center gap-2 text-xs font-medium opacity-60">
-                          <ArrowLeft size={16} />
-                          <span>Alterar tipo</span>
-                        </button>
-                      )}
-                      {isRegistering && (
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 bg-black/5 rounded-full opacity-60">
-                          {signupIntent === 'pet_owner' ? 'Dono(a) de Pet' : 'Candidato PetWalker'}
-                        </span>
-                      )}
-                    </div>
+                    {isRegistering && (
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 bg-black/5 rounded-full opacity-60 mb-2">
+                        {signupIntent === 'pet_owner' ? 'Dono(a) de Pet' : 'Candidato PetWalker'}
+                      </span>
+                    )}
                     <h2 className="text-2xl font-bold text-center" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
                       {isRegistering ? 'Criar Conta' : 'Entrar no VaiPet'}
                     </h2>
                   </div>
+
 
                   <form onSubmit={handleEmailAuth} className="flex flex-col gap-4">
                     {isRegistering && (
@@ -517,8 +530,7 @@ const Auth = () => {
               )}
             </AnimatePresence>
 
-            {!isRegistering && (
-
+            {!isRegistering && !isForgotPassword && (
               <>
                 <div className="relative my-2">
                   <div className="absolute inset-0 flex items-center">
@@ -564,6 +576,7 @@ const Auth = () => {
                 </div>
               </>
             )}
+
             <p className="text-[11px] font-medium leading-relaxed text-center mt-6 w-full" style={{ color: INK, opacity: 0.6 }}>
               Ao continuar, você aceita os{' '}
               <Link to="/termos-de-uso" className="underline" style={{ color: INK }}>Termos</Link>
@@ -572,21 +585,24 @@ const Auth = () => {
             </p>
           </div>
         </div>
-
-        {animPhase === 'playing-anim2' && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none bg-[#F7F5EF]">
-            <div className="w-full h-full flex items-center justify-center overflow-hidden">
-              <img
-                src={splashAsset.url + "?t=" + Date.now()}
-                alt="VaiPet Loading"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          </div>
-        )}
       </main>
+
+      {animPhase === 'playing-anim2' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none bg-[#F7F5EF]">
+          <div className="w-full h-full flex items-center justify-center overflow-hidden">
+            <img
+              src={splashAsset.url + "?t=" + Date.now()}
+              alt="VaiPet Loading"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default Auth;
+
+
+
