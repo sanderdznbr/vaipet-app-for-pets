@@ -27,7 +27,6 @@ type WalkOffer = {
   total_price_cents: number;
 };
 
-
 const PetwalkerPainel = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -40,7 +39,6 @@ const PetwalkerPainel = () => {
   useEffect(() => {
     if (!user) return;
     
-    // 1. Initial check for availability and active requests
     const init = async () => {
       try {
         const { data: profile } = await supabase
@@ -51,7 +49,11 @@ const PetwalkerPainel = () => {
         
         const online = profile?.availability_status === 'available';
         setIsOnline(online);
-        if (online) startTracking();
+        
+        // Use functional status update to ensure tracking starts correctly
+        if (online) {
+            startTracking();
+        }
 
         const { data: request } = await supabase
           .from('walk_sessions')
@@ -61,7 +63,11 @@ const PetwalkerPainel = () => {
           .maybeSingle();
         
         setActiveRequest(request as WalkSession);
-        fetchOpenRequests();
+        
+        // Pass online status directly to avoid stale state in init
+        if (online) {
+            fetchOpenRequests(true);
+        }
       } catch (err) {
         console.error('Init error:', err);
       } finally {
@@ -71,7 +77,6 @@ const PetwalkerPainel = () => {
 
     init();
 
-    // 2. Realtime subscription
     const channel = supabase
       .channel('petwalker-realtime')
       .on('postgres_changes', {
@@ -80,15 +85,20 @@ const PetwalkerPainel = () => {
         table: 'walk_sessions'
       }, (payload) => {
         const updated = payload.new as WalkSession;
-        // If it was assigned to me
         if (updated.walker_id === user.id) {
           setActiveRequest(updated);
         }
-        // If I was the walker and it ended
         if (payload.old && (payload.old as any).walker_id === user.id && ['completed', 'cancelled'].includes(updated.current_status || '')) {
           setActiveRequest(null);
         }
-        fetchOpenRequests();
+        fetchOpenRequests(isOnline);
+      })
+      .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'walk_offers'
+      }, () => {
+          fetchOpenRequests(isOnline);
       })
       .subscribe();
 
@@ -101,14 +111,18 @@ const PetwalkerPainel = () => {
   const startTracking = () => {
     if (!navigator.geolocation || watchId.current) return;
     
-    watchId.current = navigator.geolocation.watchPosition(
+    watchId.current = window.navigator.geolocation.watchPosition(
       async (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
-        await supabase.rpc('update_walker_location', {
-          _lat: latitude,
-          _lng: longitude,
-          _accuracy: accuracy
-        });
+        try {
+            await supabase.rpc('update_walker_location', {
+              _lat: latitude,
+              _lng: longitude,
+              _accuracy: accuracy
+            });
+        } catch (err) {
+            console.error('Failed to update location via RPC', err);
+        }
       },
       (err) => console.error('Tracking error:', err),
       { enableHighAccuracy: true }
@@ -122,8 +136,10 @@ const PetwalkerPainel = () => {
     }
   };
 
-  const fetchOpenRequests = async () => {
-    if (!isOnline) return;
+  const fetchOpenRequests = async (statusOverride?: boolean) => {
+    const activeStatus = statusOverride !== undefined ? statusOverride : isOnline;
+    if (!activeStatus) return;
+    
     const { data, error } = await supabase.rpc('get_available_walk_offers');
     if (!error && data) {
       setOpenOffers(data as WalkOffer[]);
@@ -131,20 +147,21 @@ const PetwalkerPainel = () => {
   };
 
   const handleToggleOnline = async () => {
-    const newStatus = isOnline ? 'offline' : 'available';
+    const nextOnline = !isOnline;
+    const newStatus = nextOnline ? 'available' : 'offline';
     try {
       const { error } = await supabase.rpc('set_petwalker_availability', { _status: newStatus });
       if (error) throw error;
       
-      setIsOnline(!isOnline);
-      if (!isOnline) {
+      setIsOnline(nextOnline);
+      if (nextOnline) {
         startTracking();
-        fetchOpenRequests();
+        fetchOpenRequests(true);
       } else {
         stopTracking();
         setOpenOffers([]);
       }
-      toast.success(isOnline ? 'Você está offline' : 'Você está online e pronto para passear!');
+      toast.success(nextOnline ? 'Você está online e pronto para passear!' : 'Você está offline');
     } catch (err) {
       toast.error('Erro ao mudar status');
     }
@@ -156,7 +173,6 @@ const PetwalkerPainel = () => {
       const { error } = await supabase.rpc('accept_walk_request', { _session_id: requestId });
       if (error) throw error;
       toast.success('Passeio aceito! Vá ao encontro do pet.');
-      // fetchOpenRequests will be called by realtime listener
     } catch (err: any) {
       toast.error(err.message || 'Erro ao aceitar pedido');
     } finally {
@@ -202,9 +218,7 @@ const PetwalkerPainel = () => {
           </div>
         </header>
 
-        
         <main className="p-6 space-y-6 max-w-lg mx-auto">
-          {/* Status Card */}
           <Card className="p-5 border-none shadow-sm rounded-[28px] bg-white">
             <div className="flex items-center justify-between">
               <div>
@@ -224,7 +238,6 @@ const PetwalkerPainel = () => {
             </div>
           </Card>
 
-          {/* Active Walk Section */}
           {activeRequest ? (
             <Card className="p-5 border-none shadow-md rounded-[28px] bg-ink text-white overflow-hidden relative">
               <div className="absolute top-0 right-0 p-4 opacity-10">
@@ -251,7 +264,7 @@ const PetwalkerPainel = () => {
 
                 <div className="pt-2 flex flex-col gap-2">
                   <Button 
-                    onClick={() => navigate(`/passeio/${activeRequest.id}`)}
+                    onClick={() => navigate(`/petwalker/passeio/${activeRequest.id}`)}
                     className="w-full bg-[#31D880] text-ink hover:bg-[#31D880]/90 font-bold h-12 rounded-2xl"
                   >
                     Gerenciar Passeio
@@ -278,30 +291,38 @@ const PetwalkerPainel = () => {
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-[#31D880]">R$ {(offer.total_price_cents / 100).toFixed(2)}</p>
-                      <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter">Ganhos est.</p>
+                      <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter">Valor Total</p>
                     </div>
                   </div>
-              <Button 
-                onClick={() => handleAccept(offer.id)}
-                disabled={loading}
-                className="flex-1 bg-ink text-white hover:bg-ink/90 font-bold h-11 rounded-2xl"
-              >
-                Aceitar
-              </Button>
-              <Button 
-                onClick={() => handleDecline(offer.id)}
-                variant="outline"
-                className="h-11 px-4 rounded-2xl border-gray-200"
-              >
-                Recusar
-              </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                        onClick={() => handleAccept(offer.id)}
+                        disabled={loading}
+                        className="flex-1 bg-ink text-white hover:bg-ink/90 font-bold h-11 rounded-2xl"
+                    >
+                        Aceitar
+                    </Button>
+                    <Button 
+                        onClick={() => handleDecline(offer.id)}
+                        variant="outline"
+                        className="h-11 px-4 rounded-2xl border-gray-200"
+                    >
+                        Recusar
+                    </Button>
+                  </div>
+                </Card>
+              ))}
             </div>
-            <div className="text-right">
-              <p className="font-bold text-[#31D880]">R$ {(offer.total_price_cents / 100).toFixed(2)}</p>
-              <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter">Valor Total</p>
+          ) : (
+            <div className="py-12 text-center space-y-4 opacity-40">
+              <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto">
+                <Bell size={32} />
+              </div>
+              <p className="font-medium">Nenhuma solicitação ativa no momento</p>
             </div>
+          )}
 
-          {/* Beta Simulation Tools */}
+          {/* Beta Simulation Tools (Condition Placeholder) */}
           <Card className="p-5 border-2 border-dashed border-[#31D880]/30 rounded-[28px] bg-white/50">
             <div className="flex items-center gap-2 mb-4 text-[#31D880]">
               <ShieldCheck size={18} />
