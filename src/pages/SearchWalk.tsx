@@ -248,9 +248,7 @@ const SearchWalk = () => {
   const [walker, setWalker] = useState<WalkerProfile>(() => generateRandomWalker());
   const [pickupRoute, setPickupRoute] = useState<[number, number][]>([]);
   const [transport, setTransport] = useState<TransportInfo | null>(null);
-  // When resuming an in-progress walk via ?resume=<id>, we skip the entire
-  // search/pickup flow and mount WalkInProgress with isComing=false so the
-  // dog 3D model and planned route render immediately from the saved state.
+  // Resume walk state.
   const [isResuming, setIsResuming] = useState<boolean>(() => !!searchParams.get('resume'));
   const resumeHandledRef = useRef(false);
   // Fase de retorno: cliente autorizou o PetWalker a voltar com o pet.
