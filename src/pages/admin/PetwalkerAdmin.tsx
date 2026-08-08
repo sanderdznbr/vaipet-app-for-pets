@@ -122,9 +122,10 @@ const PetwalkerAdmin = () => {
       setSelectedAppId(null);
       setDetails(null);
       fetchApplications(activeTab);
-    } catch (err: any) {
-      console.error('Error approving:', err);
-      toast.error(err.message || 'Erro ao aprovar candidatura');
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error('Error approving:', error);
+      toast.error(error.message || 'Erro ao aprovar candidatura');
     } finally {
       setProcessingAction(false);
     }
@@ -148,9 +149,10 @@ const PetwalkerAdmin = () => {
       setSelectedAppId(null);
       setDetails(null);
       fetchApplications(activeTab);
-    } catch (err: any) {
-      console.error('Error rejecting:', err);
-      toast.error(err.message || 'Erro ao rejeitar candidatura');
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error('Error rejecting:', error);
+      toast.error(error.message || 'Erro ao rejeitar candidatura');
     } finally {
       setProcessingAction(false);
     }
