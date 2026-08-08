@@ -937,7 +937,7 @@ const SearchWalk = () => {
             setSearchStatus('idle');
         }
     };
-    const handleAccepted = async (sessionData) => {
+    const handleAccepted = useCallback(async (sessionData) => {
         if (searchStatusRef.current === 'walking' || !user)
             return;
         preloadDog3DAsset().catch(() => { });
@@ -963,15 +963,14 @@ const SearchWalk = () => {
                 .eq('user_id', sessionData.walker_id)
                 .single();
             if (walkerProfile) {
-                setWalker({
-                    id: walkerProfile.user_id,
+                setWalker(prev => ({
+                    ...prev,
                     name: walkerProfile.profiles?.full_name || 'Pet Walker',
+                    firstName: (walkerProfile.profiles?.full_name || 'Pet Walker').split(' ')[0],
                     avatar: walkerProfile.profiles?.avatar_url || '',
                     rating: Number(walkerProfile.rating_average || 0),
-                    completedWalks: Number(walkerProfile.completed_walks || 0),
-                    bio: walkerProfile.public_bio || '',
-                    transport: 'walking' // default
-                });
+                    walks: Number(walkerProfile.completed_walks || 0),
+                }));
                 const loc = walkerProfile.last_known_location;
                 if (loc?.coordinates) {
                     const wLoc = [loc.coordinates[0], loc.coordinates[1]];
@@ -986,306 +985,210 @@ const SearchWalk = () => {
                 }
             }
         }
-    };
-    preloadCheckpointAsset().catch(() => { });
-    setSearchStatus('walking');
-    // Recovery watchdog: if the session isn't persisted within 8s we fall back
-    // to 'waiting' instead of leaving the user on a walk that doesn't exist.
-    // NOTE: it must read a ref (not the `currentSessionId` state captured in
-    // this closure, which is always stale) and be cleared on success —
-    // otherwise it fires even on the happy path and causes the waiting/walking
-    // flicker this flow already regressed on once.
-    sessionCreatedRef.current = false;
-    if (recoveryTimeoutRef.current)
-        clearTimeout(recoveryTimeoutRef.current);
-    recoveryTimeoutRef.current = setTimeout(() => {
-        recoveryTimeoutRef.current = null;
-        if (searchStatusRef.current === 'walking' && !sessionCreatedRef.current) {
-            console.warn('Walk session creation timed out, attempting recovery...');
-            setSearchStatus('waiting');
-        }
-    }, 8000);
-    // Remove the static walker marker from the search map; WalkInProgress handles its own.
-    if (walkerMarker.current) {
-        walkerMarker.current.remove();
-        walkerMarker.current = null;
-    }
-    const start = new Date();
-    setWalkStartTime(start.getTime());
-    try {
-        await supabase
-            .from('walk_sessions')
-            .update({
-            status: 'cancelled',
-            end_time: start.toISOString(),
-            actual_duration_minutes: 1,
-        })
-            .eq('customer_id', user.id)
-            .in('status', ['active', 'returning', 'requested', 'accepted', 'in_progress', 'processing']);
-        // Persist the walk type, the ordered list of stops (1 → N) and the
-        // home location so the experience can be rehydrated exactly as
-        // configured if the user reloads mid-walk (pin numbering, IDA/VOLTA
-        // legs and the home anchor all stay consistent).
-        const orderedStops = (walkType === 'local' ? localStops : []).map((s, i) => ({
-            order: i + 1,
-            label: s.label,
-            address: s.address,
-            lng: s.lng,
-            lat: s.lat,
-        }));
-        // Create scheduled date in local time first, then convert to ISO for persistence
-        let scheduledForIso = null;
-        if (scheduleMode === 'later') {
-            const [year, month, day] = scheduleDate.split('-').map(Number);
-            const [hour, minute] = scheduleTime.split(':').map(Number);
-            const localDate = new Date(year, month - 1, day, hour, minute);
-            if (localDate <= new Date()) {
-                toast.error('Agendamento deve ser para o futuro');
-                setSearchStatus('idle');
-                return;
+    }, [user, walkerMarker, userLocation, addRouteToMap]);
+    // Cliente autorizou o retorno via chat: marca isReturning, atualiza
+    // o banco para 'returning' e a UI assume a fase de "voltando para casa".
+    const handleAuthorizeReturn = async () => {
+        if (isReturning)
+            return;
+        setIsReturning(true);
+        if (currentSessionId) {
+            try {
+                await supabase
+                    .from('walk_sessions')
+                    .update({ current_status: 'returning', status: 'returning' })
+                    .eq('id', currentSessionId);
             }
-            scheduledForIso = localDate.toISOString();
-        }
-        // PHASE 3: Real Walk Request via RPC
-        const { data: sessionId, error: rpcError } = await supabase.rpc('create_walk_request', {
-            _pet_id: selectedPets[0]?.id,
-            _duration_minutes: selectedMinutes,
-            _request_mode: scheduleMode === 'now' ? 'now' : 'scheduled',
-            _scheduled_for: scheduledForIso,
-            _meeting_point_lng: userLocation[0],
-            _meeting_point_lat: userLocation[1],
-            _meeting_point_address: 'Localização atual'
-        });
-        if (rpcError)
-            throw rpcError;
-        // Fetch the newly created session to keep UI consistency
-        const { data: sessionData, error: sessionError } = await supabase
-            .from('walk_sessions')
-            .select('*')
-            .eq('id', sessionId)
-            .single();
-        if (sessionError)
-            throw sessionError;
-        // Success: disarm the watchdog BEFORE it can bounce us back to 'waiting'.
-        sessionCreatedRef.current = true;
-        if (recoveryTimeoutRef.current) {
-            clearTimeout(recoveryTimeoutRef.current);
-            recoveryTimeoutRef.current = null;
-        }
-        setCurrentSessionId(sessionData.id);
-    }
-    catch (e) {
-        console.error('Error creating walk session:', e);
-        if (recoveryTimeoutRef.current) {
-            clearTimeout(recoveryTimeoutRef.current);
-            recoveryTimeoutRef.current = null;
-        }
-        setSearchStatus('waiting');
-    }
-};
-// Cliente autorizou o retorno via chat: marca isReturning, atualiza
-// o banco para 'returning' e a UI assume a fase de "voltando para casa".
-const handleAuthorizeReturn = async () => {
-    if (isReturning)
-        return;
-    setIsReturning(true);
-    if (currentSessionId) {
-        try {
-            await supabase
-                .from('walk_sessions')
-                .update({ current_status: 'returning', status: 'returning' })
-                .eq('id', currentSessionId);
-        }
-        catch (e) {
-            console.error('Falha ao iniciar retorno:', e);
-        }
-    }
-};
-// Confirmação de chegada (final do retorno): grava status='completed',
-// end_time e actual_duration_minutes de forma atômica e leva à avaliação.
-const handleConfirmArrival = async () => {
-    const dur = Math.floor((Date.now() - walkStartTime) / 1000);
-    setWalkDuration(dur);
-    if (currentSessionId) {
-        try {
-            await supabase
-                .from('walk_sessions')
-                .update({
-                current_status: 'completed',
-                status: 'completed',
-                end_time: new Date().toISOString(),
-                actual_duration_minutes: Math.max(1, Math.round(dur / 60)),
-            })
-                .eq('id', currentSessionId);
-        }
-        catch (e) {
-            console.error('Falha ao confirmar chegada:', e);
-        }
-    }
-    setSearchStatus('reviewing');
-};
-const handleReviewComplete = () => { navigate('/'); setSearchStatus('idle'); cleanupPreviousSearch(); };
-const handleRequestReturn = async () => {
-    const dur = Math.floor((Date.now() - walkStartTime) / 1000);
-    setWalkDuration(dur);
-    setSearchStatus('reviewing');
-};
-useEffect(() => {
-    if (!currentSessionId)
-        return;
-    const channel = supabase
-        .channel(`walk-session-${currentSessionId}`)
-        .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'walk_sessions',
-        filter: `id=eq.${currentSessionId}`
-    }, (payload) => {
-        const newStatus = payload.new.current_status;
-        if (newStatus === 'accepted' && searchStatusRef.current !== 'walking') {
-            handleAccepted(payload.new);
-        }
-        else if (newStatus === 'expired' || newStatus === 'cancelled') {
-            handleTimeout();
-        }
-    })
-        .subscribe();
-    // Check immediate state if already accepted
-    const checkStatus = async () => {
-        const { data } = await supabase.from('walk_sessions').select('*').eq('id', currentSessionId).single();
-        if (data?.current_status === 'accepted' && searchStatusRef.current !== 'walking') {
-            handleAccepted(data);
+            catch (e) {
+                console.error('Falha ao iniciar retorno:', e);
+            }
         }
     };
-    checkStatus();
-    return () => {
-        supabase.removeChannel(channel);
-    };
-}, [currentSessionId]);
-const handleOpenChat = () => alert('Chat com o PetWalker Beta será aberto em breve!');
-const handleRequestPhotos = () => alert('Solicitação de fotos enviada!');
-const handleTimeout = () => { cleanupPreviousSearch(); setSearchStatus('idle'); setTimeout(handleSearch, 1000); };
-const handleCancel = () => setShowCancelDialog(true);
-const handleGoHome = () => { setShowCancelDialog(false); navigate('/'); };
-const handleSearchAnother = () => { setShowCancelDialog(false); cleanupPreviousSearch(); setSearchStatus('idle'); setTimeout(handleSearch, 500); };
-// Cancelamento de um passeio EM ANDAMENTO: marca o flag, dispara o
-// retorno (mesma animação do "voltando para casa") e quando o pet chega,
-// o WalkInProgress chama handleCancelComplete que finaliza o cancelamento.
-const [isCancellingWalk, setIsCancellingWalk] = useState(false);
-const handleCancelWalk = async () => {
-    setIsCancellingWalk(true);
-    await handleAuthorizeReturn();
-};
-const handleCancelComplete = async () => {
-    if (currentSessionId) {
-        try {
-            await supabase
-                .from('walk_sessions')
-                .update({
-                status: 'cancelled',
-                end_time: new Date().toISOString(),
-            })
-                .eq('id', currentSessionId);
+    // Confirmação de chegada (final do retorno): grava status='completed',
+    // end_time e actual_duration_minutes de forma atômica e leva à avaliação.
+    const handleConfirmArrival = async () => {
+        const dur = Math.floor((Date.now() - walkStartTime) / 1000);
+        setWalkDuration(dur);
+        if (currentSessionId) {
+            try {
+                await supabase
+                    .from('walk_sessions')
+                    .update({
+                    current_status: 'completed',
+                    status: 'completed',
+                    end_time: new Date().toISOString(),
+                    actual_duration_minutes: Math.max(1, Math.round(dur / 60)),
+                })
+                    .eq('id', currentSessionId);
+            }
+            catch (e) {
+                console.error('Falha ao confirmar chegada:', e);
+            }
         }
-        catch (e) {
-            console.error('Falha ao cancelar passeio:', e);
-        }
-    }
-    setIsCancellingWalk(false);
-    cleanupPreviousSearch();
-    setSearchStatus('idle');
-    navigate('/');
-};
-const showBottomSheet = searchStatus === 'idle' && !isSearching;
-// Map stays fullscreen for every phase EXCEPT the initial schedule sheet.
-const fullscreen = !showBottomSheet;
-// Dark-mode aware theme tokens for the SearchWalk UI. When the user
-// toggles night mode on the map, ALL surrounding controls (top bar,
-// pet chip, bottom sheet, pills) switch to a gray/black + green
-// palette so the whole screen reads as a unified dark interface.
-const ui = isDayMode
-    ? {
-        chip: '#FFFFFF',
-        chipAlpha: 'rgba(255,255,255,0.9)',
-        sheet: '#FFFFFF',
-        inner: '#F7F5EF',
-        innerAlpha: 'rgba(255,255,255,0.95)',
-        border: '1px solid rgba(11,20,16,0.06)',
-        borderSoft: '1px solid rgba(11,20,16,0.04)',
-        text: '#0B1410',
-        textSoft: '#0B1410',
-        muted: 'rgba(11,20,16,0.5)',
-        dotIdle: 'rgba(11,20,16,0.1)',
-        divider: 'rgba(11,20,16,0.05)',
-        pillBg: 'rgba(255,255,255,0.95)',
-        shadow: '0 4px 12px rgba(11,20,16,0.08)',
-        sheetShadow: '0 20px 50px rgba(11,20,16,0.12)',
-        iconColor: '#0B1410',
-    }
-    : {
-        chip: '#0B1410',
-        chipAlpha: 'rgba(11,20,16,0.9)',
-        sheet: '#0B1410',
-        inner: 'rgba(247,245,239,0.05)',
-        innerAlpha: 'rgba(11,20,16,0.95)',
-        border: '1px solid rgba(247,245,239,0.08)',
-        borderSoft: '1px solid rgba(247,245,239,0.04)',
-        text: '#F7F5EF',
-        textSoft: '#F7F5EF',
-        muted: 'rgba(247,245,239,0.45)',
-        dotIdle: 'rgba(247,245,239,0.12)',
-        divider: 'rgba(247,245,239,0.08)',
-        pillBg: '#0B1410',
-        shadow: '0 8px 24px rgba(0,0,0,0.4)',
-        sheetShadow: '0 25px 60px rgba(0,0,0,0.5)',
-        iconColor: '#F7F5EF',
+        setSearchStatus('reviewing');
     };
-return (<div className={`fixed inset-0 ${fullscreen ? '' : 'max-w-md mx-auto'}`} style={{ background: isDayMode ? '#F7F5EF' : '#0B1410' }}>
+    const handleReviewComplete = () => { navigate('/'); setSearchStatus('idle'); cleanupPreviousSearch(); };
+    const handleRequestReturn = async () => {
+        const dur = Math.floor((Date.now() - walkStartTime) / 1000);
+        setWalkDuration(dur);
+        setSearchStatus('reviewing');
+    };
+    useEffect(() => {
+        if (!currentSessionId)
+            return;
+        const channel = supabase
+            .channel(`walk-session-${currentSessionId}`)
+            .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'walk_sessions',
+            filter: `id=eq.${currentSessionId}`
+        }, (payload) => {
+            const newStatus = payload.new.current_status;
+            if (newStatus === 'accepted' && searchStatusRef.current !== 'walking') {
+                handleAccepted(payload.new);
+            }
+            else if (newStatus === 'expired' || newStatus === 'cancelled') {
+                handleTimeout();
+            }
+        })
+            .subscribe();
+        // Check immediate state if already accepted
+        const checkStatus = async () => {
+            const { data } = await supabase.from('walk_sessions').select('*').eq('id', currentSessionId).single();
+            if (data?.current_status === 'accepted' && searchStatusRef.current !== 'walking') {
+                handleAccepted(data);
+            }
+        };
+        checkStatus();
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [currentSessionId]);
+    const handleOpenChat = () => alert('Chat com o PetWalker Beta será aberto em breve!');
+    const handleRequestPhotos = () => alert('Solicitação de fotos enviada!');
+    const handleTimeout = () => { cleanupPreviousSearch(); setSearchStatus('idle'); setTimeout(handleSearch, 1000); };
+    const handleCancel = () => setShowCancelDialog(true);
+    const handleGoHome = () => { setShowCancelDialog(false); navigate('/'); };
+    const handleSearchAnother = () => { setShowCancelDialog(false); cleanupPreviousSearch(); setSearchStatus('idle'); setTimeout(handleSearch, 500); };
+    // Cancelamento de um passeio EM ANDAMENTO: marca o flag, dispara o
+    // retorno (mesma animação do "voltando para casa") e quando o pet chega,
+    // o WalkInProgress chama handleCancelComplete que finaliza o cancelamento.
+    const [isCancellingWalk, setIsCancellingWalk] = useState(false);
+    const handleCancelWalk = async () => {
+        setIsCancellingWalk(true);
+        await handleAuthorizeReturn();
+    };
+    const handleCancelComplete = async () => {
+        if (currentSessionId) {
+            try {
+                await supabase
+                    .from('walk_sessions')
+                    .update({
+                    status: 'cancelled',
+                    end_time: new Date().toISOString(),
+                })
+                    .eq('id', currentSessionId);
+            }
+            catch (e) {
+                console.error('Falha ao cancelar passeio:', e);
+            }
+        }
+        setIsCancellingWalk(false);
+        cleanupPreviousSearch();
+        setSearchStatus('idle');
+        navigate('/');
+    };
+    const showBottomSheet = searchStatus === 'idle' && !isSearching;
+    // Map stays fullscreen for every phase EXCEPT the initial schedule sheet.
+    const fullscreen = !showBottomSheet;
+    // Dark-mode aware theme tokens for the SearchWalk UI. When the user
+    // toggles night mode on the map, ALL surrounding controls (top bar,
+    // pet chip, bottom sheet, pills) switch to a gray/black + green
+    // palette so the whole screen reads as a unified dark interface.
+    const ui = isDayMode
+        ? {
+            chip: '#FFFFFF',
+            chipAlpha: 'rgba(255,255,255,0.9)',
+            sheet: '#FFFFFF',
+            inner: '#F7F5EF',
+            innerAlpha: 'rgba(255,255,255,0.95)',
+            border: '1px solid rgba(11,20,16,0.06)',
+            borderSoft: '1px solid rgba(11,20,16,0.04)',
+            text: '#0B1410',
+            textSoft: '#0B1410',
+            muted: 'rgba(11,20,16,0.5)',
+            dotIdle: 'rgba(11,20,16,0.1)',
+            divider: 'rgba(11,20,16,0.05)',
+            pillBg: 'rgba(255,255,255,0.95)',
+            shadow: '0 4px 12px rgba(11,20,16,0.08)',
+            sheetShadow: '0 20px 50px rgba(11,20,16,0.12)',
+            iconColor: '#0B1410',
+        }
+        : {
+            chip: '#0B1410',
+            chipAlpha: 'rgba(11,20,16,0.9)',
+            sheet: '#0B1410',
+            inner: 'rgba(247,245,239,0.05)',
+            innerAlpha: 'rgba(11,20,16,0.95)',
+            border: '1px solid rgba(247,245,239,0.08)',
+            borderSoft: '1px solid rgba(247,245,239,0.04)',
+            text: '#F7F5EF',
+            textSoft: '#F7F5EF',
+            muted: 'rgba(247,245,239,0.45)',
+            dotIdle: 'rgba(247,245,239,0.12)',
+            divider: 'rgba(247,245,239,0.08)',
+            pillBg: '#0B1410',
+            shadow: '0 8px 24px rgba(0,0,0,0.4)',
+            sheetShadow: '0 25px 60px rgba(0,0,0,0.5)',
+            iconColor: '#F7F5EF',
+        };
+    return (<div className={`fixed inset-0 ${fullscreen ? '' : 'max-w-md mx-auto'}`} style={{ background: isDayMode ? '#F7F5EF' : '#0B1410' }}>
       {/* Map */}
       <div className="absolute inset-0">
         <div ref={mapContainer} className="w-full h-full"/>
       </div>
 
       {/* Rain overlay — 3 layers paralaxe (far/mid/near) + splashes na
-        faixa inferior. Sensação 3D vem da diferença de tamanho, velocidade
-        e opacidade entre camadas, não de rotateX (que distorcia a queda). */}
+            faixa inferior. Sensação 3D vem da diferença de tamanho, velocidade
+            e opacidade entre camadas, não de rotateX (que distorcia a queda). */}
       {weather && isRainCode(weather.code) && (() => {
-        const rain = classifyRain(weather.code, weather.precip);
-        // Distribui a contagem total em 3 camadas de profundidade.
-        const layers = [
-            {
-                // Far — ao fundo, finíssimas e pálidas.
-                key: 'far',
-                count: Math.round(rain.drops * 0.45),
-                widthMul: 0.6,
-                heightMul: 0.7,
-                speedMul: 1.45,
-                opacityMul: 0.45,
-                blur: 1.1,
-            },
-            {
-                // Mid — corpo principal da chuva.
-                key: 'mid',
-                count: Math.round(rain.drops * 0.35),
-                widthMul: 1.0,
-                heightMul: 1.0,
-                speedMul: 1.0,
-                opacityMul: 0.75,
-                blur: 0.4,
-            },
-            {
-                // Near — poucas gotas grossas/rápidas em primeiro plano.
-                key: 'near',
-                count: Math.round(rain.drops * 0.2),
-                widthMul: 1.7,
-                heightMul: 1.35,
-                speedMul: 0.7,
-                opacityMul: 1.0,
-                blur: 0,
-            },
-        ];
-        const splashCount = Math.round(rain.drops * 0.22);
-        return (<div className="absolute inset-0 z-[5] overflow-hidden pointer-events-none" aria-hidden="true" data-rain-level={rain.level}>
+            const rain = classifyRain(weather.code, weather.precip);
+            // Distribui a contagem total em 3 camadas de profundidade.
+            const layers = [
+                {
+                    // Far — ao fundo, finíssimas e pálidas.
+                    key: 'far',
+                    count: Math.round(rain.drops * 0.45),
+                    widthMul: 0.6,
+                    heightMul: 0.7,
+                    speedMul: 1.45,
+                    opacityMul: 0.45,
+                    blur: 1.1,
+                },
+                {
+                    // Mid — corpo principal da chuva.
+                    key: 'mid',
+                    count: Math.round(rain.drops * 0.35),
+                    widthMul: 1.0,
+                    heightMul: 1.0,
+                    speedMul: 1.0,
+                    opacityMul: 0.75,
+                    blur: 0.4,
+                },
+                {
+                    // Near — poucas gotas grossas/rápidas em primeiro plano.
+                    key: 'near',
+                    count: Math.round(rain.drops * 0.2),
+                    widthMul: 1.7,
+                    heightMul: 1.35,
+                    speedMul: 0.7,
+                    opacityMul: 1.0,
+                    blur: 0,
+                },
+            ];
+            const splashCount = Math.round(rain.drops * 0.22);
+            return (<div className="absolute inset-0 z-[5] overflow-hidden pointer-events-none" aria-hidden="true" data-rain-level={rain.level}>
             <style>{`
               @keyframes vp-rain-fall {
                 0%   { transform: translate3d(0, -20vh, 0) rotate(-10deg); opacity: 0; }
@@ -1325,7 +1228,7 @@ return (<div className={`fixed inset-0 ${fullscreen ? '' : 'max-w-md mx-auto'}`}
 
             {/* Atmosfera: leve haze no topo + chão molhado embaixo. */}
             <div className="absolute inset-0" style={{
-                background: `
+                    background: `
                   linear-gradient(180deg,
                     rgba(20,40,60,${rain.wash * 0.35}) 0%,
                     rgba(20,40,60,0) 30%,
@@ -1334,52 +1237,52 @@ return (<div className={`fixed inset-0 ${fullscreen ? '' : 'max-w-md mx-auto'}`}
                     rgba(20,40,60,${rain.wash}) 100%
                   )
                 `,
-            }}/>
+                }}/>
 
             {/* Camadas de gotas (parallax). */}
             {layers.map((layer) => (<div key={layer.key} className="absolute inset-0">
                 {Array.from({ length: layer.count }).map((_, i) => {
-                    const left = Math.random() * 100;
-                    const delay = Math.random() * 2;
-                    const duration = (rain.minDuration + Math.random() * (rain.maxDuration - rain.minDuration)) *
-                        layer.speedMul;
-                    const w = rain.dropWidth * layer.widthMul;
-                    const h = rain.dropHeight * layer.heightMul;
-                    const op = (rain.opacityBase + Math.random() * (1 - rain.opacityBase) * 0.4) *
-                        layer.opacityMul;
-                    return (<span key={i} className="vp-rain-drop" style={{
-                            left: `${left}%`,
-                            width: `${w}px`,
-                            height: `${h}px`,
-                            animationDelay: `${delay}s`,
-                            animationDuration: `${duration}s`,
-                            filter: layer.blur ? `blur(${layer.blur}px)` : undefined,
-                            ['--vp-op']: Math.min(op, 0.8).toFixed(3),
-                        }}/>);
-                })}
+                        const left = Math.random() * 100;
+                        const delay = Math.random() * 2;
+                        const duration = (rain.minDuration + Math.random() * (rain.maxDuration - rain.minDuration)) *
+                            layer.speedMul;
+                        const w = rain.dropWidth * layer.widthMul;
+                        const h = rain.dropHeight * layer.heightMul;
+                        const op = (rain.opacityBase + Math.random() * (1 - rain.opacityBase) * 0.4) *
+                            layer.opacityMul;
+                        return (<span key={i} className="vp-rain-drop" style={{
+                                left: `${left}%`,
+                                width: `${w}px`,
+                                height: `${h}px`,
+                                animationDelay: `${delay}s`,
+                                animationDuration: `${duration}s`,
+                                filter: layer.blur ? `blur(${layer.blur}px)` : undefined,
+                                ['--vp-op']: Math.min(op, 0.8).toFixed(3),
+                            }}/>);
+                    })}
               </div>))}
 
             {/* Splashes no chão — anéis pequenos pulsando na faixa inferior
-                pra vender o impacto da gota. */}
+                    pra vender o impacto da gota. */}
             {Array.from({ length: splashCount }).map((_, i) => {
-                const left = Math.random() * 100;
-                const top = 70 + Math.random() * 28;
-                const delay = Math.random() * 2.4;
-                const duration = 0.8 + Math.random() * 0.7;
-                const size = 5 + Math.random() * 11;
-                const sop = Math.min(rain.opacityBase * 1.2 + 0.15, 0.7);
-                return (<span key={`s-${i}`} className="vp-rain-splash" style={{
-                        left: `${left}%`,
-                        top: `${top}%`,
-                        width: `${size}px`,
-                        height: `${size * 0.32}px`,
-                        animationDelay: `${delay}s`,
-                        animationDuration: `${duration}s`,
-                        ['--vp-sop']: sop.toFixed(3),
-                    }}/>);
-            })}
+                    const left = Math.random() * 100;
+                    const top = 70 + Math.random() * 28;
+                    const delay = Math.random() * 2.4;
+                    const duration = 0.8 + Math.random() * 0.7;
+                    const size = 5 + Math.random() * 11;
+                    const sop = Math.min(rain.opacityBase * 1.2 + 0.15, 0.7);
+                    return (<span key={`s-${i}`} className="vp-rain-splash" style={{
+                            left: `${left}%`,
+                            top: `${top}%`,
+                            width: `${size}px`,
+                            height: `${size * 0.32}px`,
+                            animationDelay: `${delay}s`,
+                            animationDuration: `${duration}s`,
+                            ['--vp-sop']: sop.toFixed(3),
+                        }}/>);
+                })}
           </div>);
-    })()}
+        })()}
 
       {/* Top Bar */}
       <div className="absolute top-0 left-0 right-0 z-20 px-4 pt-safe-plus-lg">
@@ -1390,19 +1293,19 @@ return (<div className={`fixed inset-0 ${fullscreen ? '' : 'max-w-md mx-auto'}`}
           <div className="flex gap-2">
             {/* Weather chip — current temperature + condition for the user's location */}
             {(() => {
-        const w = weather
-            ? describeWeather(weather.code, weather.isDay)
-            : { Icon: Cloud, label: 'Carregando clima' };
-        const WIcon = w.Icon;
-        return (<div className="h-11 px-3.5 rounded-full shadow-lg flex items-center gap-2" style={{ background: ui.chip, boxShadow: ui.shadow }} aria-label={`Clima atual: ${w.label}`} title={w.label}>
+            const w = weather
+                ? describeWeather(weather.code, weather.isDay)
+                : { Icon: Cloud, label: 'Carregando clima' };
+            const WIcon = w.Icon;
+            return (<div className="h-11 px-3.5 rounded-full shadow-lg flex items-center gap-2" style={{ background: ui.chip, boxShadow: ui.shadow }} aria-label={`Clima atual: ${w.label}`} title={w.label}>
                   <WIcon className="w-5 h-5" style={{ color: weather && isRainCode(weather.code) ? '#31D880' : ui.iconColor }} strokeWidth={2.2}/>
                   <span className="text-[15px] font-semibold tabular-nums" style={{ color: ui.text, fontFamily: 'Space Grotesk, sans-serif' }}>
                     {weather ? `${weather.temp}°` : '—'}
                   </span>
                 </div>);
-    })()}
+        })()}
             <button onClick={() => { if (userLocation && map.current)
-    map.current.flyTo({ center: userLocation, zoom: 15 }); }} className="w-11 h-11 rounded-full shadow-lg flex items-center justify-center" style={{ background: ui.chip, boxShadow: ui.shadow }}>
+        map.current.flyTo({ center: userLocation, zoom: 15 }); }} className="w-11 h-11 rounded-full shadow-lg flex items-center justify-center" style={{ background: ui.chip, boxShadow: ui.shadow }}>
               <Navigation className="w-5 h-5" style={{ color: ui.iconColor }}/>
             </button>
           </div>
@@ -1416,28 +1319,28 @@ return (<div className={`fixed inset-0 ${fullscreen ? '' : 'max-w-md mx-auto'}`}
       </div>
 
       {/* Bottom fade — always visible across every search-walk step so the
-        floating controls/sheet sit on a soft gradient instead of the bare map. */}
+            floating controls/sheet sit on a soft gradient instead of the bare map. */}
       <div className="absolute left-0 right-0 bottom-0 z-20 pointer-events-none" style={{
-        height: 'calc(180px + env(safe-area-inset-bottom))',
-        background: isDayMode
-            ? 'linear-gradient(to top, rgba(247,245,239,1) 0%, rgba(247,245,239,0.85) 35%, rgba(247,245,239,0) 100%)'
-            : 'linear-gradient(to top, rgba(11,20,16,1) 0%, rgba(11,20,16,0.85) 35%, rgba(11,20,16,0) 100%)',
-    }}/>
+            height: 'calc(180px + env(safe-area-inset-bottom))',
+            background: isDayMode
+                ? 'linear-gradient(to top, rgba(247,245,239,1) 0%, rgba(247,245,239,0.85) 35%, rgba(247,245,239,0) 100%)'
+                : 'linear-gradient(to top, rgba(11,20,16,1) 0%, rgba(11,20,16,0.85) 35%, rgba(11,20,16,0) 100%)',
+        }}/>
       {showBottomSheet && (<div className="absolute left-3 right-3 z-30" style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}>
           <div className="rounded-[32px] overflow-hidden" style={{
-            background: ui.sheet,
-            backdropFilter: 'blur(22px)',
-            WebkitBackdropFilter: 'blur(22px)',
-            border: ui.border,
-            boxShadow: ui.sheetShadow,
-        }}>
+                background: ui.sheet,
+                backdropFilter: 'blur(22px)',
+                WebkitBackdropFilter: 'blur(22px)',
+                border: ui.border,
+                boxShadow: ui.sheetShadow,
+            }}>
             <div className="px-5 pt-4 pb-5">
               {/* Step indicator — 3 minimal dots */}
               <div className="flex items-center justify-center gap-1.5 mb-4">
                 {[1, 2, 3, 4].map(n => (<span key={n} className="h-1 rounded-full transition-all duration-300" style={{
-                width: step === n ? 22 : 6,
-                background: step >= n ? '#31d880' : ui.dotIdle,
-            }}/>))}
+                    width: step === n ? 22 : 6,
+                    background: step >= n ? '#31d880' : ui.dotIdle,
+                }}/>))}
               </div>
 
               {/* STEP 1 — Quando? */}
@@ -1446,74 +1349,74 @@ return (<div className={`fixed inset-0 ${fullscreen ? '' : 'max-w-md mx-auto'}`}
                   <div className="relative flex items-center p-1.5 mb-3 rounded-full" style={{ background: ui.inner, border: ui.borderSoft, boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
                     {/* Sliding indicator */}
                     <div className="absolute top-1.5 bottom-1.5 rounded-full transition-all duration-500" style={{
-                left: scheduleMode === 'now' ? '0.375rem' : 'calc(25% + 0.375rem)',
-                width: 'calc(75% - 0.75rem)',
-                background: isDayMode ? '#ffffff' : 'rgba(255,255,255,0.1)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-            }}/>
+                    left: scheduleMode === 'now' ? '0.375rem' : 'calc(25% + 0.375rem)',
+                    width: 'calc(75% - 0.75rem)',
+                    background: isDayMode ? '#ffffff' : 'rgba(255,255,255,0.1)',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                    transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+                }}/>
                     <button onClick={() => setScheduleMode('now')} aria-label="Agora" className="relative z-10 flex items-center justify-center gap-2 py-3 rounded-full overflow-hidden transition-[flex-grow] duration-500" style={{
-                flexGrow: scheduleMode === 'now' ? 3 : 1,
-                flexBasis: 0,
-                color: scheduleMode === 'now' ? ui.text : ui.textSoft,
-                transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-            }}>
+                    flexGrow: scheduleMode === 'now' ? 3 : 1,
+                    flexBasis: 0,
+                    color: scheduleMode === 'now' ? ui.text : ui.textSoft,
+                    transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+                }}>
                       <PawPrint className="w-4 h-4 shrink-0" strokeWidth={2.5}/>
                       <span className="text-sm font-extrabold whitespace-nowrap transition-all duration-500" style={{
-                maxWidth: scheduleMode === 'now' ? '120px' : '0px',
-                opacity: scheduleMode === 'now' ? 1 : 0,
-                marginLeft: scheduleMode === 'now' ? 0 : '-0.5rem',
-                transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-            }}>
+                    maxWidth: scheduleMode === 'now' ? '120px' : '0px',
+                    opacity: scheduleMode === 'now' ? 1 : 0,
+                    marginLeft: scheduleMode === 'now' ? 0 : '-0.5rem',
+                    transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+                }}>
                         Agora
                       </span>
                     </button>
                     <button onClick={() => setScheduleMode('later')} aria-label="Agendar" className="relative z-10 flex items-center justify-center gap-2 py-3 rounded-full overflow-hidden transition-[flex-grow] duration-500" style={{
-                flexGrow: scheduleMode === 'later' ? 3 : 1,
-                flexBasis: 0,
-                color: scheduleMode === 'later' ? ui.text : ui.textSoft,
-                transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-            }}>
+                    flexGrow: scheduleMode === 'later' ? 3 : 1,
+                    flexBasis: 0,
+                    color: scheduleMode === 'later' ? ui.text : ui.textSoft,
+                    transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+                }}>
                       <CalendarIcon className="w-4 h-4 shrink-0" strokeWidth={2.5}/>
                       <span className="text-sm font-extrabold whitespace-nowrap transition-all duration-500" style={{
-                maxWidth: scheduleMode === 'later' ? '120px' : '0px',
-                opacity: scheduleMode === 'later' ? 1 : 0,
-                marginLeft: scheduleMode === 'later' ? 0 : '-0.5rem',
-                transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-            }}>
+                    maxWidth: scheduleMode === 'later' ? '120px' : '0px',
+                    opacity: scheduleMode === 'later' ? 1 : 0,
+                    marginLeft: scheduleMode === 'later' ? 0 : '-0.5rem',
+                    transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+                }}>
                         Agendar
                       </span>
                     </button>
                   </div>
 
                   <div className="grid transition-[grid-template-rows,opacity,margin,padding] duration-500" style={{
-                gridTemplateRows: scheduleMode === 'later' ? '1fr' : '0fr',
-                opacity: scheduleMode === 'later' ? 1 : 0,
-                marginBottom: scheduleMode === 'later' ? '0.75rem' : '0',
-                paddingTop: scheduleMode === 'later' ? '0.25rem' : '0',
-                transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
-            }}>
+                    gridTemplateRows: scheduleMode === 'later' ? '1fr' : '0fr',
+                    opacity: scheduleMode === 'later' ? 1 : 0,
+                    marginBottom: scheduleMode === 'later' ? '0.75rem' : '0',
+                    paddingTop: scheduleMode === 'later' ? '0.25rem' : '0',
+                    transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
+                }}>
                     <div className="overflow-hidden">
                       <div className="grid grid-cols-2 gap-2">
                         <label className="flex items-center gap-2 px-3 py-2.5 rounded-full shadow-sm transition-all duration-500" style={{
-                background: ui.inner,
-                border: ui.borderSoft,
-                transform: scheduleMode === 'later' ? 'translateY(0)' : 'translateY(-6px)',
-                opacity: scheduleMode === 'later' ? 1 : 0,
-                transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
-                transitionDelay: scheduleMode === 'later' ? '80ms' : '0ms',
-            }}>
+                    background: ui.inner,
+                    border: ui.borderSoft,
+                    transform: scheduleMode === 'later' ? 'translateY(0)' : 'translateY(-6px)',
+                    opacity: scheduleMode === 'later' ? 1 : 0,
+                    transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
+                    transitionDelay: scheduleMode === 'later' ? '80ms' : '0ms',
+                }}>
                           <CalendarIcon className="w-4 h-4 text-[#31d880] shrink-0"/>
                           <input type="date" value={scheduleDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setScheduleDate(e.target.value)} className="flex-1 bg-transparent text-sm font-semibold outline-none min-w-0" style={{ color: ui.text, colorScheme: isDayMode ? 'light' : 'dark' }}/>
                         </label>
                         <label className="flex items-center gap-2 px-3 py-2.5 rounded-full shadow-sm transition-all duration-500" style={{
-                background: ui.inner,
-                border: ui.borderSoft,
-                transform: scheduleMode === 'later' ? 'translateY(0)' : 'translateY(-6px)',
-                opacity: scheduleMode === 'later' ? 1 : 0,
-                transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
-                transitionDelay: scheduleMode === 'later' ? '160ms' : '0ms',
-            }}>
+                    background: ui.inner,
+                    border: ui.borderSoft,
+                    transform: scheduleMode === 'later' ? 'translateY(0)' : 'translateY(-6px)',
+                    opacity: scheduleMode === 'later' ? 1 : 0,
+                    transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
+                    transitionDelay: scheduleMode === 'later' ? '160ms' : '0ms',
+                }}>
                           <Clock className="w-4 h-4 text-[#31d880] shrink-0"/>
                           <input type="time" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} className="flex-1 bg-transparent text-sm font-semibold outline-none min-w-0" style={{ color: ui.text, colorScheme: isDayMode ? 'light' : 'dark' }}/>
                         </label>
@@ -1535,31 +1438,31 @@ return (<div className={`fixed inset-0 ${fullscreen ? '' : 'max-w-md mx-auto'}`}
                             <p className="text-[11px]" style={{ color: ui.muted }}>Você precisa de um pet para passear</p>
                           </div>
                         </button>) : (pets.map((p) => {
-                const active = selectedPets.some(sp => sp.id === p.id);
-                return (<button key={p.id} onClick={() => {
-                        const willBeCollective = !selectedPets.some(sp => sp.id === p.id) && selectedPets.length >= 1;
-                        const nonEligible = ['agressivo', 'protetor', 'moderavel'];
-                        if (willBeCollective) {
-                            const hasIncompatibleSelected = selectedPets.some(sp => nonEligible.includes(sp.behavioral_notes || ''));
-                            const isNewPetIncompatible = nonEligible.includes(p.behavioral_notes || '');
-                            if (hasIncompatibleSelected || isNewPetIncompatible) {
-                                alert(`Passeios COLETIVOS são permitidos apenas para pets com comportamento leve. Um dos pets selecionados possui comportamento não elegível.`);
-                                return;
+                    const active = selectedPets.some(sp => sp.id === p.id);
+                    return (<button key={p.id} onClick={() => {
+                            const willBeCollective = !selectedPets.some(sp => sp.id === p.id) && selectedPets.length >= 1;
+                            const nonEligible = ['agressivo', 'protetor', 'moderavel'];
+                            if (willBeCollective) {
+                                const hasIncompatibleSelected = selectedPets.some(sp => nonEligible.includes(sp.behavioral_notes || ''));
+                                const isNewPetIncompatible = nonEligible.includes(p.behavioral_notes || '');
+                                if (hasIncompatibleSelected || isNewPetIncompatible) {
+                                    alert(`Passeios COLETIVOS são permitidos apenas para pets com comportamento leve. Um dos pets selecionados possui comportamento não elegível.`);
+                                    return;
+                                }
                             }
-                        }
-                        setSelectedPets(prev => {
-                            const exists = prev.some(sp => sp.id === p.id);
-                            if (exists)
-                                return prev.filter(sp => sp.id !== p.id);
-                            return [...prev, p];
-                        });
-                    }} className="flex flex-col items-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                            setSelectedPets(prev => {
+                                const exists = prev.some(sp => sp.id === p.id);
+                                if (exists)
+                                    return prev.filter(sp => sp.id !== p.id);
+                                return [...prev, p];
+                            });
+                        }} className="flex flex-col items-center gap-1.5 shrink-0 active:scale-95 transition-transform">
                               <div className="relative">
                                 <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center transition-all" style={{
-                        background: ui.inner,
-                        border: active ? '2.5px solid #31d880' : `2.5px solid ${isDayMode ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}`,
-                        opacity: active || selectedPets.length === 0 ? 1 : (selectedPets.length > 0 ? 0.4 : 0.55),
-                    }}>
+                            background: ui.inner,
+                            border: active ? '2.5px solid #31d880' : `2.5px solid ${isDayMode ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}`,
+                            opacity: active || selectedPets.length === 0 ? 1 : (selectedPets.length > 0 ? 0.4 : 0.55),
+                        }}>
                                   {p.avatar_url ? (<img src={p.avatar_url} alt={p.name} className="w-full h-full object-cover"/>) : (<PawPrint className="w-5 h-5" style={{ color: ui.muted }}/>)}
                                 </div>
                                 {active && (<div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: '#31d880', border: `2px solid ${isDayMode ? '#fff' : '#0b0b0b'}` }}>
@@ -1570,14 +1473,14 @@ return (<div className={`fixed inset-0 ${fullscreen ? '' : 'max-w-md mx-auto'}`}
                                 {p.name}
                               </span>
                             </button>);
-            }))}
+                }))}
 
                         {/* Add pet */}
                         {pets.length > 0 && (<button onClick={() => navigate('/add-pet')} className="flex flex-col items-center gap-1.5 shrink-0 active:scale-95 transition-transform" aria-label="Adicionar pet">
                             <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{
-                    background: ui.inner,
-                    border: `2px dashed ${isDayMode ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.22)'}`,
-                }}>
+                        background: ui.inner,
+                        border: `2px dashed ${isDayMode ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.22)'}`,
+                    }}>
                               <Plus className="w-5 h-5" style={{ color: ui.muted }} strokeWidth={2.5}/>
                             </div>
                             <span className="text-[11px] font-semibold" style={{ color: ui.muted }}>Novo</span>
@@ -1586,7 +1489,7 @@ return (<div className={`fixed inset-0 ${fullscreen ? '' : 'max-w-md mx-auto'}`}
                     </div>
 
                   <button onClick={() => { if (selectedPets.length > 0)
-            setStep(2); }} disabled={selectedPets.length === 0} className="w-full py-3.5 rounded-full text-white font-extrabold text-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: '#31d880', boxShadow: selectedPets.length > 0 ? '0 10px 24px rgba(49,216,128,0.35)' : 'none' }}>
+                setStep(2); }} disabled={selectedPets.length === 0} className="w-full py-3.5 rounded-full text-white font-extrabold text-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: '#31d880', boxShadow: selectedPets.length > 0 ? '0 10px 24px rgba(49,216,128,0.35)' : 'none' }}>
                     {pets.length === 0 ? 'Cadastre um pet primeiro' : (selectedPets.length > 0 ? 'Continuar' : 'Selecione pelo menos um pet')}
                   </button>
                 </div>)}
@@ -1632,81 +1535,81 @@ return (<div className={`fixed inset-0 ${fullscreen ? '' : 'max-w-md mx-auto'}`}
 
               {/* STEP 2 — Tipo de passeio (escolhido ANTES da duração) */}
               {step === 2 && (() => {
-            const isCollective = selectedPets.length > 1;
-            const types = [
-                { id: 'livre', label: isCollective ? 'Coletivo' : 'Livre', Icon: Sparkles, desc: isCollective ? 'Passeio com múltiplos pets selecionados.' : 'O petwalker decide tudo sobre o passeio.' },
-                { id: 'local', label: 'Local', Icon: MapIcon, desc: 'Você define locais e rotas específicas.' },
-            ];
-            return (<div key="s3" className="animate-fade-in">
+                const isCollective = selectedPets.length > 1;
+                const types = [
+                    { id: 'livre', label: isCollective ? 'Coletivo' : 'Livre', Icon: Sparkles, desc: isCollective ? 'Passeio com múltiplos pets selecionados.' : 'O petwalker decide tudo sobre o passeio.' },
+                    { id: 'local', label: 'Local', Icon: MapIcon, desc: 'Você define locais e rotas específicas.' },
+                ];
+                return (<div key="s3" className="animate-fade-in">
                   <p className="text-[11px] font-bold uppercase tracking-wider mb-3 px-1" style={{ color: ui.muted }}>Tipo de passeio</p>
 
                   <div className="relative flex items-center p-1.5 mb-3 rounded-full" style={{ background: ui.inner, border: ui.borderSoft, boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
                     {/* Sliding indicator — 2 options, 50% each */}
                     <div className="absolute top-1.5 bottom-1.5 rounded-full transition-all duration-500" style={{
-                    left: types.findIndex(t => t.id === walkType) === 0 ? '0.375rem' : 'calc(50% + 0.375rem)',
-                    width: 'calc(50% - 0.75rem)',
-                    background: '#31d880',
-                    boxShadow: '0 4px 14px rgba(49,216,128,0.45)',
-                    transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-                }}/>
+                        left: types.findIndex(t => t.id === walkType) === 0 ? '0.375rem' : 'calc(50% + 0.375rem)',
+                        width: 'calc(50% - 0.75rem)',
+                        background: '#31d880',
+                        boxShadow: '0 4px 14px rgba(49,216,128,0.45)',
+                        transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    }}/>
                     {types.map((t) => {
-                    const active = walkType === t.id;
-                    const Icon = t.Icon;
-                    return (<button key={t.id} onClick={() => setWalkType(t.id)} aria-label={t.label} className="relative z-10 flex-1 flex items-center justify-center gap-2 py-3 rounded-full overflow-hidden transition-colors duration-300" style={{
-                            color: active ? '#ffffff' : ui.textSoft,
-                        }}>
+                        const active = walkType === t.id;
+                        const Icon = t.Icon;
+                        return (<button key={t.id} onClick={() => setWalkType(t.id)} aria-label={t.label} className="relative z-10 flex-1 flex items-center justify-center gap-2 py-3 rounded-full overflow-hidden transition-colors duration-300" style={{
+                                color: active ? '#ffffff' : ui.textSoft,
+                            }}>
                           <Icon className="w-4 h-4 shrink-0" strokeWidth={2.5}/>
                           <span className="text-sm font-extrabold whitespace-nowrap">{t.label}</span>
                         </button>);
-                })}
+                    })}
                   </div>
 
                   {/* Expanding address search for Local */}
                   <div className="grid transition-[grid-template-rows,opacity,margin] duration-500" style={{
-                    gridTemplateRows: walkType === 'local' ? '1fr' : '0fr',
-                    opacity: walkType === 'local' ? 1 : 0,
-                    marginBottom: walkType === 'local' ? '0.75rem' : '0',
-                    transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
-                }}>
+                        gridTemplateRows: walkType === 'local' ? '1fr' : '0fr',
+                        opacity: walkType === 'local' ? 1 : 0,
+                        marginBottom: walkType === 'local' ? '0.75rem' : '0',
+                        transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
+                    }}>
                     <div className="overflow-hidden">
                       {/* Selected stops */}
                       {localStops.length > 0 && (<div className="flex flex-col gap-2 mb-2">
                           {localStops.map((s, i) => (<div key={s.id} draggable onDragStart={(e) => {
-                            dragIndexRef.current = i;
-                            e.dataTransfer.effectAllowed = 'move';
-                            try {
-                                e.dataTransfer.setData('text/plain', String(i));
-                            }
-                            catch (err) {
-                                console.error('Drag data error:', err);
-                            }
-                        }} onDragOver={(e) => {
-                            e.preventDefault();
-                            e.dataTransfer.dropEffect = 'move';
-                            if (dragOverIndex !== i)
-                                setDragOverIndex(i);
-                        }} onDragLeave={() => {
-                            if (dragOverIndex === i)
+                                dragIndexRef.current = i;
+                                e.dataTransfer.effectAllowed = 'move';
+                                try {
+                                    e.dataTransfer.setData('text/plain', String(i));
+                                }
+                                catch (err) {
+                                    console.error('Drag data error:', err);
+                                }
+                            }} onDragOver={(e) => {
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = 'move';
+                                if (dragOverIndex !== i)
+                                    setDragOverIndex(i);
+                            }} onDragLeave={() => {
+                                if (dragOverIndex === i)
+                                    setDragOverIndex(null);
+                            }} onDrop={(e) => {
+                                e.preventDefault();
+                                const from = dragIndexRef.current;
+                                dragIndexRef.current = null;
                                 setDragOverIndex(null);
-                        }} onDrop={(e) => {
-                            e.preventDefault();
-                            const from = dragIndexRef.current;
-                            dragIndexRef.current = null;
-                            setDragOverIndex(null);
-                            if (from === null || from === i)
-                                return;
-                            setLocalStops((prev) => {
-                                const next = [...prev];
-                                const [moved] = next.splice(from, 1);
-                                next.splice(i, 0, moved);
-                                return next;
-                            });
-                        }} onDragEnd={() => { dragIndexRef.current = null; setDragOverIndex(null); }} className="flex items-center gap-2 px-3 py-2 rounded-2xl animate-fade-in cursor-grab active:cursor-grabbing select-none transition-all" style={{
-                            background: ui.inner,
-                            border: ui.borderSoft,
-                            transform: dragOverIndex === i ? 'scale(1.02)' : 'scale(1)',
-                            boxShadow: dragOverIndex === i ? '0 6px 18px rgba(0,0,0,0.15)' : 'none',
-                        }}>
+                                if (from === null || from === i)
+                                    return;
+                                setLocalStops((prev) => {
+                                    const next = [...prev];
+                                    const [moved] = next.splice(from, 1);
+                                    next.splice(i, 0, moved);
+                                    return next;
+                                });
+                            }} onDragEnd={() => { dragIndexRef.current = null; setDragOverIndex(null); }} className="flex items-center gap-2 px-3 py-2 rounded-2xl animate-fade-in cursor-grab active:cursor-grabbing select-none transition-all" style={{
+                                background: ui.inner,
+                                border: ui.borderSoft,
+                                transform: dragOverIndex === i ? 'scale(1.02)' : 'scale(1)',
+                                boxShadow: dragOverIndex === i ? '0 6px 18px rgba(0,0,0,0.15)' : 'none',
+                            }}>
                               <div className="shrink-0 flex items-center justify-center -ml-1" style={{ color: ui.muted, touchAction: 'none' }} aria-hidden>
                                 <GripVertical className="w-4 h-4"/>
                               </div>
@@ -1735,13 +1638,13 @@ return (<div className={`fixed inset-0 ${fullscreen ? '' : 'max-w-md mx-auto'}`}
                       {/* Suggestions */}
                       {addrSuggestions.length > 0 && (<div className="mt-2 rounded-2xl overflow-hidden animate-fade-in" style={{ background: ui.inner, border: ui.borderSoft }}>
                           {addrSuggestions.map((s, idx) => (<button key={s.id} onClick={() => {
-                            setLocalStops((prev) => [
-                                ...prev,
-                                { id: s.id, label: s.text, address: s.place_name, lng: s.center[0], lat: s.center[1] },
-                            ]);
-                            setAddrQuery('');
-                            setAddrSuggestions([]);
-                        }} className="w-full text-left px-4 py-3 flex items-start gap-2 active:opacity-70" style={{ borderTop: idx > 0 ? `1px solid ${ui.divider}` : undefined }}>
+                                setLocalStops((prev) => [
+                                    ...prev,
+                                    { id: s.id, label: s.text, address: s.place_name, lng: s.center[0], lat: s.center[1] },
+                                ]);
+                                setAddrQuery('');
+                                setAddrSuggestions([]);
+                            }} className="w-full text-left px-4 py-3 flex items-start gap-2 active:opacity-70" style={{ borderTop: idx > 0 ? `1px solid ${ui.divider}` : undefined }}>
                               <MapPin className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#31d880' }}/>
                               <div className="min-w-0">
                                 <p className="text-sm font-extrabold truncate" style={{ color: ui.text }}>{s.text}</p>
@@ -1765,7 +1668,7 @@ return (<div className={`fixed inset-0 ${fullscreen ? '' : 'max-w-md mx-auto'}`}
                     </button>
                   </div>
                 </div>);
-        })()}
+            })()}
 
               {/* STEP 4 — Confirmar */}
               {step === 4 && (<div key="s4" className="animate-fade-in">
@@ -1791,10 +1694,10 @@ return (<div className={`fixed inset-0 ${fullscreen ? '' : 'max-w-md mx-auto'}`}
                       <span className="text-xs font-semibold" style={{ color: ui.muted }}>Duração</span>
                       <span className="text-sm font-extrabold" style={{ color: ui.text }}>
                         {selectedMinutes >= 60 && selectedMinutes % 60 === 0
-                ? `${selectedMinutes / 60}h`
-                : selectedMinutes >= 60
-                    ? `${Math.floor(selectedMinutes / 60)}h${selectedMinutes % 60}`
-                    : `${selectedMinutes}min`}
+                    ? `${selectedMinutes / 60}h`
+                    : selectedMinutes >= 60
+                        ? `${Math.floor(selectedMinutes / 60)}h${selectedMinutes % 60}`
+                        : `${selectedMinutes}min`}
                       </span>
                     </div>
                     {walkType === 'local' && localStops.length > 0 && (<div className="px-4 py-3" style={{ borderTop: `1px solid ${ui.divider}` }}>
@@ -1818,20 +1721,20 @@ return (<div className={`fixed inset-0 ${fullscreen ? '' : 'max-w-md mx-auto'}`}
                   </div>
 
                   <SlideToConfirm label={pets.length === 0
-                ? 'Cadastre um pet para começar'
-                : selectedPets.length === 0
-                    ? 'Selecione um pet'
-                    : scheduleMode === 'now'
-                        ? 'Arraste para buscar passeio'
-                        : 'Arraste para confirmar'} onConfirm={handleSearch} isDarkMode={!isDayMode} petAvatar={selectedPets[0]?.avatar_url} petAvatars={selectedPets.map(p => p.avatar_url)} petName={selectedPets.length === 1 ? selectedPets[0].name : `${selectedPets.length} pets`} disabled={selectedPets.length === 0 || quoteLoading || !!quoteError || !quote}/>
+                    ? 'Cadastre um pet para começar'
+                    : selectedPets.length === 0
+                        ? 'Selecione um pet'
+                        : scheduleMode === 'now'
+                            ? 'Arraste para buscar passeio'
+                            : 'Arraste para confirmar'} onConfirm={handleSearch} isDarkMode={!isDayMode} petAvatar={selectedPets[0]?.avatar_url} petAvatars={selectedPets.map(p => p.avatar_url)} petName={selectedPets.length === 1 ? selectedPets[0].name : `${selectedPets.length} pets`} disabled={selectedPets.length === 0 || quoteLoading || !!quoteError || !quote}/>
                 </div>)}
             </div>
           </div>
         </div>)}
 
       {/* Minimal floating top pill — same clean language used during the
-        walk. Morphs softly between "Procurando" → "Encontrado" →
-        (handed off to WaitingForAcceptance). Map stays 100% fullscreen. */}
+            walk. Morphs softly between "Procurando" → "Encontrado" →
+            (handed off to WaitingForAcceptance). Map stays 100% fullscreen. */}
       {isSearching && (<div className="absolute left-1/2 z-30 animate-pill-in" style={{ bottom: 'calc(env(safe-area-inset-bottom) + 72px)', transform: 'translateX(-50%)' }}>
           <div className="flex items-center gap-3.5 backdrop-blur-md rounded-full pl-2.5 pr-6 py-2.5 shadow-2xl transition-[width,padding] duration-500 ease-out min-w-[260px]" style={{ background: ui.pillBg, border: ui.border }}>
             <div key={searchStatus} className="flex items-center gap-3.5 animate-pill-content-in">
@@ -1861,7 +1764,7 @@ return (<div className={`fixed inset-0 ${fullscreen ? '' : 'max-w-md mx-auto'}`}
       <RouteInfo duration={routeInfo?.duration || 0} distance={routeInfo?.distance || 0} isVisible={searchStatus === 'accepted' && routeInfo !== null && !isDrawingRoute}/>
 
       {/* Waiting */}
-      {searchStatus === 'waiting' && (<WaitingForAcceptance onAccepted={handleAccepted} onTimeout={handleTimeout} onCancel={handleCancel} petwalkerName={walker.firstName} petwalkerAvatar={walker.avatar} petwalkerRating={walker.rating} petwalkerWalks={walker.walks} isDarkMode={!mapIsDay} userLocation={userLocation}/>)}
+      {searchStatus === 'waiting' && (<WaitingForAcceptance onAccepted={(data) => handleAccepted(data)} onTimeout={handleTimeout} onCancel={handleCancel} petwalkerName={walker.firstName} petwalkerAvatar={walker.avatar} petwalkerRating={walker.rating} petwalkerWalks={walker.walks} isDarkMode={!mapIsDay} userLocation={userLocation}/>)}
 
       {/* Walking */}
       {searchStatus === 'walking' && (<WalkInProgress onBack={handleConfirmArrival} onRequestReturn={handleRequestReturn} onOpenChat={handleOpenChat} onRequestPhotos={handleRequestPhotos} onConfirmArrival={handleConfirmArrival} onCancelWalk={handleCancelWalk} onCancelComplete={handleCancelComplete} isCancelling={isCancellingWalk} petId={selectedPets[0]?.id || ''} petName={selectedPets.length === 1 ? selectedPets[0].name : `${selectedPets.length} pets`} petAvatar={selectedPets[0]?.avatar_url} walkerName={walker.firstName} walkerAvatar={walker.avatar} walkerLocation={walkerLocation} petLocation={userLocation} pickupRoute={pickupRoute} isComing={!isResuming} walkDurationMinutes={selectedMinutes} walkStartTime={new Date(walkStartTime)} sessionId={currentSessionId || undefined} isDarkMode={!mapIsDay} isReturning={isReturning} onAuthorizeReturn={handleAuthorizeReturn} transport={transport ?? undefined} walkerCode={walker.code} walkType={walkType} localStops={localStops.map(s => ({ lng: s.lng, lat: s.lat, label: s.label }))}/>)}
@@ -1875,5 +1778,5 @@ return (<div className={`fixed inset-0 ${fullscreen ? '' : 'max-w-md mx-auto'}`}
       {/* Navbar */}
       {showBottomSheet ? null : null}
     </div>);
-;
+};
 export default SearchWalk;
