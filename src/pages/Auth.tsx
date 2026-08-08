@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { lovable } from '@/integrations/lovable';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -88,19 +89,18 @@ const Auth = () => {
   const handleOAuth = async (provider: 'google' | 'apple') => {
     setOauthLoading(provider);
     try {
-      if (signupIntent) {
+      if (isRegistering && signupIntent) {
         localStorage.setItem('vaipet_pending_signup_intent', JSON.stringify({
           intent: signupIntent,
           timestamp: Date.now()
         }));
+      } else if (!isRegistering) {
+        // Modo login: remover qualquer intenção pendente antiga
+        localStorage.removeItem('vaipet_pending_signup_intent');
       }
 
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: window.location.origin,
-          queryParams: signupIntent ? { signup_intent: signupIntent } : undefined
-        }
+      const { error } = await lovable.auth.signInWithOAuth(provider, {
+        redirect_uri: window.location.origin
       });
       if (error) {
         toast.error(`Erro ao entrar com ${provider === 'google' ? 'Google' : 'Apple'}`);
@@ -155,8 +155,9 @@ const Auth = () => {
         }
         toast.success('Bem-vindo de volta!');
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Ocorreu um erro.');
+    } catch (err) {
+      const error = err as Error;
+      toast.error(error.message || 'Ocorreu um erro.');
     } finally {
       setIsLoading(false);
     }
@@ -371,15 +372,14 @@ const Auth = () => {
                 <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
               </button>
             </div>
+            <p className="text-[11px] font-medium leading-relaxed text-center mt-6 w-full" style={{ color: INK, opacity: 0.6 }}>
+              Ao continuar, você aceita os{' '}
+              <Link to="/termos-de-uso" className="underline" style={{ color: INK }}>Termos</Link>
+              {' '}e{' '}
+              <Link to="/politica-de-privacidade" className="underline" style={{ color: INK }}>Privacidade</Link>.
+            </p>
           </div>
         </div>
-
-        <p className="text-[11px] font-medium leading-relaxed text-center mt-8" style={{ color: INK, opacity: 0.6 }}>
-          Ao continuar, você aceita os{' '}
-          <Link to="/termos-de-uso" className="underline" style={{ color: INK }}>Termos</Link>
-          {' '}e{' '}
-          <Link to="/politica-de-privacidade" className="underline" style={{ color: INK }}>Privacidade</Link>.
-        </p>
 
         {animPhase === 'playing-anim2' && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none bg-[#F7F5EF]">
