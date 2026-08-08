@@ -1031,14 +1031,13 @@ const SearchWalk = () => {
 
       // PHASE 3: Real Walk Request via RPC
       const { data: sessionId, error: rpcError } = await supabase.rpc('create_walk_request', {
-        _pet_ids: selectedPets.map(p => p.id),
-        _planned_duration_minutes: selectedMinutes,
+        _pet_id: selectedPets[0]?.id,
+        _duration_minutes: selectedMinutes,
         _request_mode: scheduleMode === 'now' ? 'now' : 'scheduled',
         _scheduled_for: scheduledForIso,
-        _meeting_lng: userLocation[0],
-        _meeting_lat: userLocation[1],
-        _meeting_address: 'Localização atual',
-        _walk_type: walkType
+        _meeting_point_lng: userLocation[0],
+        _meeting_point_lat: userLocation[1],
+        _meeting_point_address: 'Localização atual'
       });
 
       if (rpcError) throw rpcError;
