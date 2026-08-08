@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { hideMapLabels, enrichMap, tintMapInk } from '@/lib/mapStyle';
 import 'mapbox-gl/dist/mapbox-gl.css';
