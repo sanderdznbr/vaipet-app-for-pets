@@ -81,15 +81,19 @@ export const WaitingForAcceptance: React.FC<WaitingForAcceptanceProps> = ({
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft(prev => { if (prev <= 1) { clearInterval(timer); onTimeout(); return 0; } return prev - 1; });
+      setTimeLeft(prev => { 
+        if (prev <= 1) { 
+          clearInterval(timer); 
+          onTimeout(); 
+          return 0; 
+        } 
+        return prev - 1; 
+      });
     }, 1000);
-    // Increased delay from 10s to 12s to allow UI state to stabilize during transitions
-    const acceptanceTimer = setTimeout(() => { 
-      clearInterval(timer); 
-      onAccepted(); 
-    }, 12000);
-    return () => { clearInterval(timer); clearTimeout(acceptanceTimer); };
-  }, [onAccepted, onTimeout]);
+    
+    // REMOVED acceptanceTimer: Relying solely on real PetWalker acceptance
+    return () => clearInterval(timer);
+  }, [onTimeout]);
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
