@@ -298,7 +298,7 @@ const Auth = () => {
                       </button>
                     </div>
                   )}
-                  <button type="submit" disabled={isLoading} className="w-full h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
+                  <button type="submit" disabled={isLoading} className="w-full h-14 sm:h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
                     {isLoading ? 'Aguarde...' : (isRegistering ? 'Cadastrar' : 'Entrar')}
                   </button>
                 </form>
