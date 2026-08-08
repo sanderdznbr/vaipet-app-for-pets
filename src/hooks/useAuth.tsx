@@ -71,11 +71,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const { data, error } = await Promise.race([
-        supabase
+        (supabase
           .from('user_roles')
           .select('role')
-          .eq('user_id', userId)
-          .abortSignal(controller.signal),
+          .eq('user_id', userId) as any).abortSignal(controller.signal),
         new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
       ]);
 
@@ -106,12 +105,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const { data, error } = await Promise.race([
-        supabase
+        (supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
-          .maybeSingle()
-          .abortSignal(controller.signal),
+          .maybeSingle() as any).abortSignal(controller.signal),
         new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
       ]);
 
@@ -160,12 +158,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const { data, error } = await Promise.race([
-        supabase
+        (supabase
           .from('petwalker_applications')
           .select('*')
           .eq('user_id', userId)
-          .maybeSingle()
-          .abortSignal(controller.signal),
+          .maybeSingle() as any).abortSignal(controller.signal),
         new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
       ]);
 

@@ -39,12 +39,11 @@ const RoleLanding = () => {
       const fetchPwProfile = async () => {
         try {
           const { data, error } = await Promise.race([
-            supabase
+            (supabase
               .from('petwalker_profiles')
               .select('*')
               .eq('user_id', user.id)
-              .maybeSingle()
-              .abortSignal(controller.signal),
+              .maybeSingle() as any).abortSignal(controller.signal),
             new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
           ]);
 
