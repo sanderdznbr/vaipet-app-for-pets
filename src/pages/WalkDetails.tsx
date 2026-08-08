@@ -23,7 +23,7 @@ const fmtDuration = (m?: number | null) => {
   return r ? `${h}h ${r}min` : `${h}h`;
 };
 
-export const WalkDetails: React.FC = () => {
+export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperational = false }) => {
   const { id } = useParams<{ name: string; id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
