@@ -29,6 +29,7 @@ const Auth = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+  const [isOTPMode, setIsOTPMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
   
@@ -38,6 +39,7 @@ const Auth = () => {
   const [phone, setPhone] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -90,7 +92,8 @@ const Auth = () => {
           }
         });
         if (error) throw error;
-        toast.success('Cadastro realizado! Verifique seu e-mail.');
+        setIsOTPMode(true);
+        toast.success('Cadastro realizado! Enviamos um código para seu e-mail.');
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
