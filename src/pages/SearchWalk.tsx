@@ -675,9 +675,7 @@ const SearchWalk = () => {
     });
     // USER confirmation route loop (solid).
     const loopPoints: [number, number][] = [userLocation, ...localStops.map((s) => [s.lng, s.lat] as [number, number]), userLocation];
-    // WALKER route: one-way house → stops (dashed), the actual path the
-    // petwalker will follow with the dog. Drawn alongside so the user
-    // sees both the confirmation loop AND the walker's planned trajectory.
+    // WALKER route trajectory (dashed).
     const walkerPoints: [number, number][] = [userLocation, ...localStops.map((s) => [s.lng, s.lat] as [number, number])];
     const coordStr = loopPoints.map((p) => `${p[0]},${p[1]}`).join(';');
     const walkerCoordStr = walkerPoints.map((p) => `${p[0]},${p[1]}`).join(';');
