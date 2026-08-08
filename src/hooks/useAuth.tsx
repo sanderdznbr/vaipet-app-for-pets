@@ -71,11 +71,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const { data, error } = await Promise.race([
-        (supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', userId) as any).abortSignal(controller.signal),
-        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+        /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+        (supabase.from('user_roles').select('role').eq('user_id', userId) as unknown as { abortSignal: (s: AbortSignal) => unknown }).abortSignal(controller.signal),
+        new Promise<{ data: null; error: Error }>((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 10000)
+        )
       ]);
 
       if (requestId !== rolesRequestIdRef.current || userId !== currentUserIdRef.current) return;
@@ -87,8 +87,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRoles(data?.map((r) => r.role as AppRole) || []);
         setRolesStatus('ready');
       }
-    } catch (err: any) {
-      if (err.name === 'AbortError') return;
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       if (requestId !== rolesRequestIdRef.current) return;
       setRolesError(err instanceof Error ? err : new Error(String(err)));
       setRolesStatus('error');
@@ -105,12 +105,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const { data, error } = await Promise.race([
-        (supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .maybeSingle() as any).abortSignal(controller.signal),
-        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+        /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+        (supabase.from('profiles').select('*').eq('id', userId).maybeSingle() as unknown as { abortSignal: (s: AbortSignal) => unknown }).abortSignal(controller.signal),
+        new Promise<{ data: null; error: Error }>((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 10000)
+        )
       ]);
 
       if (requestId !== profileRequestIdRef.current || userId !== currentUserIdRef.current) return;
@@ -133,15 +132,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setProfile(retryData);
             setProfileStatus('ready');
           }
-        } catch (e) {
+        } catch (e: unknown) {
           setProfileStatus('missing');
         }
       } else {
         setProfile(data);
         setProfileStatus('ready');
       }
-    } catch (err: any) {
-      if (err.name === 'AbortError') return;
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       if (requestId !== profileRequestIdRef.current) return;
       setProfileError(err instanceof Error ? err : new Error(String(err)));
       setProfileStatus('error');
@@ -158,12 +157,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const { data, error } = await Promise.race([
-        (supabase
-          .from('petwalker_applications')
-          .select('*')
-          .eq('user_id', userId)
-          .maybeSingle() as any).abortSignal(controller.signal),
-        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+        /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+        (supabase.from('petwalker_applications').select('*').eq('user_id', userId).maybeSingle() as unknown as { abortSignal: (s: AbortSignal) => unknown }).abortSignal(controller.signal),
+        new Promise<{ data: null; error: Error }>((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 10000)
+        )
       ]);
 
       if (requestId !== appRequestIdRef.current || userId !== currentUserIdRef.current) return;
@@ -178,8 +176,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setPetwalkerApplication(data);
         setApplicationStatus(data.status as ApplicationStatus);
       }
-    } catch (err: any) {
-      if (err.name === 'AbortError') return;
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       if (requestId !== appRequestIdRef.current) return;
       setApplicationError(err instanceof Error ? err : new Error(String(err)));
       setApplicationStatus('error');
@@ -192,7 +190,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const { data: { session } } = await Promise.race([
           supabase.auth.getSession(),
-          new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Auth Timeout')), 10000))
+          new Promise<{ data: { session: null }; error: Error }>((_, reject) => 
+            setTimeout(() => reject(new Error('Auth Timeout')), 10000)
+          )
         ]);
         if (mounted) {
           if (session) {
@@ -203,7 +203,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setAuthStatus('unauthenticated');
           }
         }
-      } catch (e) {
+      } catch (e: unknown) {
         if (mounted) setAuthStatus('error');
       }
     };
@@ -252,7 +252,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
           (payload) => {
             setPetwalkerApplication(payload.new as Tables<'petwalker_applications'>);
-            const newStatus = (payload.new as any).status as ApplicationStatus;
+            const newStatus = (payload.new as Tables<'petwalker_applications'>).status as ApplicationStatus;
             setApplicationStatus(newStatus);
             if (newStatus === 'approved') {
               fetchRoles(user.id);
@@ -273,11 +273,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (pendingIntentStr) {
         const processIntent = async () => {
           const requestId = ++intentRequestIdRef.current;
-          let intentData: any;
+          let intentData: { intent: string; timestamp: number };
           
           try {
             intentData = JSON.parse(pendingIntentStr);
-          } catch (e) {
+          } catch (e: unknown) {
             console.error('Invalid intent JSON:', e);
             localStorage.removeItem('vaipet_pending_signup_intent');
             return;
@@ -298,7 +298,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             const { error } = await Promise.race([
               supabase.rpc('set_signup_intent', { _intent: intent as SignupIntent }),
-              new Promise<any>((_, reject) => setTimeout(() => reject(new Error('RPC Timeout')), 10000))
+              new Promise<{ error: Error | null }>((_, reject) => setTimeout(() => reject(new Error('RPC Timeout')), 10000))
             ]);
 
             if (error) {
@@ -310,7 +310,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               await fetchProfile(user.id);
               localStorage.removeItem('vaipet_pending_signup_intent');
             }
-          } catch (e) {
+          } catch (e: unknown) {
             console.error('Error processing intent RPC:', e);
           }
         };
