@@ -109,7 +109,10 @@ const PetwalkerPainel = () => {
   }, [user]);
 
   const startTracking = () => {
-    if (!navigator.geolocation || watchId.current) return;
+    if (!navigator.geolocation) return;
+    if (watchId.current !== null) {
+      navigator.geolocation.clearWatch(watchId.current);
+    }
     
     watchId.current = window.navigator.geolocation.watchPosition(
       async (pos) => {
@@ -124,8 +127,11 @@ const PetwalkerPainel = () => {
             console.error('Failed to update location via RPC', err);
         }
       },
-      (err) => console.error('Tracking error:', err),
-      { enableHighAccuracy: true }
+      (err) => {
+        console.error('Tracking error:', err);
+        if (err.code === 1) toast.error('Permissão de localização negada');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 

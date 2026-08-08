@@ -878,7 +878,7 @@ const SearchWalk = () => {
           pitch: 45,
           bearing: 0,
           essential: true,
-          easing: (t) => 1 - Math.pow(1 - t, 3),
+          easing: (t: number) => 1 - Math.pow(1 - t, 3),
         } as any);
       }
     } catch {
@@ -947,156 +947,71 @@ const SearchWalk = () => {
 
       if (rpcError) throw rpcError;
       setCurrentSessionId(sessionId);
+      setSearchStatus('waiting');
+      setIsSearching(false);
 
-      // Simulation delay for UI/camera flow
-      setTimeout(() => {
-        setSearchStatus('found');
-        setWalker(generateRandomWalker());
-        
-        if (map.current && userLocation) {
-          const wLoc = generateRandomWalkerLocation(userLocation);
-          setWalkerLocation(wLoc);
-          const el = document.createElement('div');
-          el.className = 'relative w-10 h-10';
-          el.innerHTML = `<div class="absolute inset-0 rounded-full bg-blue-500 animate-pulse opacity-30"></div><div class="relative w-10 h-10 rounded-full border-2 border-blue-500 overflow-hidden bg-white shadow-lg"><img src="/vaipet-logo.svg" alt="Walker" class="w-full h-full object-contain p-1" /></div>`;
-          walkerMarker.current = new mapboxgl.Marker(el, { anchor: 'bottom' }).setLngLat(wLoc).addTo(map.current);
-          
-          map.current.flyTo({
-            center: wLoc,
-            zoom: 16,
-            pitch: 55,
-            speed: 0.7,
-            curve: 1.5,
-            essential: true,
-          });
-
-          const onArrival = () => {
-            map.current?.off('moveend', onArrival);
-            setTimeout(() => addRouteToMap(userLocation, wLoc), 250);
-          };
-          map.current.once('moveend', onArrival);
-        }
-        
-        setTimeout(() => { 
-          setSearchStatus('waiting'); 
-          setIsSearching(false); 
-        }, 4200);
-      }, 3000);
-
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Error starting search:', e);
-      toast.error(e.message || 'Erro ao iniciar busca');
+      toast.error(e instanceof Error ? e.message : 'Erro ao iniciar busca');
       setIsSearching(false);
       setSearchStatus('idle');
     }
   };
 
-  const handleAccepted = async () => {
-    // Throttling acceptance to prevent double-calls or race conditions during transition
-    if (searchStatusRef.current === 'walking' || !user || selectedPets.length === 0) return;
+  const handleAccepted = useCallback(async (sessionData: any) => {
+    if (searchStatusRef.current === 'walking' || !user) return;
 
-    // Pre-warm the dog GLB so it's parsed and ready in memory before the
-    // petwalker confirms the pickup code — avoids any pop-in at walk start.
     preloadDog3DAsset().catch(() => {});
     preloadCheckpointAsset().catch(() => {});
     
     setSearchStatus('walking');
-
-    // Recovery watchdog: if the session isn't persisted within 8s we fall back
-    // to 'waiting' instead of leaving the user on a walk that doesn't exist.
-    // NOTE: it must read a ref (not the `currentSessionId` state captured in
-    // this closure, which is always stale) and be cleared on success —
-    // otherwise it fires even on the happy path and causes the waiting/walking
-    // flicker this flow already regressed on once.
-    sessionCreatedRef.current = false;
-    if (recoveryTimeoutRef.current) clearTimeout(recoveryTimeoutRef.current);
-    recoveryTimeoutRef.current = setTimeout(() => {
+    
+    // Disarm watchdog if needed (though we rely more on sessionData now)
+    sessionCreatedRef.current = true;
+    if (recoveryTimeoutRef.current) {
+      clearTimeout(recoveryTimeoutRef.current);
       recoveryTimeoutRef.current = null;
-      if (searchStatusRef.current === 'walking' && !sessionCreatedRef.current) {
-        console.warn('Walk session creation timed out, attempting recovery...');
-        setSearchStatus('waiting');
-      }
-    }, 8000);
-
-    // Remove the static walker marker from the search map; WalkInProgress handles its own.
-    if (walkerMarker.current) { walkerMarker.current.remove(); walkerMarker.current = null; }
-    const start = new Date();
-    setWalkStartTime(start.getTime());
-    try {
-      await supabase
-        .from('walk_sessions')
-        .update({
-          status: 'cancelled',
-          end_time: start.toISOString(),
-          actual_duration_minutes: 1,
-        } as never)
-        .eq('customer_id', user.id)
-        .in('status', ['active', 'returning', 'requested', 'accepted', 'in_progress', 'processing']);
-      // Persist the walk type, the ordered list of stops (1 → N) and the
-      // home location so the experience can be rehydrated exactly as
-      // configured if the user reloads mid-walk (pin numbering, IDA/VOLTA
-      // legs and the home anchor all stay consistent).
-      const orderedStops = (walkType === 'local' ? localStops : []).map((s, i) => ({
-        order: i + 1,
-        label: s.label,
-        address: s.address,
-        lng: s.lng,
-        lat: s.lat,
-      }));
-      // Create scheduled date in local time first, then convert to ISO for persistence
-      let scheduledForIso = null;
-      if (scheduleMode === 'later') {
-        const [year, month, day] = scheduleDate.split('-').map(Number);
-        const [hour, minute] = scheduleTime.split(':').map(Number);
-        const localDate = new Date(year, month - 1, day, hour, minute);
-        
-        if (localDate <= new Date()) {
-          toast.error('Agendamento deve ser para o futuro');
-          setSearchStatus('idle');
-          return;
-        }
-        scheduledForIso = localDate.toISOString();
-      }
-
-      // PHASE 3: Real Walk Request via RPC
-      const { data: sessionId, error: rpcError } = await supabase.rpc('create_walk_request', {
-        _pet_id: selectedPets[0]?.id,
-        _duration_minutes: selectedMinutes,
-        _request_mode: scheduleMode === 'now' ? 'now' : 'scheduled',
-        _scheduled_for: scheduledForIso,
-        _meeting_point_lng: userLocation[0],
-        _meeting_point_lat: userLocation[1],
-        _meeting_point_address: 'Localização atual'
-      });
-
-      if (rpcError) throw rpcError;
-
-      // Fetch the newly created session to keep UI consistency
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('walk_sessions')
-        .select('*')
-        .eq('id', sessionId)
-        .single();
-
-      if (sessionError) throw sessionError;
-
-      // Success: disarm the watchdog BEFORE it can bounce us back to 'waiting'.
-      sessionCreatedRef.current = true;
-      if (recoveryTimeoutRef.current) {
-        clearTimeout(recoveryTimeoutRef.current);
-        recoveryTimeoutRef.current = null;
-      }
-      setCurrentSessionId(sessionData.id);
-
-    } catch (e) {
-      console.error('Error creating walk session:', e);
-      if (recoveryTimeoutRef.current) {
-        clearTimeout(recoveryTimeoutRef.current);
-        recoveryTimeoutRef.current = null;
-      }
-      setSearchStatus('waiting');
     }
-  };
+
+    if (walkerMarker.current) { walkerMarker.current.remove(); walkerMarker.current = null; }
+    
+    const startTime = sessionData.start_time ? new Date(sessionData.start_time).getTime() : Date.now();
+    setWalkStartTime(startTime);
+    
+    // Fetch walker profile and location
+    if (sessionData.walker_id) {
+      const { data: walkerProfile } = await supabase
+        .from('petwalker_profiles')
+        .select('*, profiles(full_name, avatar_url)')
+        .eq('user_id', sessionData.walker_id)
+        .single();
+      
+      if (walkerProfile) {
+        setWalker((prev: WalkerProfile) => ({
+          ...prev,
+          name: (walkerProfile.profiles as any)?.full_name || 'Pet Walker',
+          firstName: ((walkerProfile.profiles as any)?.full_name || 'Pet Walker').split(' ')[0],
+          avatar: (walkerProfile.profiles as any)?.avatar_url || '',
+          rating: Number(walkerProfile.rating_average || 0),
+          walks: Number(walkerProfile.completed_walks || 0),
+        }));
+        
+        const loc = walkerProfile.last_known_location as { coordinates: [number, number] } | null;
+        if (loc?.coordinates) {
+          const wLoc: [number, number] = [loc.coordinates[0], loc.coordinates[1]];
+          setWalkerLocation(wLoc);
+          
+          if (map.current) {
+             const el = document.createElement('div');
+             el.className = 'relative w-10 h-10';
+             el.innerHTML = `<div class="absolute inset-0 rounded-full bg-[#31D880] animate-pulse opacity-30"></div><div class="relative w-10 h-10 rounded-full border-2 border-[#31D880] overflow-hidden bg-white shadow-lg"><img src="${(walkerProfile.profiles as any)?.avatar_url || '/vaipet-logo.svg'}" alt="Walker" class="w-full h-full object-cover" /></div>`;
+             walkerMarker.current = new mapboxgl.Marker(el, { anchor: 'bottom' }).setLngLat(wLoc).addTo(map.current);
+             addRouteToMap(userLocationRef.current || userLocation || [0, 0], wLoc);
+          }
+        }
+      }
+    }
+  }, [user, walkerMarker, userLocation, addRouteToMap]);
 
   // Cliente autorizou o retorno via chat: marca isReturning, atualiza
   // o banco para 'returning' e a UI assume a fase de "voltando para casa".
@@ -1107,7 +1022,7 @@ const SearchWalk = () => {
       try {
         await supabase
           .from('walk_sessions')
-          .update({ status: 'returning' })
+          .update({ current_status: 'returning', status: 'returning' })
           .eq('id', currentSessionId);
       } catch (e) {
         console.error('Falha ao iniciar retorno:', e);
@@ -1125,6 +1040,7 @@ const SearchWalk = () => {
         await supabase
           .from('walk_sessions')
           .update({
+            current_status: 'completed',
             status: 'completed',
             end_time: new Date().toISOString(),
             actual_duration_minutes: Math.max(1, Math.round(dur / 60)),
@@ -1133,28 +1049,11 @@ const SearchWalk = () => {
       } catch (e) {
         console.error('Falha ao confirmar chegada:', e);
       }
-    } else if (user) {
-      try {
-        await supabase
-          .from('walk_sessions')
-          .update({
-            status: 'completed',
-            end_time: new Date().toISOString(),
-            actual_duration_minutes: Math.max(1, Math.round(dur / 60)),
-          } as never)
-          .eq('customer_id', user.id)
-          .in('status', ['active', 'returning']);
-      } catch (e) {
-        console.error('Falha ao encerrar passeio ativo:', e);
-      }
     }
     setSearchStatus('reviewing');
   };
   const handleReviewComplete = () => { navigate('/'); setSearchStatus('idle'); cleanupPreviousSearch(); };
-  // WalkInProgress já gravou status='completed', end_time e
-  // actual_duration_minutes de forma atômica ao confirmar o encerramento.
-  // Aqui apenas calculamos a duração local para exibir o resumo imediato
-  // na ReviewWalk (sem esperar round-trip extra).
+  
   const handleRequestReturn = async () => {
     const dur = Math.floor((Date.now() - walkStartTime) / 1000);
     setWalkDuration(dur);
@@ -1162,7 +1061,7 @@ const SearchWalk = () => {
   };
 
   useEffect(() => {
-    if (!currentSessionId || searchStatus !== 'waiting') return;
+    if (!currentSessionId) return;
 
     const channel = supabase
       .channel(`walk-session-${currentSessionId}`)
@@ -1174,10 +1073,10 @@ const SearchWalk = () => {
           table: 'walk_sessions',
           filter: `id=eq.${currentSessionId}`
         },
-        (payload) => {
+        (payload: any) => {
           const newStatus = payload.new.current_status;
-          if (newStatus === 'accepted') {
-            handleAccepted();
+          if (newStatus === 'accepted' && searchStatusRef.current !== 'walking') {
+            handleAccepted(payload.new);
           } else if (newStatus === 'expired' || newStatus === 'cancelled') {
             handleTimeout();
           }
@@ -1185,10 +1084,19 @@ const SearchWalk = () => {
       )
       .subscribe();
 
+    // Check immediate state if already accepted
+    const checkStatus = async () => {
+       const { data } = await supabase.from('walk_sessions').select('*').eq('id', currentSessionId).single();
+       if (data?.current_status === 'accepted' && searchStatusRef.current !== 'walking') {
+          handleAccepted(data);
+       }
+    };
+    checkStatus();
+
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentSessionId, searchStatus]);
+  }, [currentSessionId]);
   const handleOpenChat = () => alert('Chat com o PetWalker Beta será aberto em breve!');
   const handleRequestPhotos = () => alert('Solicitação de fotos enviada!');
   const handleTimeout = () => { cleanupPreviousSearch(); setSearchStatus('idle'); setTimeout(handleSearch, 1000); };
@@ -2190,7 +2098,7 @@ const SearchWalk = () => {
       {/* Waiting */}
       {searchStatus === 'waiting' && (
         <WaitingForAcceptance
-          onAccepted={handleAccepted}
+          onAccepted={(data) => handleAccepted(data)}
           onTimeout={handleTimeout}
           onCancel={handleCancel}
           petwalkerName={walker.firstName}
@@ -2200,7 +2108,6 @@ const SearchWalk = () => {
           isDarkMode={!mapIsDay}
           userLocation={userLocation}
         />
-
       )}
 
       {/* Walking */}
