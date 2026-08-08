@@ -949,7 +949,14 @@ export type Database = {
           _duration_minutes: number
           _request_mode: Database["public"]["Enums"]["walk_request_mode"]
         }
-        Returns: Json
+        Returns: {
+          duration_minutes: number
+          price_per_minute_cents: number
+          pricing_version: number
+          request_mode: Database["public"]["Enums"]["walk_request_mode"]
+          request_surcharge_cents: number
+          total_price_cents: number
+        }[]
       }
       has_role: {
         Args: {
