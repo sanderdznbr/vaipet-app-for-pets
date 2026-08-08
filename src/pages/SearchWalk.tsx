@@ -176,11 +176,7 @@ const SearchWalk = () => {
     fetchQuote(selectedMinutes, scheduleMode === 'now' ? 'now' : 'scheduled');
   }, [selectedMinutes, scheduleMode, fetchQuote]);
 
-  // Marker-level throttling for watchPosition. Even moving only the marker
-  // imperatively on every GPS tick can cause perceptible flicker on mobile
-  // because Mapbox repaints. We coalesce updates with a min interval AND a
-  // min movement threshold, plus a trailing debounce so the LAST sample
-  // always lands once GPS goes quiet.
+  // Marker-level throttling for GPS updates.
   const lastMarkerUpdateAtRef = useRef(0);
   const lastMarkerPosRef = useRef<[number, number] | null>(null);
   const pendingLocRef = useRef<[number, number] | null>(null);
