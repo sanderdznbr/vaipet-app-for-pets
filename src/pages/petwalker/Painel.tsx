@@ -152,11 +152,26 @@ const PetwalkerPainel = () => {
 
   const handleAccept = async (requestId: string) => {
     try {
+      setLoading(true);
       const { error } = await supabase.rpc('accept_walk_request', { _session_id: requestId });
       if (error) throw error;
       toast.success('Passeio aceito! Vá ao encontro do pet.');
+      // fetchOpenRequests will be called by realtime listener
     } catch (err: any) {
       toast.error(err.message || 'Erro ao aceitar pedido');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDecline = async (requestId: string) => {
+    try {
+      const { error } = await supabase.rpc('decline_walk_offer', { _session_id: requestId });
+      if (error) throw error;
+      setOpenOffers(prev => prev.filter(o => o.id !== requestId));
+      toast.info('Oferta recusada.');
+    } catch (err) {
+      toast.error('Erro ao recusar oferta');
     }
   };
 
@@ -266,23 +281,25 @@ const PetwalkerPainel = () => {
                       <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter">Ganhos est.</p>
                     </div>
                   </div>
-                  <Button 
-                    onClick={() => handleAccept(offer.id)}
-                    className="w-full bg-ink text-white hover:bg-ink/90 font-bold h-11 rounded-2xl"
-                  >
-                    Aceitar Passeio
-                  </Button>
-                </Card>
-              ))}
+              <Button 
+                onClick={() => handleAccept(offer.id)}
+                disabled={loading}
+                className="flex-1 bg-ink text-white hover:bg-ink/90 font-bold h-11 rounded-2xl"
+              >
+                Aceitar
+              </Button>
+              <Button 
+                onClick={() => handleDecline(offer.id)}
+                variant="outline"
+                className="h-11 px-4 rounded-2xl border-gray-200"
+              >
+                Recusar
+              </Button>
             </div>
-          ) : (
-            <div className="py-12 text-center space-y-4 opacity-40">
-              <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto">
-                <Bell size={32} />
-              </div>
-              <p className="font-medium">Nenhuma solicitação ativa no momento</p>
+            <div className="text-right">
+              <p className="font-bold text-[#31D880]">R$ {(offer.total_price_cents / 100).toFixed(2)}</p>
+              <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter">Valor Total</p>
             </div>
-          )}
 
           {/* Beta Simulation Tools */}
           <Card className="p-5 border-2 border-dashed border-[#31D880]/30 rounded-[28px] bg-white/50">
