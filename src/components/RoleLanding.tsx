@@ -43,8 +43,7 @@ const RoleLanding = () => {
               .from('petwalker_profiles')
               .select('*')
               .eq('user_id', user.id)
-              .maybeSingle()
-               as any).abortSignal(controller.signal),
+              .maybeSingle() as any).abortSignal(controller.signal),
             new Promise<{ data: null; error: Error }>((_, reject) => 
               setTimeout(() => reject(new Error('Timeout')), 10000)
             )

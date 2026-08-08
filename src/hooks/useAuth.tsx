@@ -71,11 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const { data, error } = await Promise.race([
-        supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', userId)
-           as any).abortSignal(controller.signal),
+        (supabase.from('user_roles').select('role').eq('user_id', userId) as any).abortSignal(controller.signal),
         new Promise<{ data: null; error: Error }>((_, reject) => 
           setTimeout(() => reject(new Error('Timeout')), 10000)
         )
@@ -91,7 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRolesStatus('ready');
       }
     } catch (err: unknown) {
-      if (err.name === 'AbortError') return;
+      if (err instanceof Error && err.name === 'AbortError') return;
       if (requestId !== rolesRequestIdRef.current) return;
       setRolesError(err instanceof Error ? err : new Error(String(err)));
       setRolesStatus('error');
@@ -112,8 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .from('profiles')
           .select('*')
           .eq('id', userId)
-          .maybeSingle() as any)
-          .abortSignal(controller.signal),
+          .maybeSingle() as any).abortSignal(controller.signal),
         new Promise<{ data: null; error: Error }>((_, reject) => 
           setTimeout(() => reject(new Error('Timeout')), 10000)
         )
@@ -188,7 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setApplicationStatus(data.status as ApplicationStatus);
       }
     } catch (err: unknown) {
-      if (err.name === 'AbortError') return;
+      if (err instanceof Error && err.name === 'AbortError') return;
       if (requestId !== appRequestIdRef.current) return;
       setApplicationError(err instanceof Error ? err : new Error(String(err)));
       setApplicationStatus('error');
