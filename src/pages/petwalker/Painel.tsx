@@ -111,7 +111,7 @@ const PetwalkerPainel = () => {
         });
       },
       (err) => console.error('Tracking error:', err),
-      { enableHighAccuracy: true, distanceFilter: 10 }
+      { enableHighAccuracy: true }
     );
   };
 
