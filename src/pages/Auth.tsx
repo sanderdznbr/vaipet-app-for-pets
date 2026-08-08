@@ -75,21 +75,32 @@ const Auth = () => {
   }, [navigate, isMobile]);
 
   useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('type') === 'recovery') {
+      setIsRecoveryMode(true);
+    }
+
     const checkUser = async () => {
       const { data: { session }, error } = await supabase.auth.getSession();
-      if (session) {
+      if (session && !isRecoveryMode) {
         triggerTransition();
       }
     };
     checkUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecoveryMode(true);
+      }
       if (session && (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION')) {
-        triggerTransition();
+        if (!isRecoveryMode) {
+          triggerTransition();
+        }
       }
     });
     return () => { subscription.unsubscribe(); };
-  }, [triggerTransition]);
+  }, [triggerTransition, isRecoveryMode]);
+
 
   const handleOAuth = async (provider: 'google' | 'apple') => {
     // Proteção: não iniciar OAuth se estiver registrando mas sem intenção selecionada
