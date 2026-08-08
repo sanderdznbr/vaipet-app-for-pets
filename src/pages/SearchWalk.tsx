@@ -673,7 +673,7 @@ const SearchWalk = () => {
       const mk = new mapboxgl.Marker(el).setLngLat([s.lng, s.lat]).addTo(m);
       stopMarkersRef.current.push(mk);
     });
-    // USER confirmation route: loop house → stops → house (solid line).
+    // USER confirmation route loop (solid).
     const loopPoints: [number, number][] = [userLocation, ...localStops.map((s) => [s.lng, s.lat] as [number, number]), userLocation];
     // WALKER route: one-way house → stops (dashed), the actual path the
     // petwalker will follow with the dog. Drawn alongside so the user
