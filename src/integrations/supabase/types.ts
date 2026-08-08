@@ -69,6 +69,7 @@ export type Database = {
           address: string | null
           city: string | null
           created_at: string | null
+          geom: unknown
           id: string
           is_default: boolean | null
           latitude: number | null
@@ -82,6 +83,7 @@ export type Database = {
           address?: string | null
           city?: string | null
           created_at?: string | null
+          geom?: unknown
           id?: string
           is_default?: boolean | null
           latitude?: number | null
@@ -95,6 +97,7 @@ export type Database = {
           address?: string | null
           city?: string | null
           created_at?: string | null
+          geom?: unknown
           id?: string
           is_default?: boolean | null
           latitude?: number | null
@@ -416,8 +419,11 @@ export type Database = {
           cancellation_rate: number | null
           completed_walks: number | null
           created_at: string | null
+          current_walk_id: string | null
           experience_years: number | null
           is_accepting_requests: boolean | null
+          last_known_location: unknown
+          last_location_at: string | null
           last_online_at: string | null
           price_30_minutes: number | null
           profile_completed: boolean | null
@@ -435,8 +441,11 @@ export type Database = {
           cancellation_rate?: number | null
           completed_walks?: number | null
           created_at?: string | null
+          current_walk_id?: string | null
           experience_years?: number | null
           is_accepting_requests?: boolean | null
+          last_known_location?: unknown
+          last_location_at?: string | null
           last_online_at?: string | null
           price_30_minutes?: number | null
           profile_completed?: boolean | null
@@ -454,8 +463,11 @@ export type Database = {
           cancellation_rate?: number | null
           completed_walks?: number | null
           created_at?: string | null
+          current_walk_id?: string | null
           experience_years?: number | null
           is_accepting_requests?: boolean | null
+          last_known_location?: unknown
+          last_location_at?: string | null
           last_online_at?: string | null
           price_30_minutes?: number | null
           profile_completed?: boolean | null
@@ -791,6 +803,45 @@ export type Database = {
         }
         Relationships: []
       }
+      walk_offers: {
+        Row: {
+          created_at: string | null
+          id: string
+          session_id: string
+          status: string | null
+          walker_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          session_id: string
+          status?: string | null
+          walker_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          session_id?: string
+          status?: string | null
+          walker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "walk_offers_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "walk_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "walk_offers_walker_id_fkey"
+            columns: ["walker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       walk_pricing_settings: {
         Row: {
           created_at: string | null
@@ -834,6 +885,7 @@ export type Database = {
         Row: {
           actual_duration_minutes: number | null
           created_at: string
+          current_radius_meters: number | null
           current_status:
             | Database["public"]["Enums"]["walk_session_status"]
             | null
@@ -843,8 +895,11 @@ export type Database = {
           feedback: string | null
           home_location: Json | null
           id: string
+          last_expansion_at: string | null
           local_stops: Json | null
+          matching_expires_at: string | null
           meeting_point_address: string | null
+          meeting_point_geom: unknown
           meeting_point_location: unknown
           pet_id: string
           pet_ids: string[] | null
@@ -869,6 +924,7 @@ export type Database = {
         Insert: {
           actual_duration_minutes?: number | null
           created_at?: string
+          current_radius_meters?: number | null
           current_status?:
             | Database["public"]["Enums"]["walk_session_status"]
             | null
@@ -878,8 +934,11 @@ export type Database = {
           feedback?: string | null
           home_location?: Json | null
           id?: string
+          last_expansion_at?: string | null
           local_stops?: Json | null
+          matching_expires_at?: string | null
           meeting_point_address?: string | null
+          meeting_point_geom?: unknown
           meeting_point_location?: unknown
           pet_id: string
           pet_ids?: string[] | null
@@ -904,6 +963,7 @@ export type Database = {
         Update: {
           actual_duration_minutes?: number | null
           created_at?: string
+          current_radius_meters?: number | null
           current_status?:
             | Database["public"]["Enums"]["walk_session_status"]
             | null
@@ -913,8 +973,11 @@ export type Database = {
           feedback?: string | null
           home_location?: Json | null
           id?: string
+          last_expansion_at?: string | null
           local_stops?: Json | null
+          matching_expires_at?: string | null
           meeting_point_address?: string | null
+          meeting_point_geom?: unknown
           meeting_point_location?: unknown
           pet_id?: string
           pet_ids?: string[] | null
@@ -1191,14 +1254,13 @@ export type Database = {
       }
       create_walk_request: {
         Args: {
-          _meeting_address: string
-          _meeting_lat: number
-          _meeting_lng: number
-          _pet_ids: string[]
-          _planned_duration_minutes: number
+          _duration_minutes: number
+          _meeting_point_address: string
+          _meeting_point_lat: number
+          _meeting_point_lng: number
+          _pet_id: string
           _request_mode: Database["public"]["Enums"]["walk_request_mode"]
-          _scheduled_for: string
-          _walk_type: string
+          _scheduled_for?: string
         }
         Returns: string
       }
@@ -1236,6 +1298,7 @@ export type Database = {
       enablelongtransactions: { Args: never; Returns: string }
       ensure_current_user_profile: { Args: never; Returns: undefined }
       equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      expand_walk_search_radius: { Args: never; Returns: undefined }
       geometry: { Args: { "": string }; Returns: unknown }
       geometry_above: {
         Args: { geom1: unknown; geom2: unknown }
@@ -1334,12 +1397,35 @@ export type Database = {
         Returns: boolean
       }
       geomfromewkt: { Args: { "": string }; Returns: unknown }
+      get_active_walker_location: {
+        Args: { _session_id: string }
+        Returns: {
+          last_updated: string
+          lat: number
+          lng: number
+        }[]
+      }
       get_admin_application_stats: {
         Args: never
         Returns: {
           approved_count: number
           pending_count: number
           rejected_count: number
+        }[]
+      }
+      get_available_walk_offers: {
+        Args: never
+        Returns: {
+          created_at: string
+          customer_id: string
+          customer_name: string
+          distance_meters: number
+          id: string
+          meeting_point_address: string
+          pet_breed: string
+          pet_name: string
+          planned_duration_minutes: number
+          total_price_cents: number
         }[]
       }
       get_petwalker_application_admin: {
@@ -2059,15 +2145,7 @@ export type Database = {
         Returns: undefined
       }
       update_walker_location: {
-        Args: {
-          _accuracy?: number
-          _heading?: number
-          _is_simulated?: boolean
-          _lat: number
-          _lng: number
-          _session_id: string
-          _speed?: number
-        }
+        Args: { _accuracy?: number; _lat: number; _lng: number }
         Returns: undefined
       }
       updategeometrysrid: {
@@ -2093,6 +2171,17 @@ export type Database = {
         | "heading_to_pickup"
         | "arrived"
         | "in_progress"
+        | "completed"
+        | "cancelled"
+        | "expired"
+      walk_status:
+        | "searching"
+        | "offered"
+        | "accepted"
+        | "heading_to_pickup"
+        | "arrived"
+        | "in_progress"
+        | "returning"
         | "completed"
         | "cancelled"
         | "expired"
@@ -2242,6 +2331,18 @@ export const Constants = {
         "heading_to_pickup",
         "arrived",
         "in_progress",
+        "completed",
+        "cancelled",
+        "expired",
+      ],
+      walk_status: [
+        "searching",
+        "offered",
+        "accepted",
+        "heading_to_pickup",
+        "arrived",
+        "in_progress",
+        "returning",
         "completed",
         "cancelled",
         "expired",
