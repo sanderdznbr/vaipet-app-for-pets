@@ -1314,8 +1314,7 @@ const SearchWalk = () => {
               </div>
             ))}
 
-            {/* Splashes no chão — anéis pequenos pulsando na faixa inferior
-                pra vender o impacto da gota. */}
+            {/* Splashes no chão — anéis pulsando na faixa inferior. */}
             {Array.from({ length: splashCount }).map((_, i) => {
               const left = Math.random() * 100;
               const top = 70 + Math.random() * 28;
