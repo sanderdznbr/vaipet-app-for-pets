@@ -145,7 +145,9 @@ export const PetDetails = () => {
     try {
       await supabase.from('pets').delete().eq('id', pet.id).eq('owner_id', user.id);
       navigate('/');
-    } catch {} finally { setIsDeleting(false); }
+    } catch (err) {
+      console.error('Delete error:', err);
+    } finally { setIsDeleting(false); }
   };
 
   const formatDate = (dateString: string) => {
