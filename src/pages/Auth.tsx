@@ -245,7 +245,72 @@ const Auth = () => {
           
           <div className="w-full flex flex-col gap-6">
             <AnimatePresence mode="wait">
-              {isForgotPassword ? (
+              {isRecoveryMode ? (
+                <motion.div
+                  key="recovery-mode"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="w-full flex flex-col gap-6"
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <h2 className="text-2xl font-bold text-center" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                      Nova Senha
+                    </h2>
+                    <p className="text-sm text-center text-black/60">
+                      Crie uma nova senha para sua conta.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleUpdatePassword} className="flex flex-col gap-4">
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Nova Senha"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required
+                        className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg pr-14"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-5 top-1/2 -translate-y-1/2 text-black/40 hover:text-black/60 transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+                      </button>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirmar Nova Senha"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg pr-14"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-5 top-1/2 -translate-y-1/2 text-black/40 hover:text-black/60 transition-colors"
+                      >
+                        {showConfirmPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+                      </button>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full h-16 rounded-2xl font-bold text-white transition-all active:scale-[0.98] disabled:opacity-70 shadow-lg shadow-[#31D880]/20 text-lg mt-2"
+                      style={{ backgroundColor: '#31D880' }}
+                    >
+                      {isLoading ? 'Atualizando...' : 'Atualizar Senha'}
+                    </button>
+                  </form>
+                </motion.div>
+              ) : isForgotPassword ? (
+
                 <motion.div
                   key="forgot-password"
                   initial={{ opacity: 0, x: 20 }}
