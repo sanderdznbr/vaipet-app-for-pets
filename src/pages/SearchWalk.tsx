@@ -1265,7 +1265,7 @@ const SearchWalk = () => {
               }
             `}</style>
 
-            {/* Atmosfera: leve haze no topo + chão molhado embaixo. */}
+            {/* Atmosfera: haze no topo + molhado embaixo. */}
             <div
               className="absolute inset-0"
               style={{
