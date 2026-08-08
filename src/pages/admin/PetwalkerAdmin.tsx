@@ -35,7 +35,7 @@ type Application = {
   id: string;
   legal_name: string;
   city: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: string;
   document_status: string;
   submitted_at: string;
   reviewed_at: string | null;

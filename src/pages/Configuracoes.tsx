@@ -9,6 +9,7 @@ import {
   ArrowUpRight,
   Fingerprint,
   Clock,
+  ShieldCheck,
   Settings as SettingsIcon,
   Sun,
   Moon,
@@ -50,7 +51,7 @@ const DANGER = '#E5484D';
 const BIO_LOCK_KEY = 'vaipet.bioLock';
 
 const Configuracoes = () => {
-  const { signOut, refreshProfile } = useAuth();
+  const { signOut, refreshProfile, roles } = useAuth();
   const navigate = useNavigate();
   const { theme, toggle, palette } = useHomeTheme();
   const PAPER = palette.paper;
@@ -124,6 +125,12 @@ const Configuracoes = () => {
       label: 'Conta',
       items: [
         { icon: User, title: 'Perfil', description: 'Editar informações pessoais', onClick: () => navigate('/perfil') },
+        ...(roles.includes('admin') ? [{ 
+          icon: ShieldCheck, 
+          title: 'Painel administrativo', 
+          description: 'Gestão da plataforma', 
+          onClick: () => navigate('/admin') 
+        }] : []),
         { icon: Star, title: 'Quero ser PetWalker', description: 'Trabalhe passeando com pets', onClick: handlePetwalkerClick },
         { icon: PawPrint, title: 'Meus pets', description: 'Cadastros e saúde', onClick: () => navigate('/add-pet') },
         { icon: MapPin, title: 'Endereços', description: 'Casa, trabalho e outros', onClick: soon },
