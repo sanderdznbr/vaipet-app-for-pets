@@ -71,11 +71,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const { data, error } = await Promise.race([
-        (supabase
+        supabase
           .from('user_roles')
           .select('role')
-          .eq('user_id', userId) as any).abortSignal(controller.signal),
-        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+          .eq('user_id', userId)
+          .abortSignal(controller.signal),
+        new Promise<{ data: null; error: Error }>((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 10000)
+        )
       ]);
 
       if (requestId !== rolesRequestIdRef.current || userId !== currentUserIdRef.current) return;
