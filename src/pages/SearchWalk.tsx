@@ -1029,8 +1029,7 @@ const SearchWalk = () => {
     }
   };
 
-  // Confirmação de chegada (final do retorno): grava status='completed',
-  // end_time e actual_duration_minutes de forma atômica e leva à avaliação.
+  // Arrival confirmation (final status).
   const handleConfirmArrival = async () => {
     const dur = Math.floor((Date.now() - walkStartTime) / 1000);
     setWalkDuration(dur);
