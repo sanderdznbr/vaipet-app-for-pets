@@ -597,8 +597,7 @@ const SearchWalk = () => {
     }
   }, [mapIsDay]);
 
-  // Keep user marker avatar in sync when profile (avatar_url / name) loads
-  // after the marker was first created.
+  // Sync user marker avatar.
   useEffect(() => {
     const el = userMarker.current?.getElement();
     if (!el) return;
