@@ -129,10 +129,11 @@ const App = () => {
             path="/petwalker" 
             element={
               <PetwalkerProtectedRoute>
-                <PetwalkerDashboard />
+                <PetwalkerPainel />
               </PetwalkerProtectedRoute>
             } 
           />
+
           <Route 
             path="/petwalker/onboarding" 
             element={
