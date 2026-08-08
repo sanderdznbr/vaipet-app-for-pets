@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
+
 import successBgAsset from "@/assets/success-bg.png.asset.json";
 
 interface SuccessStepProps {
