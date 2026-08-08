@@ -209,7 +209,48 @@ const Auth = () => {
           
           <div className="w-full flex flex-col gap-6">
             <AnimatePresence mode="wait">
-              {isRegistering && !signupIntent ? (
+              {isForgotPassword ? (
+                <motion.div
+                  key="forgot-password"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="w-full flex flex-col gap-6"
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <button onClick={() => setIsForgotPassword(false)} className="p-2 -ml-2 self-start hover:bg-black/5 rounded-full transition-colors flex items-center gap-2 text-xs font-medium opacity-60">
+                      <ArrowLeft size={16} />
+                      <span>Voltar</span>
+                    </button>
+                    <h2 className="text-2xl font-bold text-center" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                      Recuperar Senha
+                    </h2>
+                    <p className="text-sm text-center text-black/60">
+                      Informe seu e-mail e enviaremos um link para você criar uma nova senha.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleForgotPassword} className="flex flex-col gap-4">
+                    <input
+                      type="email"
+                      placeholder="E-mail"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full h-16 rounded-2xl font-bold text-white transition-all active:scale-[0.98] disabled:opacity-70 shadow-lg shadow-[#31D880]/20 text-lg mt-2"
+                      style={{ backgroundColor: '#31D880' }}
+                    >
+                      {isLoading ? 'Enviando...' : 'Enviar link de recuperação'}
+                    </button>
+                  </form>
+                </motion.div>
+              ) : isRegistering && !signupIntent ? (
+
                 <motion.div
                   key="intent-selection"
                   initial={{ opacity: 0, x: 20 }}
