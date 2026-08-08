@@ -18,6 +18,7 @@ import { generateRandomWalker, buildBetaWalker, pickTransportForDistance, Transp
 import { preloadDog3DAsset } from '@/lib/dog3dLayer';
 import { preloadCheckpointAsset } from '@/lib/checkpoint3dLayer';
 import { SlideToConfirm } from '../components/SlideToConfirm';
+import { toast } from 'sonner';
 
 interface Pet {
   id: string;
