@@ -143,7 +143,7 @@ export const WalkDetails: React.FC = () => {
   const coords = (walk.route_coordinates as [number, number][] | null) || [];
   const duration = walk.actual_duration_minutes || walk.planned_duration_minutes;
   const distance = Number(walk.distance_km || 0);
-  const price = Number((duration * 1.5).toFixed(2));
+  const price = walk.total_price_cents ? walk.total_price_cents / 100 : (duration * 1.5);
 
   return (
     <div className="min-h-screen bg-background max-w-md mx-auto pb-10">

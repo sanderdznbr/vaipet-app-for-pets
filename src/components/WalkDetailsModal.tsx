@@ -30,7 +30,7 @@ export const WalkDetailsModal: React.FC<WalkDetailsModalProps> = ({ walk, isOpen
   };
 
   // Usar valor real do service_request ou calcular baseado no tempo planejado
-  const totalPrice = walk.total_price || walk.service_requests?.total_price || (walk.planned_duration_minutes * 1.5);
+  const totalPrice = walk.total_price_cents ? (walk.total_price_cents / 100) : (walk.total_price || walk.service_requests?.total_price || (walk.planned_duration_minutes * 1.5));
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

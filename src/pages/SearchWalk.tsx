@@ -120,6 +120,33 @@ const classifyRain = (code: number, precipMm: number): RainIntensity => {
 };
 
 const SearchWalk = () => {
+  const [quote, setQuote] = useState<any>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+
+  const fetchQuote = useCallback(async (duration: number, mode: 'now' | 'scheduled') => {
+    setQuoteLoading(true);
+    setQuoteError(null);
+    try {
+      const { data, error } = await supabase.rpc('get_walk_quote', {
+        _duration_minutes: duration,
+        _request_mode: mode
+      });
+      if (error) throw error;
+      setQuote(data);
+    } catch (err: any) {
+      console.error('Quote error:', err);
+      setQuoteError(err.message || 'Erro ao calcular orçamento');
+      setQuote(null);
+    } finally {
+      setQuoteLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchQuote(selectedMinutes, scheduleMode === 'now' ? 'now' : 'scheduled');
+  }, [selectedMinutes, scheduleMode, fetchQuote]);
+
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, profile } = useAuth();
