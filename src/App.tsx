@@ -10,6 +10,9 @@ import RoleLanding from "./components/RoleLanding";
 import PetwalkerDashboard from "./pages/PetwalkerDashboard";
 import PetwalkerOnboarding from "./pages/PetwalkerOnboarding";
 import { PetwalkerProtectedRoute } from "./components/PetwalkerProtectedRoute";
+import { AdminProtectedRoute } from "./components/admin/AdminProtectedRoute";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import PetwalkerAdmin from "./pages/admin/PetwalkerAdmin";
 import PetwalkerInscricao from "./pages/PetwalkerInscricao";
 import PetwalkerPerfil from "./pages/petwalker/perfil";
 import PetwalkerGanhos from "./pages/petwalker/ganhos";
@@ -142,6 +145,22 @@ const App = () => {
           <Route path="/petwalker/perfil" element={<PetwalkerPerfil />} />
           <Route path="/petwalker/ganhos" element={<PetwalkerGanhos />} />
           <Route path="/petwalker/historico" element={<PetwalkerHistorico />} />
+          <Route 
+            path="/admin" 
+            element={
+              <AdminProtectedRoute>
+                <AdminDashboard />
+              </AdminProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/petwalkers" 
+            element={
+              <AdminProtectedRoute>
+                <PetwalkerAdmin />
+              </AdminProtectedRoute>
+            } 
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

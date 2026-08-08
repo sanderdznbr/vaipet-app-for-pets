@@ -832,6 +832,36 @@ export type Database = {
         Returns: undefined
       }
       ensure_current_user_profile: { Args: never; Returns: undefined }
+      get_petwalker_application_admin: {
+        Args: { _application_id: string }
+        Returns: {
+          birth_date: string
+          city: string
+          document_status: string
+          emergency_contact_name: string
+          emergency_contact_phone: string
+          experience_description: string
+          id: string
+          legal_name: string
+          phone: string
+          rejection_reason: string
+          reviewed_at: string
+          status: string
+          submitted_at: string
+        }[]
+      }
+      get_petwalker_applications_admin: {
+        Args: { _status?: string }
+        Returns: {
+          city: string
+          document_status: string
+          id: string
+          legal_name: string
+          reviewed_at: string
+          status: string
+          submitted_at: string
+        }[]
+      }
       get_public_petwalker_profiles: {
         Args: never
         Returns: {
