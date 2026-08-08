@@ -34,14 +34,19 @@ const Auth = () => {
   const [signupIntent, setSignupIntent] = useState<'pet_owner' | 'petwalker' | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [animPhase, setAnimPhase] = useState<AnimationPhase>('idle');
+
+
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { palette } = useHomeTheme();
@@ -70,21 +75,32 @@ const Auth = () => {
   }, [navigate, isMobile]);
 
   useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('type') === 'recovery') {
+      setIsRecoveryMode(true);
+    }
+
     const checkUser = async () => {
       const { data: { session }, error } = await supabase.auth.getSession();
-      if (session) {
+      if (session && !isRecoveryMode) {
         triggerTransition();
       }
     };
     checkUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecoveryMode(true);
+      }
       if (session && (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION')) {
-        triggerTransition();
+        if (!isRecoveryMode) {
+          triggerTransition();
+        }
       }
     });
     return () => { subscription.unsubscribe(); };
-  }, [triggerTransition]);
+  }, [triggerTransition, isRecoveryMode]);
+
 
   const handleOAuth = async (provider: 'google' | 'apple') => {
     // Proteção: não iniciar OAuth se estiver registrando mas sem intenção selecionada
@@ -173,7 +189,52 @@ const Auth = () => {
   };
 
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      toast.error('Informe seu e-mail para recuperar a senha');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth?type=recovery`,
+      });
+      if (error) throw error;
+      toast.success('E-mail de recuperação enviado! Verifique sua caixa de entrada.');
+      setIsForgotPassword(false);
+    } catch (err) {
+      const error = err as Error;
+      toast.error(error.message || 'Erro ao enviar e-mail de recuperação.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      toast.error('As senhas não coincidem');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast.success('Senha atualizada com sucesso!');
+      setIsRecoveryMode(false);
+      triggerTransition();
+    } catch (err) {
+      const error = err as Error;
+      toast.error(error.message || 'Erro ao atualizar senha.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
+
+
     <div
       className="min-h-[100dvh] w-full flex items-center justify-center overflow-hidden relative"
       style={{ backgroundColor: PAPER, color: INK, fontFamily: "'DM Sans', system-ui, sans-serif" }}
@@ -184,7 +245,113 @@ const Auth = () => {
           
           <div className="w-full flex flex-col gap-6">
             <AnimatePresence mode="wait">
-              {isRegistering && !signupIntent ? (
+              {isRecoveryMode ? (
+                <motion.div
+                  key="recovery-mode"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="w-full flex flex-col gap-6"
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <h2 className="text-2xl font-bold text-center" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                      Nova Senha
+                    </h2>
+                    <p className="text-sm text-center text-black/60">
+                      Crie uma nova senha para sua conta.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleUpdatePassword} className="flex flex-col gap-4">
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Nova Senha"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required
+                        className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg pr-14"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-5 top-1/2 -translate-y-1/2 text-black/40 hover:text-black/60 transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+                      </button>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirmar Nova Senha"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg pr-14"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-5 top-1/2 -translate-y-1/2 text-black/40 hover:text-black/60 transition-colors"
+                      >
+                        {showConfirmPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+                      </button>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full h-16 rounded-2xl font-bold text-white transition-all active:scale-[0.98] disabled:opacity-70 shadow-lg shadow-[#31D880]/20 text-lg mt-2"
+                      style={{ backgroundColor: '#31D880' }}
+                    >
+                      {isLoading ? 'Atualizando...' : 'Atualizar Senha'}
+                    </button>
+                  </form>
+                </motion.div>
+              ) : isForgotPassword ? (
+
+                <motion.div
+                  key="forgot-password"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="w-full flex flex-col gap-6"
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <button onClick={() => setIsForgotPassword(false)} className="p-2 -ml-2 self-start hover:bg-black/5 rounded-full transition-colors flex items-center gap-2 text-xs font-medium opacity-60">
+                      <ArrowLeft size={16} />
+                      <span>Voltar</span>
+                    </button>
+                    <h2 className="text-2xl font-bold text-center" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                      Recuperar Senha
+                    </h2>
+                    <p className="text-sm text-center text-black/60">
+                      Informe seu e-mail e enviaremos um link para você criar uma nova senha.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleForgotPassword} className="flex flex-col gap-4">
+                    <input
+                      type="email"
+                      placeholder="E-mail"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full h-16 rounded-2xl font-bold text-white transition-all active:scale-[0.98] disabled:opacity-70 shadow-lg shadow-[#31D880]/20 text-lg mt-2"
+                      style={{ backgroundColor: '#31D880' }}
+                    >
+                      {isLoading ? 'Enviando...' : 'Enviar link de recuperação'}
+                    </button>
+                  </form>
+                </motion.div>
+              ) : isRegistering && !signupIntent ? (
+
                 <motion.div
                   key="intent-selection"
                   initial={{ opacity: 0, x: 20 }}
@@ -326,6 +493,16 @@ const Auth = () => {
                       {isLoading ? 'Aguarde...' : (isRegistering ? 'Cadastrar' : 'Entrar')}
                     </button>
                   </form>
+
+                  {!isRegistering && (
+                    <button
+                      onClick={() => setIsForgotPassword(true)}
+                      className="text-sm font-semibold text-center underline opacity-60 hover:opacity-100 transition-opacity -mt-2"
+                    >
+                      Esqueci minha senha
+                    </button>
+                  )}
+
 
                   <button
                     onClick={() => {
