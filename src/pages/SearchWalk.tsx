@@ -1012,7 +1012,6 @@ const SearchWalk = () => {
       }
     }
   }, [user, walkerMarker, userLocation, addRouteToMap]);
-  }, [user, walkerMarker, userLocation, addRouteToMap]);
 
   // Cliente autorizou o retorno via chat: marca isReturning, atualiza
   // o banco para 'returning' e a UI assume a fase de "voltando para casa".
