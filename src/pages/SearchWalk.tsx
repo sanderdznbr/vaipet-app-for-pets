@@ -1132,10 +1132,8 @@ const SearchWalk = () => {
     navigate('/');
   };
 
-  const showBottomSheet = searchStatus === 'idle' && !isSearching;
-
-  // Map stays fullscreen for every phase EXCEPT the initial schedule sheet.
-  const fullscreen = !showBottomSheet;
+  const showBottomSheet = useMemo(() => searchStatus === 'idle' && !isSearching, [searchStatus, isSearching]);
+  const fullscreen = useMemo(() => !showBottomSheet, [showBottomSheet]);
 
   // Dark-mode aware theme tokens for the SearchWalk UI. When the user
   // toggles night mode on the map, ALL surrounding controls (top bar,
