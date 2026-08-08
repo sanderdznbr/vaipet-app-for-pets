@@ -143,11 +143,11 @@ const Auth = () => {
       className="min-h-[100dvh] w-full flex items-center justify-center overflow-hidden relative"
       style={{ backgroundColor: PAPER, color: INK, fontFamily: "'DM Sans', system-ui, sans-serif" }}
     >
-      <header className="fixed top-0 left-0 right-0 z-20 flex flex-col items-center gap-6 py-10 pointer-events-none">
-        <div className="w-full max-w-md px-6 flex flex-col items-center gap-6 pointer-events-auto">
-          <img src="/vaipet-logo.svg" alt="VaiPet" className="w-24 h-auto" />
+      <header className="fixed top-0 left-0 right-0 z-20 flex flex-col items-center py-6 sm:py-8 pointer-events-none bg-inherit">
+        <div className="w-full max-w-md px-6 flex flex-col items-center gap-4 sm:gap-6 pointer-events-auto">
+          <img src="/vaipet-logo.svg" alt="VaiPet" className="w-20 sm:w-24 h-auto" />
           
-          <div className="w-full h-10 flex items-center">
+          <div className="w-full h-8 sm:h-10 flex items-center">
             <AnimatePresence>
               {(isForgotPassword || (isRegistering && signupIntent)) && (
                 <motion.button
@@ -169,8 +169,8 @@ const Auth = () => {
         </div>
       </header>
 
-      <main className="w-full flex flex-col items-center px-6 pt-52 pb-10 relative z-10 overflow-y-auto max-h-[100dvh]">
-        <div className="w-full max-w-md flex flex-col gap-6">
+      <main className="w-full flex flex-col items-center px-6 pt-40 sm:pt-48 pb-10 relative z-10 overflow-y-auto max-h-[100dvh]">
+        <div className="w-full max-w-md flex flex-col gap-4 sm:gap-6">
           <AnimatePresence mode="wait">
             {isRecoveryMode ? (
               <motion.div
@@ -192,7 +192,7 @@ const Auth = () => {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       required
-                      className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg pr-14"
+                      className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg pr-14"
                     />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-60 transition-opacity">
                       {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
@@ -205,13 +205,13 @@ const Auth = () => {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
-                      className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg pr-14"
+                      className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg pr-14"
                     />
                     <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-60 transition-opacity">
                       {showConfirmPassword ? <EyeOff size={22} /> : <Eye size={22} />}
                     </button>
                   </div>
-                  <button type="submit" disabled={isLoading} className="w-full h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
+                  <button type="submit" disabled={isLoading} className="w-full h-14 sm:h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
                     {isLoading ? 'Atualizando...' : 'Atualizar Senha'}
                   </button>
                 </form>
@@ -235,9 +235,9 @@ const Auth = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg"
+                    className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg"
                   />
-                  <button type="submit" disabled={isLoading} className="w-full h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
+                  <button type="submit" disabled={isLoading} className="w-full h-14 sm:h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
                     {isLoading ? 'Enviando...' : 'Enviar link de recuperação'}
                   </button>
                 </form>
@@ -279,26 +279,26 @@ const Auth = () => {
                 <form onSubmit={handleEmailAuth} className="flex flex-col gap-4">
                   {isRegistering && (
                     <>
-                      <input type="text" placeholder="Nome Completo" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg" />
-                      <input type="tel" placeholder="Telefone" value={phone} onChange={(e) => setPhone(e.target.value)} required className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg" />
+                      <input type="text" placeholder="Nome Completo" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg" />
+                      <input type="tel" placeholder="Telefone" value={phone} onChange={(e) => setPhone(e.target.value)} required className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg" />
                     </>
                   )}
-                  <input type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg" />
+                  <input type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg" />
                   <div className="relative">
-                    <input type={showPassword ? "text" : "password"} placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg pr-14" />
+                    <input type={showPassword ? "text" : "password"} placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg pr-14" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-60 transition-opacity">
                       {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
                     </button>
                   </div>
                   {isRegistering && (
                     <div className="relative">
-                      <input type={showConfirmPassword ? "text" : "password"} placeholder="Confirmar Senha" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-lg pr-14" />
+                      <input type={showConfirmPassword ? "text" : "password"} placeholder="Confirmar Senha" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg pr-14" />
                       <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-60 transition-opacity">
                         {showConfirmPassword ? <EyeOff size={22} /> : <Eye size={22} />}
                       </button>
                     </div>
                   )}
-                  <button type="submit" disabled={isLoading} className="w-full h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
+                  <button type="submit" disabled={isLoading} className="w-full h-14 sm:h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
                     {isLoading ? 'Aguarde...' : (isRegistering ? 'Cadastrar' : 'Entrar')}
                   </button>
                 </form>
@@ -321,14 +321,14 @@ const Auth = () => {
                 <div className="relative flex justify-center text-xs uppercase"><span className="px-2 text-black/40" style={{ backgroundColor: PAPER }}>Ou continue com</span></div>
               </div>
               <div className="w-full flex flex-col gap-3">
-                <button onClick={() => handleOAuth('google')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-black/5 shadow-sm bg-white h-[64px] rounded-[20px]">
+                <button onClick={() => handleOAuth('google')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-black/5 shadow-sm bg-white h-[56px] sm:h-[64px] rounded-[20px]">
                   <span className="flex items-center gap-4">
                     <GoogleIcon />
                     <span className="text-[15px] font-bold">Google</span>
                   </span>
                   <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
                 </button>
-                <button onClick={() => handleOAuth('apple')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-black/5 shadow-sm bg-white h-[64px] rounded-[20px]">
+                <button onClick={() => handleOAuth('apple')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-black/5 shadow-sm bg-white h-[56px] sm:h-[64px] rounded-[20px]">
                   <span className="flex items-center gap-4">
                     <AppleIcon />
                     <span className="text-[15px] font-bold">Apple</span>
