@@ -18,12 +18,9 @@ const RoleLanding = () => {
     refreshRoles,
     refreshProfile,
     refreshApplication,
-
-    refreshApplication,
-    profileStatus,
-    rolesStatus,
     user
   } = useAuth();
+
 
 
   const [waitApproved, setWaitApproved] = useState(0);
