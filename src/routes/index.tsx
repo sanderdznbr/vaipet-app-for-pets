@@ -15,7 +15,8 @@ export const RedirectIndex = () => {
         <p className="text-muted-foreground">
           Estrutura operacional finalizada e validada.
           Build reprodutível via npm ci.
-          Redirecionamento operacional resiliente.
+          OAuth restaurado via conector Lovable.
+          Layout de autenticação corrigido.
         </p>
       </div>
     </div>

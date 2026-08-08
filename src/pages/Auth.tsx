@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { lovable } from '@/integrations/lovable';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -88,19 +89,18 @@ const Auth = () => {
   const handleOAuth = async (provider: 'google' | 'apple') => {
     setOauthLoading(provider);
     try {
-      if (signupIntent) {
+      if (isRegistering && signupIntent) {
         localStorage.setItem('vaipet_pending_signup_intent', JSON.stringify({
           intent: signupIntent,
           timestamp: Date.now()
         }));
+      } else if (!isRegistering) {
+        // Modo login: remover qualquer intenção pendente antiga
+        localStorage.removeItem('vaipet_pending_signup_intent');
       }
 
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: window.location.origin,
-          queryParams: signupIntent ? { signup_intent: signupIntent } : undefined
-        }
+      const { error } = await lovable.auth.signInWithOAuth(provider, {
+        redirect_uri: window.location.origin
       });
       if (error) {
         toast.error(`Erro ao entrar com ${provider === 'google' ? 'Google' : 'Apple'}`);
