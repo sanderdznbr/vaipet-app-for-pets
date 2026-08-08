@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import RoleLanding from "./components/RoleLanding";
+import PetwalkerPainel from "./pages/petwalker/Painel";
 import PetwalkerDashboard from "./pages/PetwalkerDashboard";
 import PetwalkerOnboarding from "./pages/PetwalkerOnboarding";
 import { PetwalkerProtectedRoute } from "./components/PetwalkerProtectedRoute";
@@ -129,10 +130,11 @@ const App = () => {
             path="/petwalker" 
             element={
               <PetwalkerProtectedRoute>
-                <PetwalkerDashboard />
+                <PetwalkerPainel />
               </PetwalkerProtectedRoute>
             } 
           />
+
           <Route 
             path="/petwalker/onboarding" 
             element={
