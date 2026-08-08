@@ -2208,7 +2208,6 @@ const SearchWalk = () => {
           isDarkMode={!mapIsDay}
           userLocation={userLocation}
         />
-
       )}
 
       {/* Walking */}
