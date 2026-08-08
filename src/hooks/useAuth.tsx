@@ -11,6 +11,7 @@ type ProfileStatus = 'idle' | 'loading' | 'ready' | 'missing' | 'error';
 type RolesStatus = 'idle' | 'loading' | 'ready' | 'error';
 type ApplicationStatus = 'idle' | 'loading' | 'none' | 'pending' | 'approved' | 'rejected' | 'error';
 
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -26,6 +27,8 @@ interface AuthContextType {
   authError: Error | null;
   profileError: Error | null;
   rolesError: Error | null;
+  applicationError: Error | null;
+
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   refreshRoles: () => Promise<void>;
@@ -166,8 +169,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (requestId !== appRequestIdRef.current || userId !== currentUserIdRef.current) return;
 
       if (error) {
+        setApplicationError(error);
         setApplicationStatus('error');
       } else if (!data) {
+
         setPetwalkerApplication(null);
         setApplicationStatus('none');
       } else {
@@ -177,8 +182,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       if (requestId !== appRequestIdRef.current) return;
+      setApplicationError(err);
       setApplicationStatus('error');
     }
+
   }, []);
 
   useEffect(() => {
@@ -352,6 +359,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     authError,
     profileError,
     rolesError,
+    applicationError,
+
     signOut,
     refreshProfile,
     refreshRoles,
