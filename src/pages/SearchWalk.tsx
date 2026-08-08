@@ -2005,8 +2005,19 @@ const SearchWalk = () => {
                       </div>
                     )}
                     <div className="flex items-center justify-between px-4 py-3" style={{ borderTop: `1px solid ${ui.divider}` }}>
-                      <span className="text-xs font-semibold" style={{ color: ui.muted }}>Total</span>
-                      <span className="text-base font-extrabold text-[#31d880]">R$ {selectedMinutes},00</span>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-semibold" style={{ color: ui.muted }}>Total</span>
+                        {quoteError && <span className="text-[10px] text-red-500">{quoteError}</span>}
+                      </div>
+                      <span className="text-base font-extrabold text-[#31d880]">
+                        {quoteLoading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : quote ? (
+                          Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.total_price_cents / 100)
+                        ) : (
+                          `R$ ${selectedMinutes},00`
+                        )}
+                      </span>
                     </div>
                   </div>
 
@@ -2026,7 +2037,7 @@ const SearchWalk = () => {
                     petAvatar={selectedPets[0]?.avatar_url}
                     petAvatars={selectedPets.map(p => p.avatar_url)}
                     petName={selectedPets.length === 1 ? selectedPets[0].name : `${selectedPets.length} pets`}
-                    disabled={selectedPets.length === 0}
+                    disabled={selectedPets.length === 0 || quoteLoading || !!quoteError || !quote}
                   />
                 </div>
               )}
