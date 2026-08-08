@@ -774,8 +774,7 @@ const SearchWalk = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchStatus === 'idle' && !isSearching]);
 
-  // O toggle de dia/noite foi removido da tela. O mapa permanece sempre na
-  // tinta editorial escura para conversar com a paleta de marca.
+  // Dark mode only.
 
   const generateRandomWalkerLocation = (loc: [number, number]): [number, number] => {
     const d = Math.random() * 0.015 + 0.005;
