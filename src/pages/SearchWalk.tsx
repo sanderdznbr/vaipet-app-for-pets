@@ -858,41 +858,27 @@ const SearchWalk = () => {
     if (!map.current) return;
     setIsDrawingRoute(true);
     try {
-      const res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${u[0]},${u[1]};${w[0]},${w[1]}?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`);
+      const res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/walking/${u[0]},${u[1]};${w[0]},${w[1]}?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`);
       const json = await res.json();
       if (json.routes?.[0]) {
         const info = calculateRouteInfo(u, w);
         setRouteInfo(info);
         setTransport(pickTransportForDistance(info.distance));
         const coords = json.routes[0].geometry.coordinates as [number, number][];
-        // Mapbox snaps origin/destination to the nearest routable point, so
-        // the polyline's endpoints often differ from the raw u/w coords. We
-        // realign the walker marker AND the bounding box to the snapped end
-        // so the pickup dashed line always visibly connects to the walker
-        // (no more "loop floating next to the avatar" bug).
         const snappedWalker = coords[coords.length - 1] as [number, number];
         if (walkerMarker.current) walkerMarker.current.setLngLat(snappedWalker);
         setWalkerLocation(snappedWalker);
-        // Pickup route is walker → user (reverse driving polyline)
         setPickupRoute([...coords].reverse());
-        // NOTE: do NOT draw the route line on the map during the
-        // "Aguardando" phase. The user only wants the trajectory to appear
-        // AFTER the petwalker accepts the ride — and at that point the
-        // WalkInProgress component takes over the map with its own pickup
-        // polyline. We still compute the route here (for ETA, transport
-        // and pickupRoute), just without rendering the dashed overlay.
         setIsDrawingRoute(false);
         const bounds = new mapboxgl.LngLatBounds();
         bounds.extend(u); bounds.extend(snappedWalker);
-        // Smooth, cinematic framing of user + walker. Longer duration with
-        // an easing curve removes the abrupt "flick" between phases.
         map.current.fitBounds(bounds, {
           padding: { top: 140, bottom: 320, left: 60, right: 60 },
           duration: 2200,
           pitch: 45,
           bearing: 0,
           essential: true,
-          easing: (t) => 1 - Math.pow(1 - t, 3), // easeOutCubic
+          easing: (t) => 1 - Math.pow(1 - t, 3),
         } as any);
       }
     } catch {
@@ -912,54 +898,97 @@ const SearchWalk = () => {
     setRouteInfo(null); setWalkerLocation(null);
   };
 
-  const handleSearch = () => {
-    cleanupPreviousSearch();
-    setWalker(generateRandomWalker());
-    setIsSearching(true);
-    setSearchStatus('searching');
-    setSheetExpanded(false);
-    // Phase 1 — gently dolly the camera in over the user while searching.
-    if (userLocation && map.current) {
-      map.current.flyTo({
-        center: userLocation,
-        zoom: 16,
-        pitch: 50,
-        bearing: 0,
-        speed: 0.6,
-        curve: 1.4,
-        essential: true,
-      });
-    }
+  const handleSearch = async () => {
+    if (!user || selectedPets.length === 0 || !userLocation) return;
+    
+    try {
+      cleanupPreviousSearch();
+      setIsSearching(true);
+      setSearchStatus('searching');
+      setSheetExpanded(false);
 
-    setTimeout(() => {
-      setSearchStatus('found');
-      if (map.current && userLocation) {
-        const wLoc = generateRandomWalkerLocation(userLocation);
-        setWalkerLocation(wLoc);
-        const el = document.createElement('div');
-        el.className = 'relative w-10 h-10';
-        el.innerHTML = `<div class="absolute inset-0 rounded-full bg-blue-500 animate-pulse opacity-30"></div><div class="relative w-10 h-10 rounded-full border-2 border-blue-500 overflow-hidden bg-white shadow-lg"><img src="${walker.avatar}" alt="${walker.name}" class="w-full h-full object-cover" /></div>`;
-        walkerMarker.current = new mapboxgl.Marker(el, { anchor: 'bottom' }).setLngLat(wLoc).addTo(map.current);
-        // Phase 2 — fluidly glide the camera over to the walker's location.
+      if (map.current) {
         map.current.flyTo({
-          center: wLoc,
+          center: userLocation,
           zoom: 16,
-          pitch: 55,
-          speed: 0.7,
-          curve: 1.5,
+          pitch: 50,
+          bearing: 0,
+          speed: 0.6,
+          curve: 1.4,
           essential: true,
         });
-        // Phase 3 — once the camera lands on the walker, draw the route and
-        // smoothly reframe to show both user + walker. Chained via moveend so
-        // there is no overlap (the previous "flick" was caused by overlap).
-        const onArrival = () => {
-          map.current?.off('moveend', onArrival);
-          setTimeout(() => addRouteToMap(userLocation, wLoc), 250);
-        };
-        map.current.once('moveend', onArrival);
       }
-      setTimeout(() => { setSearchStatus('waiting'); setIsSearching(false); }, 4200);
-    }, 3000);
+
+      // PHASE 3: Real Walk Request creation
+      let scheduledForIso = null;
+      if (scheduleMode === 'later') {
+        const [year, month, day] = scheduleDate.split('-').map(Number);
+        const [hour, minute] = scheduleTime.split(':').map(Number);
+        const localDate = new Date(year, month - 1, day, hour, minute);
+        
+        if (localDate <= new Date()) {
+          toast.error('Agendamento deve ser para o futuro');
+          setIsSearching(false);
+          setSearchStatus('idle');
+          return;
+        }
+        scheduledForIso = localDate.toISOString();
+      }
+
+      const { data: sessionId, error: rpcError } = await supabase.rpc('create_walk_request', {
+        _pet_id: selectedPets[0]?.id,
+        _duration_minutes: selectedMinutes,
+        _request_mode: scheduleMode === 'now' ? 'now' : 'scheduled',
+        _scheduled_for: scheduledForIso,
+        _meeting_point_lng: userLocation[0],
+        _meeting_point_lat: userLocation[1],
+        _meeting_point_address: 'Localização atual'
+      });
+
+      if (rpcError) throw rpcError;
+      setCurrentSessionId(sessionId);
+
+      // Simulation delay for UI/camera flow
+      setTimeout(() => {
+        setSearchStatus('found');
+        setWalker(generateRandomWalker());
+        
+        if (map.current && userLocation) {
+          const wLoc = generateRandomWalkerLocation(userLocation);
+          setWalkerLocation(wLoc);
+          const el = document.createElement('div');
+          el.className = 'relative w-10 h-10';
+          el.innerHTML = `<div class="absolute inset-0 rounded-full bg-blue-500 animate-pulse opacity-30"></div><div class="relative w-10 h-10 rounded-full border-2 border-blue-500 overflow-hidden bg-white shadow-lg"><img src="/vaipet-logo.svg" alt="Walker" class="w-full h-full object-contain p-1" /></div>`;
+          walkerMarker.current = new mapboxgl.Marker(el, { anchor: 'bottom' }).setLngLat(wLoc).addTo(map.current);
+          
+          map.current.flyTo({
+            center: wLoc,
+            zoom: 16,
+            pitch: 55,
+            speed: 0.7,
+            curve: 1.5,
+            essential: true,
+          });
+
+          const onArrival = () => {
+            map.current?.off('moveend', onArrival);
+            setTimeout(() => addRouteToMap(userLocation, wLoc), 250);
+          };
+          map.current.once('moveend', onArrival);
+        }
+        
+        setTimeout(() => { 
+          setSearchStatus('waiting'); 
+          setIsSearching(false); 
+        }, 4200);
+      }, 3000);
+
+    } catch (e: any) {
+      console.error('Error starting search:', e);
+      toast.error(e.message || 'Erro ao iniciar busca');
+      setIsSearching(false);
+      setSearchStatus('idle');
+    }
   };
 
   const handleAccepted = async () => {
@@ -1131,6 +1160,35 @@ const SearchWalk = () => {
     setWalkDuration(dur);
     setSearchStatus('reviewing');
   };
+
+  useEffect(() => {
+    if (!currentSessionId || searchStatus !== 'waiting') return;
+
+    const channel = supabase
+      .channel(`walk-session-${currentSessionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'walk_sessions',
+          filter: `id=eq.${currentSessionId}`
+        },
+        (payload) => {
+          const newStatus = payload.new.current_status;
+          if (newStatus === 'accepted') {
+            handleAccepted();
+          } else if (newStatus === 'expired' || newStatus === 'cancelled') {
+            handleTimeout();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentSessionId, searchStatus]);
   const handleOpenChat = () => alert('Chat com o PetWalker Beta será aberto em breve!');
   const handleRequestPhotos = () => alert('Solicitação de fotos enviada!');
   const handleTimeout = () => { cleanupPreviousSearch(); setSearchStatus('idle'); setTimeout(handleSearch, 1000); };

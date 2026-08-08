@@ -23,7 +23,7 @@ const fmtDuration = (m?: number | null) => {
   return r ? `${h}h ${r}min` : `${h}h`;
 };
 
-export const WalkDetails: React.FC = () => {
+export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperational = false }) => {
   const { id } = useParams<{ name: string; id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -276,6 +276,16 @@ export const WalkDetails: React.FC = () => {
           </span>
         </div>
       </div>
+      {isOperational && walk.current_status !== 'completed' && walk.current_status !== 'cancelled' && (
+        <div className="fixed bottom-6 left-4 right-4 z-50">
+          <button 
+            onClick={() => navigate('/petwalker/painel')}
+            className="w-full bg-[#31D880] text-ink font-extrabold py-4 rounded-2xl shadow-xl active:scale-95 transition-transform"
+          >
+            Encerrar e voltar ao Painel
+          </button>
+        </div>
+      )}
     </div>
   );
 };

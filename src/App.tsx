@@ -148,6 +148,14 @@ const App = () => {
           <Route path="/petwalker/ganhos" element={<PetwalkerGanhos />} />
           <Route path="/petwalker/historico" element={<PetwalkerHistorico />} />
           <Route 
+            path="/petwalker/passeio/:id" 
+            element={
+              <PetwalkerProtectedRoute>
+                <WalkDetails isOperational={true} />
+              </PetwalkerProtectedRoute>
+            } 
+          />
+          <Route 
             path="/admin" 
             element={
               <AdminProtectedRoute>

@@ -807,6 +807,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          offer_status: Database["public"]["Enums"]["walk_status"] | null
           session_id: string
           status: string | null
           walker_id: string
@@ -814,6 +815,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          offer_status?: Database["public"]["Enums"]["walk_status"] | null
           session_id: string
           status?: string | null
           walker_id: string
@@ -821,6 +823,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          offer_status?: Database["public"]["Enums"]["walk_status"] | null
           session_id?: string
           status?: string | null
           walker_id?: string
@@ -886,9 +889,7 @@ export type Database = {
           actual_duration_minutes: number | null
           created_at: string
           current_radius_meters: number | null
-          current_status:
-            | Database["public"]["Enums"]["walk_session_status"]
-            | null
+          current_status: Database["public"]["Enums"]["walk_status"] | null
           customer_id: string
           distance_km: number | null
           end_time: string | null
@@ -925,9 +926,7 @@ export type Database = {
           actual_duration_minutes?: number | null
           created_at?: string
           current_radius_meters?: number | null
-          current_status?:
-            | Database["public"]["Enums"]["walk_session_status"]
-            | null
+          current_status?: Database["public"]["Enums"]["walk_status"] | null
           customer_id: string
           distance_km?: number | null
           end_time?: string | null
@@ -964,9 +963,7 @@ export type Database = {
           actual_duration_minutes?: number | null
           created_at?: string
           current_radius_meters?: number | null
-          current_status?:
-            | Database["public"]["Enums"]["walk_session_status"]
-            | null
+          current_status?: Database["public"]["Enums"]["walk_status"] | null
           customer_id?: string
           distance_km?: number | null
           end_time?: string | null
@@ -1252,6 +1249,7 @@ export type Database = {
         Args: { application_id: string }
         Returns: undefined
       }
+      cancel_walk_session: { Args: { _session_id: string }; Returns: undefined }
       create_walk_request: {
         Args: {
           _duration_minutes: number
@@ -1264,6 +1262,7 @@ export type Database = {
         }
         Returns: string
       }
+      decline_walk_offer: { Args: { _session_id: string }; Returns: undefined }
       disablelongtransactions: { Args: never; Returns: string }
       dropgeometrycolumn:
         | {
@@ -1546,6 +1545,7 @@ export type Database = {
       }
       postgis_version: { Args: never; Returns: string }
       postgis_wagyu_version: { Args: never; Returns: string }
+      process_walk_matching: { Args: never; Returns: undefined }
       reject_petwalker_application: {
         Args: { _application_id: string; _reason: string }
         Returns: Json
@@ -2185,6 +2185,7 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "expired"
+        | "scheduled"
     }
     CompositeTypes: {
       geometry_dump: {
@@ -2346,6 +2347,7 @@ export const Constants = {
         "completed",
         "cancelled",
         "expired",
+        "scheduled",
       ],
     },
   },
