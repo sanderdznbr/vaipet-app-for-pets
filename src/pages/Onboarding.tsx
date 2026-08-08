@@ -51,23 +51,44 @@ const Onboarding = () => {
     
     if (currentStep < 4) {
       setCurrentStep(currentStep + 1);
-    } else {
-      handleComplete();
     }
   };
 
+  const [isCompleting, setIsCompleting] = useState(false);
+  const { refreshProfile } = useAuth();
+
   const handleComplete = async () => {
+    if (isCompleting || !user) return;
+    
+    setIsCompleting(true);
     try {
-      if (user) {
-        await supabase
-          .from('profiles')
-          .update({ onboarding_completed: true })
-          .eq('id', user.id);
+      console.log('[Onboarding] Completing onboarding for user:', user.id);
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ onboarding_completed: true })
+        .eq('id', user.id)
+        .select('onboarding_completed')
+        .single();
+
+      if (error) throw error;
+      
+      if (!data || data.onboarding_completed !== true) {
+        throw new Error('Falha ao confirmar conclusão do onboarding');
       }
-      window.location.replace('/inicio');
-    } catch (error) {
+
+      // Sync auth provider state
+      await refreshProfile();
+      
+      // Mark for guided tour
+      sessionStorage.setItem('vaipet_onboarding_just_finished', 'true');
+      
+      console.log('[Onboarding] Onboarding completed successfully, navigating...');
+      navigate('/inicio', { replace: true });
+    } catch (error: any) {
       console.error('Error completing onboarding:', error);
-      window.location.replace('/inicio');
+      setIsCompleting(false);
+      // Optional: add toast notification here if available
     }
   };
 
@@ -80,7 +101,7 @@ const Onboarding = () => {
       case 3:
         return <PetRegistrationStep onNext={handleNextStep} onBack={() => setCurrentStep(2)} />;
       case 4:
-        return <SuccessStep onNext={handleNextStep} petName={petData?.name} petPhoto={petData?.photo} />;
+        return <SuccessStep onNext={handleComplete} petName={petData?.name} petPhoto={petData?.photo} isCompleting={isCompleting} />;
       default:
         return <UserInfoStep onNext={() => handleNextStep()} />;
     }
