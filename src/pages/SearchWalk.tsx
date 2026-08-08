@@ -417,7 +417,7 @@ const SearchWalk = () => {
             return;
           }
           if (now - lastMarkerUpdateAtRef.current < MIN_MARKER_INTERVAL_MS) {
-            // Too soon since last paint: buffer + apply on trailing edge.
+            // Rate-limit paint.
             pendingLocRef.current = loc;
             scheduleTrailing();
             return;
