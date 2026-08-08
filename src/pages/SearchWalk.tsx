@@ -750,10 +750,7 @@ const SearchWalk = () => {
     return () => { cancelled = true; };
   }, [localStops, walkType, step, userLocation]);
 
-  // Keep the user marker visually centered above the bottom sheet on the
-  // "Agendar passeio" screen. The schedule sheet covers roughly the bottom
-  // half of the viewport, so we offset the map's effective center upward
-  // using Mapbox padding (same trick the accepted-walk fitBounds uses).
+  // Center user marker above bottom sheet.
   useEffect(() => {
     if (!map.current || !userLocation) return;
     // Only re-pad the map when the SCHEDULE sheet opens/closes — otherwise
