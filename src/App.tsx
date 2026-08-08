@@ -151,7 +151,7 @@ const App = () => {
             path="/petwalker/passeio/:id" 
             element={
               <PetwalkerProtectedRoute>
-                <WalkDetails />
+                <WalkDetails isOperational={true} />
               </PetwalkerProtectedRoute>
             } 
           />
