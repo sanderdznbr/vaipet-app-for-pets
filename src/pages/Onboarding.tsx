@@ -10,15 +10,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Onboarding = () => {
+  const { user, loading, profile, refreshProfile } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
+  const [petData, setPetData] = useState<{name: string, photo?: string} | null>(null);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const navigate = useNavigate();
+
   const handleBackStep = () => {
     if (currentStep > 1) {
       setCurrentStep(prev => prev - 1);
     }
   };
-  const [petData, setPetData] = useState<{name: string, photo?: string} | null>(null);
-  const { user, loading, profile } = useAuth();
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -54,9 +56,6 @@ const Onboarding = () => {
     }
   };
 
-  const [isCompleting, setIsCompleting] = useState(false);
-  const { refreshProfile } = useAuth();
-
   const handleComplete = async () => {
     if (isCompleting || !user) return;
     
@@ -85,10 +84,15 @@ const Onboarding = () => {
       
       console.log('[Onboarding] Onboarding completed successfully, navigating...');
       navigate('/inicio', { replace: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error completing onboarding:', error);
       setIsCompleting(false);
-      // Optional: add toast notification here if available
+      
+      const { toast } = await import("@/components/ui/use-toast");
+      toast({
+        variant: "destructive",
+        description: "Não foi possível concluir. Tente novamente.",
+      });
     }
   };
 
