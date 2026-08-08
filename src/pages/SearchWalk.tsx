@@ -1281,7 +1281,7 @@ const SearchWalk = () => {
               }}
             />
 
-            {/* Camadas de gotas (parallax). */}
+            {/* Gotas (parallax). */}
             {layers.map((layer) => (
               <div key={layer.key} className="absolute inset-0">
                 {Array.from({ length: layer.count }).map((_, i) => {
