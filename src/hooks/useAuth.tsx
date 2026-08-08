@@ -164,12 +164,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const { data, error } = await Promise.race([
-        (supabase
+        supabase
           .from('petwalker_applications')
           .select('*')
           .eq('user_id', userId)
-          .maybeSingle() as any).abortSignal(controller.signal),
-        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+          .maybeSingle()
+          .abortSignal(controller.signal),
+        new Promise<{ data: null; error: Error }>((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 10000)
+        )
       ]);
 
       if (requestId !== appRequestIdRef.current || userId !== currentUserIdRef.current) return;
