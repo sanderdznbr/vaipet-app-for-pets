@@ -585,8 +585,8 @@ const Auth = () => {
             </p>
           </div>
         </div>
-        </div>
       </main>
+
 
       {animPhase === 'playing-anim2' && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none bg-[#F7F5EF]">
