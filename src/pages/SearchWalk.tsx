@@ -251,9 +251,7 @@ const SearchWalk = () => {
   // Resume walk state.
   const [isResuming, setIsResuming] = useState<boolean>(() => !!searchParams.get('resume'));
   const resumeHandledRef = useRef(false);
-  // Fase de retorno: cliente autorizou o PetWalker a voltar com o pet.
-  // Disparado a partir do chat. Atualiza status='returning' no banco e
-  // muda a UI do WalkInProgress para o modo "retornando + ETA".
+  // Return phase state.
   const [isReturning, setIsReturning] = useState(false);
 
   useEffect(() => {
