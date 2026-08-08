@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { hideMapLabels, enrichMap, tintMapInk } from '@/lib/mapStyle';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -176,27 +176,18 @@ const SearchWalk = () => {
     fetchQuote(selectedMinutes, scheduleMode === 'now' ? 'now' : 'scheduled');
   }, [selectedMinutes, scheduleMode, fetchQuote]);
 
-  // Marker-level throttling for watchPosition. Even moving only the marker
-  // imperatively on every GPS tick can cause perceptible flicker on mobile
-  // because Mapbox repaints. We coalesce updates with a min interval AND a
-  // min movement threshold, plus a trailing debounce so the LAST sample
-  // always lands once GPS goes quiet.
+  // Marker-level throttling for GPS updates.
   const lastMarkerUpdateAtRef = useRef(0);
   const lastMarkerPosRef = useRef<[number, number] | null>(null);
   const pendingLocRef = useRef<[number, number] | null>(null);
   const watchDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Adaptive EMA filter state for GPS smoothing. We keep a smoothed [lng,lat]
-  // and adjust the smoothing factor (alpha) based on GPS accuracy + the
-  // magnitude of the jump: low accuracy / small jumps → heavy smoothing
-  // (alpha small, marker barely moves); large jumps with good accuracy →
-  // light smoothing (alpha high, marker snaps to reality fast).
+  // EMA filter for GPS smoothing.
   const emaPosRef = useRef<[number, number] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [searchStatus, setSearchStatus] = useState<'idle' | 'searching' | 'found' | 'waiting' | 'accepted' | 'walking' | 'reviewing' | 'error'>('idle');
   const searchStatusRef = useRef(searchStatus);
   const isSearchingRef = useRef(isSearching);
-  // Guards for the acceptance handoff (see handleAccepted): they must be refs
-  // so the 8s watchdog reads live values instead of a stale closure.
+  // Acceptance handoff guards.
   const sessionCreatedRef = useRef(false);
   const recoveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [routeInfo, setRouteInfo] = useState<{ duration: number; distance: number } | null>(null);
@@ -248,14 +239,10 @@ const SearchWalk = () => {
   const [walker, setWalker] = useState<WalkerProfile>(() => generateRandomWalker());
   const [pickupRoute, setPickupRoute] = useState<[number, number][]>([]);
   const [transport, setTransport] = useState<TransportInfo | null>(null);
-  // When resuming an in-progress walk via ?resume=<id>, we skip the entire
-  // search/pickup flow and mount WalkInProgress with isComing=false so the
-  // dog 3D model and planned route render immediately from the saved state.
+  // Resume walk state.
   const [isResuming, setIsResuming] = useState<boolean>(() => !!searchParams.get('resume'));
   const resumeHandledRef = useRef(false);
-  // Fase de retorno: cliente autorizou o PetWalker a voltar com o pet.
-  // Disparado a partir do chat. Atualiza status='returning' no banco e
-  // muda a UI do WalkInProgress para o modo "retornando + ETA".
+  // Return phase state.
   const [isReturning, setIsReturning] = useState(false);
 
   useEffect(() => {
@@ -362,11 +349,7 @@ const SearchWalk = () => {
     const TRAILING_DEBOUNCE_MS = 600;     // ensure last sample is applied
     const SNAP_DISTANCE_M = 60;           // huge jump → reset filter (teleport)
 
-    // Exponential moving average with accuracy-aware alpha.
-    //   alpha ∈ [0.08, 0.6]
-    //   - high accuracy (≤10m) → alpha ≈ 0.45 (responsive)
-    //   - low accuracy  (≥50m) → alpha ≈ 0.08 (very smooth)
-    //   - large jump (>15m)    → boost alpha so we don't lag real movement
+    // Accuracy-aware EMA smoothing.
     const smoothLocation = (raw: [number, number], accuracy?: number): [number, number] => {
       const prev = emaPosRef.current;
       if (!prev) {
@@ -434,7 +417,7 @@ const SearchWalk = () => {
             return;
           }
           if (now - lastMarkerUpdateAtRef.current < MIN_MARKER_INTERVAL_MS) {
-            // Too soon since last paint: buffer + apply on trailing edge.
+            // Rate-limit paint.
             pendingLocRef.current = loc;
             scheduleTrailing();
             return;
@@ -564,10 +547,7 @@ const SearchWalk = () => {
     userMarker.current = new mapboxgl.Marker(markerElement).setLngLat(userLocation).addTo(map.current);
     return () => { map.current?.remove(); map.current = null; };
     // Init the map only ONCE, when we first get a location. Subsequent
-    // GPS updates (watchPosition) must NOT re-create the map — that was
-    // causing the entire canvas to flicker/jump every few seconds while
-    // waiting for the walker to accept. The user marker is moved
-    // imperatively inside the watchPosition callback instead.
+    // Map init.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!userLocation]);
 
@@ -583,7 +563,7 @@ const SearchWalk = () => {
         m.setConfigProperty('basemap', 'theme', isDay ? 'faded' : 'default');
         
         if (isDay) {
-          // Explicitly set the pastel palette for day mode as requested
+          // Pastel day mode.
           m.setConfigProperty('basemap', 'colorLand', "#F2F1E8");
           m.setConfigProperty('basemap', 'colorWater', "#D5E8E5");
           m.setConfigProperty('basemap', 'colorGreenspace', "#C5DEBC");
@@ -594,8 +574,7 @@ const SearchWalk = () => {
           m.setConfigProperty('basemap', 'colorRoadLabels', "#84908A");
           m.setConfigProperty('basemap', 'colorPlaceLabels', "#46534D");
         } else {
-          // Reset to default standard colors for night mode (Ink theme)
-          // The tintMapInk function will handle the Ink overlay for legacy layers
+          // Night mode (Ink theme).
           m.setConfigProperty('basemap', 'colorLand', null);
           m.setConfigProperty('basemap', 'colorWater', null);
           m.setConfigProperty('basemap', 'colorGreenspace', null);
@@ -618,8 +597,7 @@ const SearchWalk = () => {
     }
   }, [mapIsDay]);
 
-  // Keep user marker avatar in sync when profile (avatar_url / name) loads
-  // after the marker was first created.
+  // Sync user marker avatar.
   useEffect(() => {
     const el = userMarker.current?.getElement();
     if (!el) return;
@@ -641,8 +619,7 @@ const SearchWalk = () => {
     const ctrl = new AbortController();
     const t = setTimeout(async () => {
       try {
-        // Use Google Places API (New) via our edge function so POI coverage
-        // matches Google Maps (malls, restaurants, parks, etc.).
+        // Google Places search via Edge Function.
         const { data, error } = await supabase.functions.invoke('places-search', {
           body: {
             query: q,
@@ -680,13 +657,7 @@ const SearchWalk = () => {
       stopMarkersRef.current.forEach((mk) => mk.remove());
       stopMarkersRef.current = [];
     };
-    // Show the planned route ONLY while the user is reviewing/confirming the
-    // stops (step 3). Once they move on (step 4 = searching for walker) the
-    // dashed planned route disappears; it will reappear later when the
-    // petwalker actually starts the walk (handled in WalkInProgress).
-    // Local stops route preview is drawn while the user is on the "Tipo de
-    // passeio" step (now step 2, after the step order was inverted so the
-    // walk type is chosen BEFORE the duration).
+    // Planned route preview.
     const shouldDraw = step === 2;
     if (!shouldDraw || walkType !== 'local' || !userLocation || localStops.length === 0) {
       ensureRemoved();
@@ -702,11 +673,9 @@ const SearchWalk = () => {
       const mk = new mapboxgl.Marker(el).setLngLat([s.lng, s.lat]).addTo(m);
       stopMarkersRef.current.push(mk);
     });
-    // USER confirmation route: loop house → stops → house (solid line).
+    // USER confirmation route loop (solid).
     const loopPoints: [number, number][] = [userLocation, ...localStops.map((s) => [s.lng, s.lat] as [number, number]), userLocation];
-    // WALKER route: one-way house → stops (dashed), the actual path the
-    // petwalker will follow with the dog. Drawn alongside so the user
-    // sees both the confirmation loop AND the walker's planned trajectory.
+    // WALKER route trajectory (dashed).
     const walkerPoints: [number, number][] = [userLocation, ...localStops.map((s) => [s.lng, s.lat] as [number, number])];
     const coordStr = loopPoints.map((p) => `${p[0]},${p[1]}`).join(';');
     const walkerCoordStr = walkerPoints.map((p) => `${p[0]},${p[1]}`).join(';');
@@ -781,10 +750,7 @@ const SearchWalk = () => {
     return () => { cancelled = true; };
   }, [localStops, walkType, step, userLocation]);
 
-  // Keep the user marker visually centered above the bottom sheet on the
-  // "Agendar passeio" screen. The schedule sheet covers roughly the bottom
-  // half of the viewport, so we offset the map's effective center upward
-  // using Mapbox padding (same trick the accepted-walk fitBounds uses).
+  // Center user marker above bottom sheet.
   useEffect(() => {
     if (!map.current || !userLocation) return;
     // Only re-pad the map when the SCHEDULE sheet opens/closes — otherwise
@@ -808,8 +774,7 @@ const SearchWalk = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchStatus === 'idle' && !isSearching]);
 
-  // O toggle de dia/noite foi removido da tela. O mapa permanece sempre na
-  // tinta editorial escura para conversar com a paleta de marca.
+  // Dark mode only.
 
   const generateRandomWalkerLocation = (loc: [number, number]): [number, number] => {
     const d = Math.random() * 0.015 + 0.005;
@@ -1013,8 +978,7 @@ const SearchWalk = () => {
     }
   }, [user, walkerMarker, userLocation, addRouteToMap]);
 
-  // Cliente autorizou o retorno via chat: marca isReturning, atualiza
-  // o banco para 'returning' e a UI assume a fase de "voltando para casa".
+  // Customer authorizes return via chat.
   const handleAuthorizeReturn = async () => {
     if (isReturning) return;
     setIsReturning(true);
@@ -1030,8 +994,7 @@ const SearchWalk = () => {
     }
   };
 
-  // Confirmação de chegada (final do retorno): grava status='completed',
-  // end_time e actual_duration_minutes de forma atômica e leva à avaliação.
+  // Arrival confirmation (final status).
   const handleConfirmArrival = async () => {
     const dur = Math.floor((Date.now() - walkStartTime) / 1000);
     setWalkDuration(dur);
@@ -1104,9 +1067,7 @@ const SearchWalk = () => {
   const handleGoHome = () => { setShowCancelDialog(false); navigate('/'); };
   const handleSearchAnother = () => { setShowCancelDialog(false); cleanupPreviousSearch(); setSearchStatus('idle'); setTimeout(handleSearch, 500); };
 
-  // Cancelamento de um passeio EM ANDAMENTO: marca o flag, dispara o
-  // retorno (mesma animação do "voltando para casa") e quando o pet chega,
-  // o WalkInProgress chama handleCancelComplete que finaliza o cancelamento.
+  // Active walk cancellation logic.
   const [isCancellingWalk, setIsCancellingWalk] = useState(false);
   const handleCancelWalk = async () => {
     setIsCancellingWalk(true);
@@ -1132,16 +1093,11 @@ const SearchWalk = () => {
     navigate('/');
   };
 
-  const showBottomSheet = searchStatus === 'idle' && !isSearching;
+  const showBottomSheet = useMemo(() => searchStatus === 'idle' && !isSearching, [searchStatus, isSearching]);
+  const fullscreen = useMemo(() => !showBottomSheet, [showBottomSheet]);
 
-  // Map stays fullscreen for every phase EXCEPT the initial schedule sheet.
-  const fullscreen = !showBottomSheet;
-
-  // Dark-mode aware theme tokens for the SearchWalk UI. When the user
-  // toggles night mode on the map, ALL surrounding controls (top bar,
-  // pet chip, bottom sheet, pills) switch to a gray/black + green
-  // palette so the whole screen reads as a unified dark interface.
-  const ui = isDayMode
+  // Dark-mode UI tokens.
+  const ui = useMemo(() => isDayMode
     ? {
         chip: '#FFFFFF',
         chipAlpha: 'rgba(255,255,255,0.9)',
@@ -1177,7 +1133,7 @@ const SearchWalk = () => {
         shadow: '0 8px 24px rgba(0,0,0,0.4)',
         sheetShadow: '0 25px 60px rgba(0,0,0,0.5)',
         iconColor: '#F7F5EF',
-      };
+      }, [isDayMode]);
 
   return (
     <div
@@ -1189,15 +1145,11 @@ const SearchWalk = () => {
         <div ref={mapContainer} className="w-full h-full" />
       </div>
 
-      {/* Rain overlay — 3 layers paralaxe (far/mid/near) + splashes na
-          faixa inferior. Sensação 3D vem da diferença de tamanho, velocidade
-          e opacidade entre camadas, não de rotateX (que distorcia a queda). */}
+      {/* Rain overlay (parallax + splashes). */}
       {weather && isRainCode(weather.code) && (() => {
         const rain = classifyRain(weather.code, weather.precip);
-        // Distribui a contagem total em 3 camadas de profundidade.
         const layers = [
           {
-            // Far — ao fundo, finíssimas e pálidas.
             key: 'far',
             count: Math.round(rain.drops * 0.45),
             widthMul: 0.6,
@@ -1207,7 +1159,6 @@ const SearchWalk = () => {
             blur: 1.1,
           },
           {
-            // Mid — corpo principal da chuva.
             key: 'mid',
             count: Math.round(rain.drops * 0.35),
             widthMul: 1.0,
@@ -1217,7 +1168,6 @@ const SearchWalk = () => {
             blur: 0.4,
           },
           {
-            // Near — poucas gotas grossas/rápidas em primeiro plano.
             key: 'near',
             count: Math.round(rain.drops * 0.2),
             widthMul: 1.7,
@@ -1271,7 +1221,7 @@ const SearchWalk = () => {
               }
             `}</style>
 
-            {/* Atmosfera: leve haze no topo + chão molhado embaixo. */}
+            {/* Atmosfera: haze no topo + molhado embaixo. */}
             <div
               className="absolute inset-0"
               style={{
@@ -1287,7 +1237,7 @@ const SearchWalk = () => {
               }}
             />
 
-            {/* Camadas de gotas (parallax). */}
+            {/* Gotas (parallax). */}
             {layers.map((layer) => (
               <div key={layer.key} className="absolute inset-0">
                 {Array.from({ length: layer.count }).map((_, i) => {
@@ -1320,8 +1270,7 @@ const SearchWalk = () => {
               </div>
             ))}
 
-            {/* Splashes no chão — anéis pequenos pulsando na faixa inferior
-                pra vender o impacto da gota. */}
+            {/* Splashes no chão — anéis pulsando na faixa inferior. */}
             {Array.from({ length: splashCount }).map((_, i) => {
               const left = Math.random() * 100;
               const top = 70 + Math.random() * 28;
@@ -2047,9 +1996,7 @@ const SearchWalk = () => {
         </div>
       )}
 
-      {/* Minimal floating top pill — same clean language used during the
-          walk. Morphs softly between "Procurando" → "Encontrado" →
-          (handed off to WaitingForAcceptance). Map stays 100% fullscreen. */}
+      {/* Floating status pill. */}
       {isSearching && (
         <div
           className="absolute left-1/2 z-30 animate-pill-in"

@@ -1,3 +1,22 @@
+// For the code present, I get the error below.
+// 
+// Please think step-by-step in order to resolve it.
+// ```
+// build failed with exit status 1: stderr:
+// rs paralaxe (far/mid/near) + splashes na
+// 
+//     at getRollupError (file:///dev-server/node_modules/rollup/dist/es/shared/parseAst.js:395:41)
+//     at error (file:///dev-server/node_modules/rollup/dist/es/shared/parseAst.js:391:42)
+//     at Object.error (file:///dev-server/node_modules/rollup/dist/es/shared/node-entry.js:20545:20)
+//     at Object.error (file:///dev-server/node_modules/rollup/dist/es/shared/node-entry.js:19604:42)
+//     at Object.transform (file:///dev-server/node_modules/vite/dist/node/chunks/dep-BWSbWtLw.js:64647:14)
+// error: script "build:dev" exited with code 1
+// 
+// stdout:
+// vite v5.4.10 building for development...
+// transforming...
+// ✓ 6 modules transformed.
+// ```
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
