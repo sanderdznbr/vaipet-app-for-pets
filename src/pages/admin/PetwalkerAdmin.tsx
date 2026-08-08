@@ -91,11 +91,10 @@ const PetwalkerAdmin = () => {
 
   const fetchStats = useCallback(async () => {
     try {
-      // Use any for the RPC name to bypass current typing issues since the RPC exists in DB
-      const { data, error } = await supabase.rpc('get_admin_application_stats' as any);
+      const { data, error } = await supabase.rpc('get_admin_application_stats');
       if (error) throw error;
-      if (data && Array.isArray(data) && data.length > 0) {
-        const statsRow = data[0] as any;
+      if (data && data.length > 0) {
+        const statsRow = data[0];
         setStats({
           pending: Number(statsRow.pending_count || 0),
           approved: Number(statsRow.approved_count || 0),

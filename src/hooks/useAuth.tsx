@@ -105,12 +105,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const { data, error } = await Promise.race([
-        (supabase
+        supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
-          .maybeSingle() as any).abortSignal(controller.signal),
-        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+          .maybeSingle()
+          .abortSignal(controller.signal),
+        new Promise<{ data: null; error: Error }>((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 10000)
+        )
       ]);
 
       if (requestId !== profileRequestIdRef.current || userId !== currentUserIdRef.current) return;
@@ -140,8 +143,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(data);
         setProfileStatus('ready');
       }
-    } catch (err: any) {
-      if (err.name === 'AbortError') return;
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       if (requestId !== profileRequestIdRef.current) return;
       setProfileError(err instanceof Error ? err : new Error(String(err)));
       setProfileStatus('error');
@@ -192,7 +195,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const { data: { session } } = await Promise.race([
           supabase.auth.getSession(),
-          new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Auth Timeout')), 10000))
+          new Promise<{ data: { session: null }; error: Error }>((_, reject) => 
+            setTimeout(() => reject(new Error('Auth Timeout')), 10000)
+          )
         ]);
         if (mounted) {
           if (session) {
@@ -252,7 +257,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
           (payload) => {
             setPetwalkerApplication(payload.new as Tables<'petwalker_applications'>);
-            const newStatus = (payload.new as any).status as ApplicationStatus;
+            const newStatus = (payload.new as Tables<'petwalker_applications'>).status as ApplicationStatus;
             setApplicationStatus(newStatus);
             if (newStatus === 'approved') {
               fetchRoles(user.id);
@@ -273,7 +278,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (pendingIntentStr) {
         const processIntent = async () => {
           const requestId = ++intentRequestIdRef.current;
-          let intentData: any;
+          let intentData: { intent: string; timestamp: number };
           
           try {
             intentData = JSON.parse(pendingIntentStr);
