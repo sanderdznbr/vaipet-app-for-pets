@@ -547,10 +547,7 @@ const SearchWalk = () => {
     userMarker.current = new mapboxgl.Marker(markerElement).setLngLat(userLocation).addTo(map.current);
     return () => { map.current?.remove(); map.current = null; };
     // Init the map only ONCE, when we first get a location. Subsequent
-    // GPS updates (watchPosition) must NOT re-create the map — that was
-    // causing the entire canvas to flicker/jump every few seconds while
-    // waiting for the walker to accept. The user marker is moved
-    // imperatively inside the watchPosition callback instead.
+    // Map init.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!userLocation]);
 
