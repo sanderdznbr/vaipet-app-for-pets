@@ -2031,9 +2031,7 @@ const SearchWalk = () => {
         </div>
       )}
 
-      {/* Minimal floating top pill — same clean language used during the
-          walk. Morphs softly between "Procurando" → "Encontrado" →
-          (handed off to WaitingForAcceptance). Map stays 100% fullscreen. */}
+      {/* Floating status pill. */}
       {isSearching && (
         <div
           className="absolute left-1/2 z-30 animate-pill-in"
