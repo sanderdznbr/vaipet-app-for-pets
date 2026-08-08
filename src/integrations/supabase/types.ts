@@ -831,6 +831,7 @@ export type Database = {
         Args: { application_id: string }
         Returns: undefined
       }
+      ensure_current_user_profile: { Args: never; Returns: undefined }
       get_public_petwalker_profiles: {
         Args: never
         Returns: {

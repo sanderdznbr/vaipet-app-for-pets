@@ -11,6 +11,7 @@ type ProfileStatus = 'idle' | 'loading' | 'ready' | 'missing' | 'error';
 type RolesStatus = 'idle' | 'loading' | 'ready' | 'error';
 type ApplicationStatus = 'idle' | 'loading' | 'none' | 'pending' | 'approved' | 'rejected' | 'error';
 
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -26,6 +27,8 @@ interface AuthContextType {
   authError: Error | null;
   profileError: Error | null;
   rolesError: Error | null;
+  applicationError: Error | null;
+
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   refreshRoles: () => Promise<void>;
@@ -48,6 +51,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authError, setAuthError] = useState<Error | null>(null);
   const [profileError, setProfileError] = useState<Error | null>(null);
   const [rolesError, setRolesError] = useState<Error | null>(null);
+  const [applicationError, setApplicationError] = useState<Error | null>(null);
+
   
   const currentUserIdRef = useRef<string | null>(null);
   const profileRequestIdRef = useRef<number>(0);
@@ -115,11 +120,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfileError(error);
         setProfileStatus('error');
       } else if (!data) {
-        setProfileStatus('missing');
+        // Attempt recovery if profile is missing
+        try {
+          await supabase.rpc('ensure_current_user_profile');
+          const { data: retryData, error: retryError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle();
+            
+          if (retryError || !retryData) {
+            setProfileStatus('missing');
+          } else {
+            setProfile(retryData);
+            setProfileStatus('ready');
+          }
+        } catch (e) {
+          setProfileStatus('missing');
+        }
       } else {
         setProfile(data);
         setProfileStatus('ready');
       }
+
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       if (requestId !== profileRequestIdRef.current) return;
@@ -148,8 +171,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (requestId !== appRequestIdRef.current || userId !== currentUserIdRef.current) return;
 
       if (error) {
+        setApplicationError(error);
         setApplicationStatus('error');
       } else if (!data) {
+
         setPetwalkerApplication(null);
         setApplicationStatus('none');
       } else {
@@ -159,8 +184,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       if (requestId !== appRequestIdRef.current) return;
+      setApplicationError(err);
       setApplicationStatus('error');
     }
+
   }, []);
 
   useEffect(() => {
@@ -334,6 +361,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     authError,
     profileError,
     rolesError,
+    applicationError,
+
     signOut,
     refreshProfile,
     refreshRoles,
