@@ -29,6 +29,7 @@ const Auth = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+  const [isOTPMode, setIsOTPMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
   
@@ -38,6 +39,7 @@ const Auth = () => {
   const [phone, setPhone] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -90,7 +92,8 @@ const Auth = () => {
           }
         });
         if (error) throw error;
-        toast.success('Cadastro realizado! Verifique seu e-mail.');
+        setIsOTPMode(true);
+        toast.success('Cadastro realizado! Enviamos um código para seu e-mail.');
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -138,6 +141,42 @@ const Auth = () => {
     }
   };
 
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token: otpCode,
+        type: 'signup'
+      });
+      if (error) throw error;
+      toast.success('E-mail verificado com sucesso!');
+      navigate('/inicio');
+    } catch (error: any) {
+      toast.error(translateError(error.message));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+      });
+      if (error) throw error;
+      toast.success('Novo código enviado!');
+    } catch (error: any) {
+      toast.error(translateError(error.message));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
   const handleOAuth = async (provider: 'google' | 'apple') => {
     setOauthLoading(provider);
     try {
@@ -165,13 +204,14 @@ const Auth = () => {
           
           <div className="w-full h-8 sm:h-10 flex items-center">
             <AnimatePresence>
-              {(isForgotPassword || (isRegistering && signupIntent)) && (
+              {(isForgotPassword || isOTPMode || (isRegistering && signupIntent)) && (
                 <motion.button
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -10 }}
                   onClick={() => {
                     if (isForgotPassword) setIsForgotPassword(false);
+                    else if (isOTPMode) setIsOTPMode(false);
                     else setSignupIntent(null);
                   }}
                   className="p-2 -ml-2 hover:bg-black/5 rounded-full transition-colors flex items-center gap-2 text-xs font-medium opacity-60"
@@ -188,7 +228,41 @@ const Auth = () => {
       <main className="w-full flex flex-col items-center px-6 pt-40 sm:pt-48 pb-10 relative z-10 overflow-y-auto max-h-[100dvh]">
         <div className="w-full max-w-md flex flex-col gap-4 sm:gap-6">
           <AnimatePresence mode="wait">
-            {isRecoveryMode ? (
+            {isOTPMode ? (
+              <motion.div
+                key="otp-mode"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="w-full flex flex-col gap-6"
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <h2 className="text-2xl font-bold text-center">Verificar E-mail</h2>
+                  <p className="text-sm text-center text-black/60">Digite o código de 6 dígitos enviado para <strong>{email}</strong></p>
+                </div>
+                <form onSubmit={handleVerifyOTP} className="flex flex-col gap-4">
+                  <input
+                    type="text"
+                    placeholder="Código de 6 dígitos"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    required
+                    className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg text-center tracking-widest font-bold"
+                  />
+                  <button type="submit" disabled={isLoading || otpCode.length < 6} className="w-full h-14 sm:h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
+                    {isLoading ? 'Verificando...' : 'Confirmar Código'}
+                  </button>
+                </form>
+                <button 
+                  type="button"
+                  onClick={handleResendOTP}
+                  disabled={isLoading}
+                  className="text-sm font-semibold text-center underline opacity-60 hover:opacity-100 transition-opacity"
+                >
+                  Não recebeu o código? Enviar novamente
+                </button>
+              </motion.div>
+            ) : isRecoveryMode ? (
               <motion.div
                 key="recovery-mode"
                 initial={{ opacity: 0, scale: 0.95 }}
