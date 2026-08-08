@@ -1519,10 +1519,12 @@ export type Database = {
         Args: { _session_id: string }
         Returns: undefined
       }
-      petwalker_complete_walk: {
-        Args: { _distance_km: number; _session_id: string }
-        Returns: undefined
-      }
+      petwalker_complete_walk:
+        | { Args: { _session_id: string }; Returns: undefined }
+        | {
+            Args: { _distance_km: number; _session_id: string }
+            Returns: undefined
+          }
       petwalker_start_heading: {
         Args: { _session_id: string }
         Returns: undefined
