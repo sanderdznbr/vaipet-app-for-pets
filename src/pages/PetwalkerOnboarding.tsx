@@ -104,9 +104,13 @@ const PetwalkerOnboarding = () => {
     } catch (err: unknown) {
       console.error('Submit error:', err);
       let msg = 'Erro ao atualizar perfil';
-      if (err instanceof Error) msg = err.message;
-      else if (typeof err === 'object' && err !== null && 'details' in err) msg = (err as any).details;
-      else if (typeof err === 'object' && err !== null && 'message' in err) msg = (err as any).message;
+      if (err instanceof Error) {
+        msg = err.message;
+      } else if (typeof err === 'object' && err !== null) {
+        const errorObj = err as Record<string, unknown>;
+        if (typeof errorObj.details === 'string') msg = errorObj.details;
+        else if (typeof errorObj.message === 'string') msg = errorObj.message;
+      }
       
       toast.error(msg);
     } finally {
