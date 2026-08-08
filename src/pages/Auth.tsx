@@ -393,6 +393,16 @@ const Auth = () => {
                     </button>
                   </form>
 
+                  {!isRegistering && (
+                    <button
+                      onClick={() => setIsForgotPassword(true)}
+                      className="text-sm font-semibold text-center underline opacity-60 hover:opacity-100 transition-opacity -mt-2"
+                    >
+                      Esqueci minha senha
+                    </button>
+                  )}
+
+
                   <button
                     onClick={() => {
                       setIsRegistering(!isRegistering);
