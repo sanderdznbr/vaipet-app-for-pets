@@ -120,6 +120,23 @@ const classifyRain = (code: number, precipMm: number): RainIntensity => {
 };
 
 const SearchWalk = () => {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user, profile } = useAuth();
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
+  const userMarker = useRef<mapboxgl.Marker | null>(null);
+  const walkerMarker = useRef<mapboxgl.Marker | null>(null);
+  // Remember the last drawn route so we can re-add the layer after a
+  // style swap (day↔night) WITHOUT re-fetching or re-animating it.
+  const currentRouteCoords = useRef<[number, number][] | null>(null);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const userLocationRef = useRef<[number, number] | null>(null);
+  const lastUserLocationStateAtRef = useRef(0);
+  
+  const [selectedMinutes, setSelectedMinutes] = useState(30);
+  const [scheduleMode, setScheduleMode] = useState<'now' | 'later'>('now');
+
   const [quote, setQuote] = useState<any>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
@@ -147,19 +164,6 @@ const SearchWalk = () => {
     fetchQuote(selectedMinutes, scheduleMode === 'now' ? 'now' : 'scheduled');
   }, [selectedMinutes, scheduleMode, fetchQuote]);
 
-  const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { user, profile } = useAuth();
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const userMarker = useRef<mapboxgl.Marker | null>(null);
-  const walkerMarker = useRef<mapboxgl.Marker | null>(null);
-  // Remember the last drawn route so we can re-add the layer after a
-  // style swap (day↔night) WITHOUT re-fetching or re-animating it.
-  const currentRouteCoords = useRef<[number, number][] | null>(null);
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
-  const userLocationRef = useRef<[number, number] | null>(null);
-  const lastUserLocationStateAtRef = useRef(0);
   // Marker-level throttling for watchPosition. Even moving only the marker
   // imperatively on every GPS tick can cause perceptible flicker on mobile
   // because Mapbox repaints. We coalesce updates with a min interval AND a
@@ -208,9 +212,7 @@ const SearchWalk = () => {
   const [showPetSelector, setShowPetSelector] = useState(false);
   const [walkStartTime, setWalkStartTime] = useState<number>(0);
   const [walkDuration, setWalkDuration] = useState<number>(0);
-  const [selectedMinutes, setSelectedMinutes] = useState(30);
   const [showMoreDurations, setShowMoreDurations] = useState(false);
-  const [scheduleMode, setScheduleMode] = useState<'now' | 'later'>('now');
   const [scheduleDate, setScheduleDate] = useState<string>(() => {
     const d = new Date(); d.setDate(d.getDate() + 1);
     return d.toISOString().slice(0, 10);
