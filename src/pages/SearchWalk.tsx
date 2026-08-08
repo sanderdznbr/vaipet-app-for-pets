@@ -1122,7 +1122,7 @@ const SearchWalk = () => {
       try {
         await supabase
           .from('walk_sessions')
-          .update({ status: 'returning' })
+          .update({ current_status: 'returning', status: 'returning' })
           .eq('id', currentSessionId);
       } catch (e) {
         console.error('Falha ao iniciar retorno:', e);
@@ -1140,6 +1140,7 @@ const SearchWalk = () => {
         await supabase
           .from('walk_sessions')
           .update({
+            current_status: 'completed',
             status: 'completed',
             end_time: new Date().toISOString(),
             actual_duration_minutes: Math.max(1, Math.round(dur / 60)),
@@ -1148,28 +1149,11 @@ const SearchWalk = () => {
       } catch (e) {
         console.error('Falha ao confirmar chegada:', e);
       }
-    } else if (user) {
-      try {
-        await supabase
-          .from('walk_sessions')
-          .update({
-            status: 'completed',
-            end_time: new Date().toISOString(),
-            actual_duration_minutes: Math.max(1, Math.round(dur / 60)),
-          } as never)
-          .eq('customer_id', user.id)
-          .in('status', ['active', 'returning']);
-      } catch (e) {
-        console.error('Falha ao encerrar passeio ativo:', e);
-      }
     }
     setSearchStatus('reviewing');
   };
   const handleReviewComplete = () => { navigate('/'); setSearchStatus('idle'); cleanupPreviousSearch(); };
-  // WalkInProgress já gravou status='completed', end_time e
-  // actual_duration_minutes de forma atômica ao confirmar o encerramento.
-  // Aqui apenas calculamos a duração local para exibir o resumo imediato
-  // na ReviewWalk (sem esperar round-trip extra).
+  
   const handleRequestReturn = async () => {
     const dur = Math.floor((Date.now() - walkStartTime) / 1000);
     setWalkDuration(dur);
@@ -1177,7 +1161,7 @@ const SearchWalk = () => {
   };
 
   useEffect(() => {
-    if (!currentSessionId || searchStatus !== 'waiting') return;
+    if (!currentSessionId) return;
 
     const channel = supabase
       .channel(`walk-session-${currentSessionId}`)
@@ -1191,14 +1175,28 @@ const SearchWalk = () => {
         },
         (payload) => {
           const newStatus = payload.new.current_status;
-          if (newStatus === 'accepted') {
-            handleAccepted();
+          if (newStatus === 'accepted' && searchStatusRef.current !== 'walking') {
+            handleAccepted(payload.new);
           } else if (newStatus === 'expired' || newStatus === 'cancelled') {
             handleTimeout();
           }
         }
       )
       .subscribe();
+
+    // Check immediate state if already accepted
+    const checkStatus = async () => {
+       const { data } = await supabase.from('walk_sessions').select('*').eq('id', currentSessionId).single();
+       if (data?.current_status === 'accepted' && searchStatusRef.current !== 'walking') {
+          handleAccepted(data);
+       }
+    };
+    checkStatus();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentSessionId]);
 
     return () => {
       supabase.removeChannel(channel);
