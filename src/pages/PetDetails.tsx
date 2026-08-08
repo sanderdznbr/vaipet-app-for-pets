@@ -109,7 +109,7 @@ export const PetDetails = () => {
       setWalkHistory(data.map(s => ({
         ...s,
         provider: { full_name: s.walker_name || 'Pet Walker' },
-        total_price: s.total_price_cents ? s.total_price_cents / 100 : s.planned_duration_minutes * 1.5,
+        total_price: s.total_price_cents ? s.total_price_cents / 100 : 0,
       })));
     }
   };
