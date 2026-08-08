@@ -38,13 +38,15 @@ const RoleLanding = () => {
 
       const fetchPwProfile = async () => {
         try {
-          const { data, error } = await Promise.race([
+          const response = await Promise.race([
             /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-        (supabase.from('petwalker_profiles').select('*').eq('user_id', user.id).maybeSingle() as unknown as { abortSignal: (s: AbortSignal) => unknown }).abortSignal(controller.signal),
-            new Promise<{ data: null; error: Error }>((_, reject) => 
+            (supabase.from('petwalker_profiles').select('*').eq('user_id', user.id).maybeSingle() as any).abortSignal(controller.signal),
+            new Promise<any>((_, reject) => 
               setTimeout(() => reject(new Error('Timeout')), 10000)
             )
           ]);
+          
+          const { data, error } = response;
 
           if (!mounted) return;
 
