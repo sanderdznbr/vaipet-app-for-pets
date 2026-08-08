@@ -832,6 +832,14 @@ export type Database = {
         Returns: undefined
       }
       ensure_current_user_profile: { Args: never; Returns: undefined }
+      get_admin_application_stats: {
+        Args: never
+        Returns: {
+          approved_count: number
+          pending_count: number
+          rejected_count: number
+        }[]
+      }
       get_petwalker_application_admin: {
         Args: { _application_id: string }
         Returns: {
