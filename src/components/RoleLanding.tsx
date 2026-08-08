@@ -4,6 +4,9 @@ import { SplashScreen } from '@/components/SplashScreen';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { Database } from '@/integrations/supabase/types';
+
+type PetwalkerProfile = Database['public']['Tables']['petwalker_profiles']['Row'];
 
 const RoleLanding = () => {
   const { 
@@ -14,21 +17,17 @@ const RoleLanding = () => {
     roles,
     hasRole,
     applicationStatus,
-    applicationError,
     refreshRoles,
     refreshProfile,
     refreshApplication,
     user
   } = useAuth();
 
-
-
   const [waitApproved, setWaitApproved] = useState(0);
-  const [petwalkerProfile, setPetwalkerProfile] = useState<any>(null);
+  const [petwalkerProfile, setPetwalkerProfile] = useState<PetwalkerProfile | null>(null);
   const [pwProfileStatus, setPwProfileStatus] = useState<'idle' | 'loading' | 'ready' | 'missing' | 'error'>('idle');
-  const [pwProfileError, setPwProfileError] = useState<any>(null);
+  const [pwProfileError, setPwProfileError] = useState<Error | null>(null);
 
-  // Fetch petwalker profile specifically for profile_completed check
   useEffect(() => {
     let mounted = true;
     const controller = new AbortController();
@@ -42,7 +41,7 @@ const RoleLanding = () => {
           const { data, error } = await Promise.race([
             (supabase
               .from('petwalker_profiles')
-              .select('profile_completed')
+              .select('*')
               .eq('user_id', user.id)
               .maybeSingle() as any).abortSignal(controller.signal),
             new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
@@ -51,7 +50,7 @@ const RoleLanding = () => {
           if (!mounted) return;
 
           if (error) {
-            setPwProfileError(error);
+            setPwProfileError(new Error(error.message));
             setPwProfileStatus('error');
           } else if (!data) {
             setPwProfileStatus('missing');
@@ -61,7 +60,7 @@ const RoleLanding = () => {
           }
         } catch (err) {
           if (!mounted) return;
-          setPwProfileError(err);
+          setPwProfileError(err instanceof Error ? err : new Error(String(err)));
           setPwProfileStatus('error');
         }
       };
@@ -88,14 +87,21 @@ const RoleLanding = () => {
   const isLoading = authStatus === 'initializing' || 
                    (authStatus === 'authenticated' && (
                      profileStatus === 'loading' || 
+                     profileStatus === 'idle' || 
                      rolesStatus === 'loading' || 
-                     (hasRole('petwalker') && pwProfileStatus === 'loading')
+                     rolesStatus === 'idle' || 
+                     applicationStatus === 'loading' || 
+                     applicationStatus === 'idle' ||
+                     (hasRole('petwalker') && pwProfileStatus === 'loading') ||
+                     (hasRole('petwalker') && pwProfileStatus === 'idle')
                    ));
   
-  const isError = profileStatus === 'error' || 
+  const isError = authStatus === 'error' || 
+                  profileStatus === 'error' || 
                   rolesStatus === 'error' || 
+                  (profile?.signup_intent === 'petwalker' && applicationStatus === 'error') ||
+                  profileStatus === 'missing' ||
                   (hasRole('petwalker') && pwProfileStatus === 'error');
-
 
   if (isLoading) {
     return (
@@ -121,39 +127,38 @@ const RoleLanding = () => {
         <p className="text-gray-500 mb-2">Não conseguimos identificar seu destino.</p>
         
         <div className="text-[10px] text-gray-400 mb-6 font-mono uppercase">
+          {profileStatus === 'missing' && 'PROFILE_MISSING'}
           {profileStatus === 'error' && 'PROFILE_LOAD_FAILED'}
           {rolesStatus === 'error' && 'ROLES_LOAD_FAILED'}
+          {applicationStatus === 'error' && 'APPLICATION_LOAD_FAILED'}
           {pwProfileStatus === 'error' && 'PETWALKER_PROFILE_LOAD_FAILED'}
         </div>
 
         <Button 
           onClick={() => {
-            if (profileStatus === 'error') refreshProfile();
+            if (profileStatus === 'error' || profileStatus === 'missing') refreshProfile();
             if (rolesStatus === 'error') refreshRoles();
-            if (pwProfileStatus === 'error') window.location.reload(); 
+            if (applicationStatus === 'error') refreshApplication();
+            if (pwProfileStatus === 'error') window.location.reload();
           }}
           className="px-6 py-3 font-bold"
         >
           Tentar novamente
         </Button>
       </div>
-
     );
   }
 
-  // 1. PetWalker Logic
   if (hasRole('petwalker')) {
     if (pwProfileStatus === 'missing') {
       return <Navigate to="/petwalker/onboarding" replace />;
     }
-    // Decision based on petwalker_profiles.profile_completed
     if (petwalkerProfile && !petwalkerProfile.profile_completed) {
       return <Navigate to="/petwalker/onboarding" replace />;
     }
     return <Navigate to="/petwalker" replace />;
   }
 
-  // Approved but role not synced yet
   if (applicationStatus === 'approved' && !hasRole('petwalker')) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-[#F7F5EF]">
@@ -166,22 +171,18 @@ const RoleLanding = () => {
     );
   }
 
-  // Pending candidate or rejected candidate -> track in /petwalker/inscricao
   if (applicationStatus === 'pending' || applicationStatus === 'rejected') {
     return <Navigate to="/petwalker/inscricao" replace />;
   }
 
-  // Intent PetWalker without application -> /petwalker/inscricao
   if (profile?.signup_intent === 'petwalker' && applicationStatus === 'none') {
     return <Navigate to="/petwalker/inscricao" replace />;
   }
 
-  // 2. PetShop Logic
   if (profile?.role === 'petshop' || hasRole('petshop')) {
     return <Navigate to="/petshop-dashboard" replace />;
   }
 
-  // 3. Normal User / Onboarding
   if (profile?.onboarding_completed === false) {
     return <Navigate to="/onboarding" replace />;
   }
