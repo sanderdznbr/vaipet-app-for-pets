@@ -1139,7 +1139,7 @@ const SearchWalk = () => {
   // toggles night mode on the map, ALL surrounding controls (top bar,
   // pet chip, bottom sheet, pills) switch to a gray/black + green
   // palette so the whole screen reads as a unified dark interface.
-  const ui = isDayMode
+  const ui = useMemo(() => isDayMode
     ? {
         chip: '#FFFFFF',
         chipAlpha: 'rgba(255,255,255,0.9)',
@@ -1175,7 +1175,7 @@ const SearchWalk = () => {
         shadow: '0 8px 24px rgba(0,0,0,0.4)',
         sheetShadow: '0 25px 60px rgba(0,0,0,0.5)',
         iconColor: '#F7F5EF',
-      };
+      }, [isDayMode]);
 
   return (
     <div
