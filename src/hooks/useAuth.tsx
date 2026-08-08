@@ -340,7 +340,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuthStatus('unauthenticated');
   };
 
-  const refreshProfile = () => user ? fetchProfile(user.id) : Promise.resolve();
+  const refreshRoles = () => user ? fetchRoles(user.id) : Promise.resolve();
   const refreshRoles = () => user ? fetchRoles(user.id) : Promise.resolve();
   const refreshApplication = () => user ? fetchApplication(user.id) : Promise.resolve();
 
