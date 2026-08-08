@@ -91,7 +91,7 @@ const PetwalkerAdmin = () => {
 
   const fetchStats = useCallback(async () => {
     try {
-      const { data, error } = await supabase.rpc('get_admin_application_stats' as any);
+      const { data, error } = await supabase.rpc('get_admin_application_stats');
       if (error) throw error;
       if (data && data.length > 0) {
         setStats({
