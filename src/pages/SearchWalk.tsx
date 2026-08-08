@@ -187,8 +187,7 @@ const SearchWalk = () => {
   const [searchStatus, setSearchStatus] = useState<'idle' | 'searching' | 'found' | 'waiting' | 'accepted' | 'walking' | 'reviewing' | 'error'>('idle');
   const searchStatusRef = useRef(searchStatus);
   const isSearchingRef = useRef(isSearching);
-  // Guards for the acceptance handoff (see handleAccepted): they must be refs
-  // so the 8s watchdog reads live values instead of a stale closure.
+  // Acceptance handoff guards.
   const sessionCreatedRef = useRef(false);
   const recoveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [routeInfo, setRouteInfo] = useState<{ duration: number; distance: number } | null>(null);
