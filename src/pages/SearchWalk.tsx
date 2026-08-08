@@ -1135,10 +1135,7 @@ const SearchWalk = () => {
   const showBottomSheet = useMemo(() => searchStatus === 'idle' && !isSearching, [searchStatus, isSearching]);
   const fullscreen = useMemo(() => !showBottomSheet, [showBottomSheet]);
 
-  // Dark-mode aware theme tokens for the SearchWalk UI. When the user
-  // toggles night mode on the map, ALL surrounding controls (top bar,
-  // pet chip, bottom sheet, pills) switch to a gray/black + green
-  // palette so the whole screen reads as a unified dark interface.
+  // Dark-mode UI tokens.
   const ui = useMemo(() => isDayMode
     ? {
         chip: '#FFFFFF',
