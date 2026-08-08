@@ -27,20 +27,17 @@ vi.mock("@/lib/mapStyle", () => ({
 }));
 
 const renderWaiting = (props: Partial<Parameters<typeof WaitingForAcceptance>[0]> = {}) => {
-  const onAccepted = vi.fn();
   const onTimeout = vi.fn();
   const onCancel = vi.fn();
   const utils = render(
     <WaitingForAcceptance
-      onAccepted={onAccepted}
       onTimeout={onTimeout}
       onCancel={onCancel}
-      petwalkerName="João"
       userLocation={[-46.6333, -23.5505]}
       {...props}
     />,
   );
-  return { onAccepted, onTimeout, onCancel, ...utils };
+  return { onTimeout, onCancel, ...utils };
 };
 
 describe("WaitingForAcceptance", () => {
@@ -55,43 +52,34 @@ describe("WaitingForAcceptance", () => {
     vi.clearAllMocks();
   });
 
-  it("mostra o estado Aguardando com o nome do petwalker e o contador", () => {
+  it("mostra o estado Aguardando e o contador", () => {
     renderWaiting();
     expect(screen.getByText("Aguardando")).toBeInTheDocument();
-    expect(screen.getByText(/João • 5:00/)).toBeInTheDocument();
+    expect(screen.getByText(/Buscando... • 5:00/)).toBeInTheDocument();
   });
 
-  it("dispara onAccepted exatamente uma vez, mesmo com o tempo avançando muito além", () => {
-    const { onAccepted, onTimeout } = renderWaiting();
-
+  it("não dispara onTimeout antes do tempo previsto", () => {
+    const { onTimeout } = renderWaiting();
     act(() => {
-      vi.advanceTimersByTime(12_000);
+      vi.advanceTimersByTime(299_000);
     });
-    expect(onAccepted).toHaveBeenCalledTimes(1);
-
-    // Anti-flicker: nenhum disparo extra depois da aceitação.
-    act(() => {
-      vi.advanceTimersByTime(60_000);
-    });
-    expect(onAccepted).toHaveBeenCalledTimes(1);
     expect(onTimeout).not.toHaveBeenCalled();
   });
 
-  it("não aceita antes do tempo previsto", () => {
-    const { onAccepted } = renderWaiting();
+  it("dispara onTimeout ao esgotar o tempo", () => {
+    const { onTimeout } = renderWaiting();
     act(() => {
-      vi.advanceTimersByTime(11_000);
+      vi.advanceTimersByTime(301_000);
     });
-    expect(onAccepted).not.toHaveBeenCalled();
+    expect(onTimeout).toHaveBeenCalled();
   });
 
   it("limpa os timers no unmount, sem callbacks fantasmas", () => {
-    const { onAccepted, onTimeout, unmount } = renderWaiting();
+    const { onTimeout, unmount } = renderWaiting();
     unmount();
     act(() => {
       vi.advanceTimersByTime(600_000);
     });
-    expect(onAccepted).not.toHaveBeenCalled();
     expect(onTimeout).not.toHaveBeenCalled();
   });
 });

@@ -17,15 +17,18 @@ type WalkSession = Database['public']['Tables']['walk_sessions']['Row'] & {
 };
 
 type WalkOffer = {
-  id: string;
-  customer_name: string;
+  id: uuid;
+  session_id: uuid;
   pet_name: string;
-  pet_breed: string;
-  meeting_point_address: string;
-  distance_meters: number;
+  pet_avatar_url: string;
+  meeting_point_lat: number;
+  meeting_point_lng: number;
   planned_duration_minutes: number;
   total_price_cents: number;
+  distance_to_walker_meters: number;
 };
+
+type uuid = string;
 
 const PetwalkerPainel = () => {
   const { user } = useAuth();
@@ -289,10 +292,10 @@ const PetwalkerPainel = () => {
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="font-bold text-lg">{offer.pet_name}</h4>
-                      <p className="text-sm text-muted-foreground">{offer.pet_breed} • {offer.planned_duration_minutes}min</p>
+                      <p className="text-sm text-muted-foreground">{offer.planned_duration_minutes}min</p>
                       <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
                         <MapPin size={12} />
-                        <span>{Math.round(offer.distance_meters)}m de distância</span>
+                        <span>{Math.round(offer.distance_to_walker_meters)}m de distância</span>
                       </div>
                     </div>
                     <div className="text-right">

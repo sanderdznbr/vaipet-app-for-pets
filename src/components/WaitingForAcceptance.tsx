@@ -7,27 +7,23 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 interface WaitingForAcceptanceProps {
-  onAccepted: (data: any) => void;
   onTimeout: () => void;
   onCancel: () => void;
-  petwalkerName?: string;
-  petwalkerAvatar?: string;
-  petwalkerRating?: number;
-  petwalkerWalks?: number;
   isDarkMode?: boolean;
   userLocation?: [number, number] | null;
 }
 
 
 export const WaitingForAcceptance: React.FC<WaitingForAcceptanceProps> = ({ 
-  onAccepted, onTimeout, onCancel,
-  petwalkerName = "João",
-  petwalkerAvatar = "https://upload.wikimedia.org/wikipedia/commons/b/bf/Foto_Perfil_.jpg",
-  petwalkerRating = 4.9,
-  petwalkerWalks = 342,
+  onTimeout, onCancel,
   isDarkMode = false,
   userLocation = null
 }) => {
+  const petwalkerName = "Buscando...";
+  const petwalkerAvatar = "https://upload.wikimedia.org/wikipedia/commons/b/bf/Foto_Perfil_.jpg";
+  const petwalkerRating = 5.0;
+  const petwalkerWalks = 0;
+
   const [timeLeft, setTimeLeft] = useState(300);
   const [showProfile, setShowProfile] = useState(false);
   const mapContainer = useRef<HTMLDivElement>(null);

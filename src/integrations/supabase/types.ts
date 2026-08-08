@@ -778,28 +778,40 @@ export type Database = {
           active: boolean | null
           expansion_interval_minutes: number | null
           id: number
+          initial_radius_meters: number | null
           initial_search_radius_km: number | null
+          max_radius_meters: number | null
           max_search_duration_minutes: number | null
           max_search_radius_km: number | null
           radius_expansion_step_km: number | null
+          radius_expansion_step_meters: number | null
+          session_expiry_minutes: number | null
         }
         Insert: {
           active?: boolean | null
           expansion_interval_minutes?: number | null
           id?: number
+          initial_radius_meters?: number | null
           initial_search_radius_km?: number | null
+          max_radius_meters?: number | null
           max_search_duration_minutes?: number | null
           max_search_radius_km?: number | null
           radius_expansion_step_km?: number | null
+          radius_expansion_step_meters?: number | null
+          session_expiry_minutes?: number | null
         }
         Update: {
           active?: boolean | null
           expansion_interval_minutes?: number | null
           id?: number
+          initial_radius_meters?: number | null
           initial_search_radius_km?: number | null
+          max_radius_meters?: number | null
           max_search_duration_minutes?: number | null
           max_search_radius_km?: number | null
           radius_expansion_step_km?: number | null
+          radius_expansion_step_meters?: number | null
+          session_expiry_minutes?: number | null
         }
         Relationships: []
       }
@@ -1272,6 +1284,17 @@ export type Database = {
             }
             Returns: string
           }
+        | {
+            Args: {
+              _duration_minutes: number
+              _lat: number
+              _lng: number
+              _mode?: string
+              _pet_id: string
+              _scheduled_at?: string
+            }
+            Returns: string
+          }
       decline_walk_offer: { Args: { _session_id: string }; Returns: undefined }
       disablelongtransactions: { Args: never; Returns: string }
       dropgeometrycolumn:
@@ -1409,9 +1432,9 @@ export type Database = {
       get_active_walker_location: {
         Args: { _session_id: string }
         Returns: {
-          last_updated: string
           lat: number
           lng: number
+          updated_at: string
         }[]
       }
       get_admin_application_stats: {
@@ -1425,14 +1448,14 @@ export type Database = {
       get_available_walk_offers: {
         Args: never
         Returns: {
-          customer_id: string
-          customer_name: string
-          distance_meters: number
+          distance_to_walker_meters: number
           id: string
-          meeting_point_address: string
-          pet_breed: string
+          meeting_point_lat: number
+          meeting_point_lng: number
+          pet_avatar_url: string
           pet_name: string
           planned_duration_minutes: number
+          session_id: string
           total_price_cents: number
         }[]
       }
@@ -1517,22 +1540,19 @@ export type Database = {
       longtransactionsenabled: { Args: never; Returns: boolean }
       petwalker_arrive_pickup: {
         Args: { _session_id: string }
-        Returns: undefined
+        Returns: boolean
       }
       petwalker_complete_walk:
-        | { Args: { _session_id: string }; Returns: undefined }
+        | { Args: { _session_id: string }; Returns: boolean }
         | {
             Args: { _distance_km: number; _session_id: string }
             Returns: undefined
           }
       petwalker_start_heading: {
         Args: { _session_id: string }
-        Returns: undefined
+        Returns: boolean
       }
-      petwalker_start_walk: {
-        Args: { _session_id: string }
-        Returns: undefined
-      }
+      petwalker_start_walk: { Args: { _session_id: string }; Returns: boolean }
       populate_geometry_columns:
         | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }
         | { Args: { use_typmod?: boolean }; Returns: string }

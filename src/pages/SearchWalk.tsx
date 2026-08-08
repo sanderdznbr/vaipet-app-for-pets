@@ -2045,13 +2045,8 @@ const SearchWalk = () => {
       {/* Waiting */}
       {searchStatus === 'waiting' && (
         <WaitingForAcceptance
-          onAccepted={(data) => handleAccepted(data)}
           onTimeout={handleTimeout}
           onCancel={handleCancel}
-          petwalkerName={walker.firstName}
-          petwalkerAvatar={walker.avatar}
-          petwalkerRating={walker.rating}
-          petwalkerWalks={walker.walks}
           isDarkMode={!mapIsDay}
           userLocation={userLocation}
         />
