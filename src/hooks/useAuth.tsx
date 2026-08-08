@@ -51,6 +51,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authError, setAuthError] = useState<Error | null>(null);
   const [profileError, setProfileError] = useState<Error | null>(null);
   const [rolesError, setRolesError] = useState<Error | null>(null);
+  const [applicationError, setApplicationError] = useState<Error | null>(null);
+
   
   const currentUserIdRef = useRef<string | null>(null);
   const profileRequestIdRef = useRef<number>(0);
