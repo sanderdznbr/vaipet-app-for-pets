@@ -70,13 +70,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRolesError(null);
 
     try {
-      const { data, error } = await Promise.race([
+      const response = await Promise.race([
         /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-        (supabase.from('user_roles').select('role').eq('user_id', userId) as unknown as { abortSignal: (s: AbortSignal) => unknown }).abortSignal(controller.signal),
-        new Promise<{ data: null; error: Error }>((_, reject) => 
+        (supabase.from('user_roles').select('role').eq('user_id', userId) as any).abortSignal(controller.signal),
+        new Promise<any>((_, reject) => 
           setTimeout(() => reject(new Error('Timeout')), 10000)
         )
       ]);
+
+      const { data, error } = response;
 
       if (requestId !== rolesRequestIdRef.current || userId !== currentUserIdRef.current) return;
 
@@ -104,13 +106,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfileError(null);
 
     try {
-      const { data, error } = await Promise.race([
+      const response = await Promise.race([
         /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-        (supabase.from('profiles').select('*').eq('id', userId).maybeSingle() as unknown as { abortSignal: (s: AbortSignal) => unknown }).abortSignal(controller.signal),
-        new Promise<{ data: null; error: Error }>((_, reject) => 
+        (supabase.from('profiles').select('*').eq('id', userId).maybeSingle() as any).abortSignal(controller.signal),
+        new Promise<any>((_, reject) => 
           setTimeout(() => reject(new Error('Timeout')), 10000)
         )
       ]);
+
+      const { data, error } = response;
 
       if (requestId !== profileRequestIdRef.current || userId !== currentUserIdRef.current) return;
 
@@ -156,13 +160,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setApplicationError(null);
 
     try {
-      const { data, error } = await Promise.race([
+      const response = await Promise.race([
         /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-        (supabase.from('petwalker_applications').select('*').eq('user_id', userId).maybeSingle() as unknown as { abortSignal: (s: AbortSignal) => unknown }).abortSignal(controller.signal),
-        new Promise<{ data: null; error: Error }>((_, reject) => 
+        (supabase.from('petwalker_applications').select('*').eq('user_id', userId).maybeSingle() as any).abortSignal(controller.signal),
+        new Promise<any>((_, reject) => 
           setTimeout(() => reject(new Error('Timeout')), 10000)
         )
       ]);
+
+      const { data, error } = response;
 
       if (requestId !== appRequestIdRef.current || userId !== currentUserIdRef.current) return;
 

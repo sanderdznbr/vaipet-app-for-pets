@@ -109,7 +109,7 @@ export const PetDetails = () => {
       setWalkHistory(data.map(s => ({
         ...s,
         provider: { full_name: s.walker_name || 'Pet Walker' },
-        total_price: s.planned_duration_minutes * 1.5,
+        total_price: s.total_price_cents ? s.total_price_cents / 100 : 0,
       })));
     }
   };
@@ -145,7 +145,9 @@ export const PetDetails = () => {
     try {
       await supabase.from('pets').delete().eq('id', pet.id).eq('owner_id', user.id);
       navigate('/');
-    } catch {} finally { setIsDeleting(false); }
+    } catch (err) {
+      console.error('Delete error:', err);
+    } finally { setIsDeleting(false); }
   };
 
   const formatDate = (dateString: string) => {

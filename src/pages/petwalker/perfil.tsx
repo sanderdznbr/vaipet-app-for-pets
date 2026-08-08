@@ -15,8 +15,6 @@ const PetwalkerPerfil = () => {
   const [formData, setFormData] = useState({
     public_bio: '',
     experience_years: 0,
-    service_radius_km: 1,
-    price_30_minutes: 0,
   });
 
   useEffect(() => {
@@ -32,8 +30,6 @@ const PetwalkerPerfil = () => {
         setFormData({
           public_bio: data.public_bio || '',
           experience_years: data.experience_years || 0,
-          service_radius_km: data.service_radius_km || 1,
-          price_30_minutes: Number(data.price_30_minutes) || 0,
         });
       }
     };
@@ -46,9 +42,7 @@ const PetwalkerPerfil = () => {
     try {
       const { error } = await supabase.rpc('update_petwalker_operational_profile', {
         _public_bio: formData.public_bio,
-        _experience_years: formData.experience_years,
-        _service_radius_km: formData.service_radius_km,
-        _price_30_minutes: formData.price_30_minutes
+        _experience_years: formData.experience_years
       });
 
       if (error) throw error;
@@ -88,24 +82,6 @@ const PetwalkerPerfil = () => {
                   onChange={e => setFormData(prev => ({ ...prev, experience_years: parseInt(e.target.value) || 0 }))}
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Raio (km)</label>
-                <Input 
-                  type="number"
-                  value={formData.service_radius_km}
-                  onChange={e => setFormData(prev => ({ ...prev, service_radius_km: parseInt(e.target.value) || 0 }))}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Preço (30 min)</label>
-              <Input 
-                type="number"
-                step="0.01"
-                value={formData.price_30_minutes}
-                onChange={e => setFormData(prev => ({ ...prev, price_30_minutes: parseFloat(e.target.value) || 0 }))}
-              />
             </div>
 
             <Button type="submit" className="w-full h-12" disabled={loading}>

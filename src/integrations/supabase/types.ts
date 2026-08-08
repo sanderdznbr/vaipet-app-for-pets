@@ -737,6 +737,45 @@ export type Database = {
         }
         Relationships: []
       }
+      walk_pricing_settings: {
+        Row: {
+          created_at: string | null
+          duration_step_minutes: number
+          id: string
+          is_active: boolean | null
+          minimum_duration_minutes: number
+          now_surcharge_cents: number | null
+          price_per_minute_cents: number
+          scheduled_surcharge_cents: number | null
+          updated_at: string | null
+          version: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          duration_step_minutes: number
+          id?: string
+          is_active?: boolean | null
+          minimum_duration_minutes: number
+          now_surcharge_cents?: number | null
+          price_per_minute_cents: number
+          scheduled_surcharge_cents?: number | null
+          updated_at?: string | null
+          version?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          duration_step_minutes?: number
+          id?: string
+          is_active?: boolean | null
+          minimum_duration_minutes?: number
+          now_surcharge_cents?: number | null
+          price_per_minute_cents?: number
+          scheduled_surcharge_cents?: number | null
+          updated_at?: string | null
+          version?: number | null
+        }
+        Relationships: []
+      }
       walk_sessions: {
         Row: {
           actual_duration_minutes: number | null
@@ -750,10 +789,16 @@ export type Database = {
           local_stops: Json | null
           pet_id: string
           planned_duration_minutes: number
+          price_per_minute_cents: number | null
+          pricing_surcharge_cents: number | null
+          pricing_version: number | null
           rating: number | null
+          request_mode: Database["public"]["Enums"]["walk_request_mode"] | null
           route_coordinates: Json | null
+          scheduled_for: string | null
           start_time: string
           status: string
+          total_price_cents: number | null
           walk_type: string
           walker_id: string | null
           walker_name: string | null
@@ -770,10 +815,16 @@ export type Database = {
           local_stops?: Json | null
           pet_id: string
           planned_duration_minutes?: number
+          price_per_minute_cents?: number | null
+          pricing_surcharge_cents?: number | null
+          pricing_version?: number | null
           rating?: number | null
+          request_mode?: Database["public"]["Enums"]["walk_request_mode"] | null
           route_coordinates?: Json | null
+          scheduled_for?: string | null
           start_time: string
           status: string
+          total_price_cents?: number | null
           walk_type: string
           walker_id?: string | null
           walker_name?: string | null
@@ -790,10 +841,16 @@ export type Database = {
           local_stops?: Json | null
           pet_id?: string
           planned_duration_minutes?: number
+          price_per_minute_cents?: number | null
+          pricing_surcharge_cents?: number | null
+          pricing_version?: number | null
           rating?: number | null
+          request_mode?: Database["public"]["Enums"]["walk_request_mode"] | null
           route_coordinates?: Json | null
+          scheduled_for?: string | null
           start_time?: string
           status?: string
+          total_price_cents?: number | null
           walk_type?: string
           walker_id?: string | null
           walker_name?: string | null
@@ -832,14 +889,6 @@ export type Database = {
         Returns: undefined
       }
       ensure_current_user_profile: { Args: never; Returns: undefined }
-      get_admin_application_stats: {
-        Args: never
-        Returns: {
-          approved_count: number
-          pending_count: number
-          rejected_count: number
-        }[]
-      }
       get_petwalker_application_admin: {
         Args: { _application_id: string }
         Returns: {
@@ -895,6 +944,13 @@ export type Database = {
           id: string
         }[]
       }
+      get_walk_quote: {
+        Args: {
+          _duration_minutes: number
+          _request_mode: Database["public"]["Enums"]["walk_request_mode"]
+        }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -915,12 +971,7 @@ export type Database = {
         Returns: undefined
       }
       update_petwalker_operational_profile: {
-        Args: {
-          _experience_years: number
-          _price_30_minutes: number
-          _public_bio: string
-          _service_radius_km: number
-        }
+        Args: { _experience_years: number; _public_bio: string }
         Returns: undefined
       }
     }
@@ -928,6 +979,7 @@ export type Database = {
       app_role: "admin" | "moderator" | "user" | "petshop" | "petwalker"
       application_status: "pending" | "approved" | "rejected"
       signup_intent_type: "pet_owner" | "petwalker"
+      walk_request_mode: "now" | "scheduled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1058,6 +1110,7 @@ export const Constants = {
       app_role: ["admin", "moderator", "user", "petshop", "petwalker"],
       application_status: ["pending", "approved", "rejected"],
       signup_intent_type: ["pet_owner", "petwalker"],
+      walk_request_mode: ["now", "scheduled"],
     },
   },
 } as const

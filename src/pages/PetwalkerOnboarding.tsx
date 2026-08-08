@@ -17,8 +17,6 @@ const PetwalkerOnboarding = () => {
   const [formData, setFormData] = useState({
     public_bio: '',
     experience_years: 0,
-    service_radius_km: 5,
-    price_30_minutes: 30,
   });
 
   const loadProfile = useCallback(async () => {
@@ -44,8 +42,6 @@ const PetwalkerOnboarding = () => {
         setFormData({
           public_bio: data.public_bio || '',
           experience_years: data.experience_years || 0,
-          service_radius_km: Number(data.service_radius_km) || 5,
-          price_30_minutes: Number(data.price_30_minutes) || 30,
         });
         setStatus('ready');
       } else {
@@ -76,12 +72,9 @@ const PetwalkerOnboarding = () => {
     
     setLoading(true);
     try {
-      // price_30_minutes must be integer, service_radius_km numeric
       const { error } = await supabase.rpc('update_petwalker_operational_profile', {
         _public_bio: formData.public_bio,
-        _experience_years: formData.experience_years,
-        _service_radius_km: formData.service_radius_km,
-        _price_30_minutes: Math.round(formData.price_30_minutes)
+        _experience_years: formData.experience_years
       });
 
       if (error) throw error;
@@ -181,34 +174,6 @@ const PetwalkerOnboarding = () => {
                 disabled={loading}
               />
             </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-bold ml-1">Raio (km)</label>
-              <Input 
-                required 
-                type="number"
-                min="1"
-                max="50"
-                className="h-14 rounded-2xl bg-white border-none shadow-sm"
-                value={formData.service_radius_km}
-                onChange={e => setFormData({...formData, service_radius_km: parseInt(e.target.value) || 5})}
-                disabled={loading}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-bold ml-1">Valor por 30 min (R$)</label>
-            <Input 
-              required 
-              type="number"
-              min="10"
-              step="1"
-              className="h-14 rounded-2xl bg-white border-none shadow-sm"
-              value={formData.price_30_minutes}
-              onChange={e => setFormData({...formData, price_30_minutes: parseInt(e.target.value) || 30})}
-              disabled={loading}
-            />
           </div>
 
           <Button 

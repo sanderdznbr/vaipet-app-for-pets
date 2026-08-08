@@ -8,7 +8,7 @@ const BRAND = '#31D880';
 
 const FAQS = [
   { q: 'Como agendar um passeio?', a: 'Toque em "Iniciar passear agora" na home, escolha o pet, a duração e o tipo de passeio. Um passeador próximo será notificado.' },
-  { q: 'Como funciona o pagamento?', a: 'O valor é calculado pela duração real do passeio. Recarregue sua carteira VaiPet para liberar passeios automáticos.' },
+  { q: 'Como funciona o pagamento?', a: 'O valor é calculado pela duração contratada do passeio. Recarregue sua carteira VaiPet para liberar passeios automáticos.' },
   { q: 'Posso cancelar um passeio?', a: 'Sim, sem custos enquanto nenhum passeador tiver aceitado. Após aceite, taxa simbólica pode ser aplicada.' },
   { q: 'Como cadastrar mais pets?', a: 'Em Perfil → Meus pets → "+ Adicionar". Sem limite de pets por conta.' },
   { q: 'O passeador está atrasado, e agora?', a: 'Acompanhe a chegada em tempo real no mapa. Em caso de problema, use o chat ou o suporte abaixo.' },

@@ -133,6 +133,37 @@ const SearchWalk = () => {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const userLocationRef = useRef<[number, number] | null>(null);
   const lastUserLocationStateAtRef = useRef(0);
+  
+  const [selectedMinutes, setSelectedMinutes] = useState(30);
+  const [scheduleMode, setScheduleMode] = useState<'now' | 'later'>('now');
+
+  const [quote, setQuote] = useState<any>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+
+  const fetchQuote = useCallback(async (duration: number, mode: 'now' | 'scheduled') => {
+    setQuoteLoading(true);
+    setQuoteError(null);
+    try {
+      const { data, error } = await supabase.rpc('get_walk_quote', {
+        _duration_minutes: duration,
+        _request_mode: mode
+      });
+      if (error) throw error;
+      setQuote(data);
+    } catch (err: any) {
+      console.error('Quote error:', err);
+      setQuoteError(err.message || 'Erro ao calcular orçamento');
+      setQuote(null);
+    } finally {
+      setQuoteLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchQuote(selectedMinutes, scheduleMode === 'now' ? 'now' : 'scheduled');
+  }, [selectedMinutes, scheduleMode, fetchQuote]);
+
   // Marker-level throttling for watchPosition. Even moving only the marker
   // imperatively on every GPS tick can cause perceptible flicker on mobile
   // because Mapbox repaints. We coalesce updates with a min interval AND a
@@ -181,9 +212,7 @@ const SearchWalk = () => {
   const [showPetSelector, setShowPetSelector] = useState(false);
   const [walkStartTime, setWalkStartTime] = useState<number>(0);
   const [walkDuration, setWalkDuration] = useState<number>(0);
-  const [selectedMinutes, setSelectedMinutes] = useState(30);
   const [showMoreDurations, setShowMoreDurations] = useState(false);
-  const [scheduleMode, setScheduleMode] = useState<'now' | 'later'>('now');
   const [scheduleDate, setScheduleDate] = useState<string>(() => {
     const d = new Date(); d.setDate(d.getDate() + 1);
     return d.toISOString().slice(0, 10);
@@ -986,7 +1015,13 @@ const SearchWalk = () => {
         walk_type: walkType,
         local_stops: orderedStops,
         home_location: userLocation ? { lng: userLocation[0], lat: userLocation[1] } : null,
-      } as never).select().single();
+        request_mode: scheduleMode === 'now' ? 'now' : 'scheduled',
+        scheduled_for: scheduleMode === 'later' ? `${scheduleDate}T${scheduleTime}:00Z` : null,
+        price_per_minute_cents: quote?.price_per_minute_cents,
+        pricing_surcharge_cents: quote?.surcharge_cents,
+        total_price_cents: quote?.total_price_cents,
+        pricing_version: quote?.pricing_version
+      } as any).select().single();
       if (error) throw error;
       // Success: disarm the watchdog BEFORE it can bounce us back to 'waiting'.
       sessionCreatedRef.current = true;
@@ -1779,7 +1814,7 @@ const SearchWalk = () => {
                               onDragStart={(e) => {
                                 dragIndexRef.current = i;
                                 e.dataTransfer.effectAllowed = 'move';
-                                try { e.dataTransfer.setData('text/plain', String(i)); } catch {}
+                                try { e.dataTransfer.setData('text/plain', String(i)); } catch (err) { console.error('Drag data error:', err); }
                               }}
                               onDragOver={(e) => {
                                 e.preventDefault();
@@ -1976,8 +2011,19 @@ const SearchWalk = () => {
                       </div>
                     )}
                     <div className="flex items-center justify-between px-4 py-3" style={{ borderTop: `1px solid ${ui.divider}` }}>
-                      <span className="text-xs font-semibold" style={{ color: ui.muted }}>Total</span>
-                      <span className="text-base font-extrabold text-[#31d880]">R$ {selectedMinutes},00</span>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-semibold" style={{ color: ui.muted }}>Total</span>
+                        {quoteError && <span className="text-[10px] text-red-500">{quoteError}</span>}
+                      </div>
+                      <span className="text-base font-extrabold text-[#31d880]">
+                        {quoteLoading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : quote ? (
+                          Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.total_price_cents / 100)
+                        ) : (
+                          `R$ ${selectedMinutes},00`
+                        )}
+                      </span>
                     </div>
                   </div>
 
@@ -1997,7 +2043,7 @@ const SearchWalk = () => {
                     petAvatar={selectedPets[0]?.avatar_url}
                     petAvatars={selectedPets.map(p => p.avatar_url)}
                     petName={selectedPets.length === 1 ? selectedPets[0].name : `${selectedPets.length} pets`}
-                    disabled={selectedPets.length === 0}
+                    disabled={selectedPets.length === 0 || quoteLoading || !!quoteError || !quote}
                   />
                 </div>
               )}
