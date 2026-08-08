@@ -987,7 +987,7 @@ const SearchWalk = () => {
         .single();
       
       if (walkerProfile) {
-        setWalker(prev => ({
+        setWalker((prev: WalkerProfile) => ({
           ...prev,
           name: (walkerProfile.profiles as any)?.full_name || 'Pet Walker',
           firstName: ((walkerProfile.profiles as any)?.full_name || 'Pet Walker').split(' ')[0],
