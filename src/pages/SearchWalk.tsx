@@ -1029,31 +1029,37 @@ const SearchWalk = () => {
         scheduledForIso = localDate.toISOString();
       }
 
-      const { data, error } = await supabase.from('walk_sessions').insert({
-        pet_id: selectedPets[0]?.id || null,
-        pet_ids: selectedPets.map(p => p.id),
-        category: selectedPets.length > 1 ? 'collective' : 'individual',
-        customer_id: user.id,
-        planned_duration_minutes: selectedMinutes,
-        start_time: start.toISOString(),
-        route_coordinates: [],
-        status: 'active',
-        walker_name: walker.name,
-        walk_type: walkType,
-        local_stops: orderedStops,
-        home_location: userLocation ? { lng: userLocation[0], lat: userLocation[1] } : null,
-        request_mode: scheduleMode === 'now' ? 'now' : 'scheduled',
-        scheduled_for: scheduledForIso,
-        pricing_version: quote?.pricing_version
-      } as any).select().single();
-      if (error) throw error;
+      // PHASE 3: Real Walk Request via RPC
+      const { data: sessionId, error: rpcError } = await supabase.rpc('create_walk_request', {
+        _pet_ids: selectedPets.map(p => p.id),
+        _planned_duration_minutes: selectedMinutes,
+        _request_mode: scheduleMode === 'now' ? 'now' : 'scheduled',
+        _scheduled_for: scheduledForIso,
+        _meeting_lng: userLocation[0],
+        _meeting_lat: userLocation[1],
+        _meeting_address: 'Localização atual',
+        _walk_type: walkType
+      });
+
+      if (rpcError) throw rpcError;
+
+      // Fetch the newly created session to keep UI consistency
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('walk_sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single();
+
+      if (sessionError) throw sessionError;
+
       // Success: disarm the watchdog BEFORE it can bounce us back to 'waiting'.
       sessionCreatedRef.current = true;
       if (recoveryTimeoutRef.current) {
         clearTimeout(recoveryTimeoutRef.current);
         recoveryTimeoutRef.current = null;
       }
-      setCurrentSessionId(data.id);
+      setCurrentSessionId(sessionData.id);
+
     } catch (e) {
       console.error('Error creating walk session:', e);
       if (recoveryTimeoutRef.current) {
