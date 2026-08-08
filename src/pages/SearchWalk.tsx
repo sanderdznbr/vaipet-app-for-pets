@@ -987,15 +987,14 @@ const SearchWalk = () => {
         .single();
       
       if (walkerProfile) {
-        setWalker({
-          id: walkerProfile.user_id,
+        setWalker(prev => ({
+          ...prev,
           name: (walkerProfile.profiles as any)?.full_name || 'Pet Walker',
+          firstName: ((walkerProfile.profiles as any)?.full_name || 'Pet Walker').split(' ')[0],
           avatar: (walkerProfile.profiles as any)?.avatar_url || '',
           rating: Number(walkerProfile.rating_average || 0),
-          completedWalks: Number(walkerProfile.completed_walks || 0),
-          bio: walkerProfile.public_bio || '',
-          transport: 'walking' // default
-        });
+          walks: Number(walkerProfile.completed_walks || 0),
+        }));
         
         const loc = walkerProfile.last_known_location as { coordinates: [number, number] } | null;
         if (loc?.coordinates) {
@@ -2099,7 +2098,7 @@ const SearchWalk = () => {
       {/* Waiting */}
       {searchStatus === 'waiting' && (
         <WaitingForAcceptance
-          onAccepted={handleAccepted}
+          onAccepted={(data) => handleAccepted(data)}
           onTimeout={handleTimeout}
           onCancel={handleCancel}
           petwalkerName={walker.firstName}
