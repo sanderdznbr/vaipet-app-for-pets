@@ -321,7 +321,7 @@ const Auth = () => {
                 <div className="relative flex justify-center text-xs uppercase"><span className="px-2 text-black/40" style={{ backgroundColor: PAPER }}>Ou continue com</span></div>
               </div>
               <div className="w-full flex flex-col gap-3">
-                <button onClick={() => handleOAuth('google')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-black/5 shadow-sm bg-white h-[64px] rounded-[20px]">
+                <button onClick={() => handleOAuth('google')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-black/5 shadow-sm bg-white h-[56px] sm:h-[64px] rounded-[20px]">
                   <span className="flex items-center gap-4">
                     <GoogleIcon />
                     <span className="text-[15px] font-bold">Google</span>
