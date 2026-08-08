@@ -657,13 +657,7 @@ const SearchWalk = () => {
       stopMarkersRef.current.forEach((mk) => mk.remove());
       stopMarkersRef.current = [];
     };
-    // Show the planned route ONLY while the user is reviewing/confirming the
-    // stops (step 3). Once they move on (step 4 = searching for walker) the
-    // dashed planned route disappears; it will reappear later when the
-    // petwalker actually starts the walk (handled in WalkInProgress).
-    // Local stops route preview is drawn while the user is on the "Tipo de
-    // passeio" step (now step 2, after the step order was inverted so the
-    // walk type is chosen BEFORE the duration).
+    // Planned route preview.
     const shouldDraw = step === 2;
     if (!shouldDraw || walkType !== 'local' || !userLocation || localStops.length === 0) {
       ensureRemoved();
