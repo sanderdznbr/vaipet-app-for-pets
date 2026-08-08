@@ -143,11 +143,11 @@ const Auth = () => {
       className="min-h-[100dvh] w-full flex items-center justify-center overflow-hidden relative"
       style={{ backgroundColor: PAPER, color: INK, fontFamily: "'DM Sans', system-ui, sans-serif" }}
     >
-      <header className="fixed top-0 left-0 right-0 z-20 flex flex-col items-center gap-6 py-10 pointer-events-none">
-        <div className="w-full max-w-md px-6 flex flex-col items-center gap-6 pointer-events-auto">
-          <img src="/vaipet-logo.svg" alt="VaiPet" className="w-24 h-auto" />
+      <header className="fixed top-0 left-0 right-0 z-20 flex flex-col items-center py-6 sm:py-8 pointer-events-none bg-inherit">
+        <div className="w-full max-w-md px-6 flex flex-col items-center gap-4 sm:gap-6 pointer-events-auto">
+          <img src="/vaipet-logo.svg" alt="VaiPet" className="w-20 sm:w-24 h-auto" />
           
-          <div className="w-full h-10 flex items-center">
+          <div className="w-full h-8 sm:h-10 flex items-center">
             <AnimatePresence>
               {(isForgotPassword || (isRegistering && signupIntent)) && (
                 <motion.button
@@ -169,8 +169,8 @@ const Auth = () => {
         </div>
       </header>
 
-      <main className="w-full flex flex-col items-center px-6 pt-52 pb-10 relative z-10 overflow-y-auto max-h-[100dvh]">
-        <div className="w-full max-w-md flex flex-col gap-6">
+      <main className="w-full flex flex-col items-center px-6 pt-40 sm:pt-48 pb-10 relative z-10 overflow-y-auto max-h-[100dvh]">
+        <div className="w-full max-w-md flex flex-col gap-4 sm:gap-6">
           <AnimatePresence mode="wait">
             {isRecoveryMode ? (
               <motion.div
