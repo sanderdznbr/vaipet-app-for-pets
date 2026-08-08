@@ -181,11 +181,7 @@ const SearchWalk = () => {
   const lastMarkerPosRef = useRef<[number, number] | null>(null);
   const pendingLocRef = useRef<[number, number] | null>(null);
   const watchDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Adaptive EMA filter state for GPS smoothing. We keep a smoothed [lng,lat]
-  // and adjust the smoothing factor (alpha) based on GPS accuracy + the
-  // magnitude of the jump: low accuracy / small jumps → heavy smoothing
-  // (alpha small, marker barely moves); large jumps with good accuracy →
-  // light smoothing (alpha high, marker snaps to reality fast).
+  // EMA filter for GPS smoothing.
   const emaPosRef = useRef<[number, number] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [searchStatus, setSearchStatus] = useState<'idle' | 'searching' | 'found' | 'waiting' | 'accepted' | 'walking' | 'reviewing' | 'error'>('idle');
