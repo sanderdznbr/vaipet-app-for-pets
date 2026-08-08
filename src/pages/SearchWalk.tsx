@@ -574,8 +574,7 @@ const SearchWalk = () => {
           m.setConfigProperty('basemap', 'colorRoadLabels', "#84908A");
           m.setConfigProperty('basemap', 'colorPlaceLabels', "#46534D");
         } else {
-          // Reset to default standard colors for night mode (Ink theme)
-          // The tintMapInk function will handle the Ink overlay for legacy layers
+          // Night mode (Ink theme).
           m.setConfigProperty('basemap', 'colorLand', null);
           m.setConfigProperty('basemap', 'colorWater', null);
           m.setConfigProperty('basemap', 'colorGreenspace', null);
