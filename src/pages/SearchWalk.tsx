@@ -137,7 +137,14 @@ const SearchWalk = () => {
   const [selectedMinutes, setSelectedMinutes] = useState(30);
   const [scheduleMode, setScheduleMode] = useState<'now' | 'later'>('now');
 
-  const [quote, setQuote] = useState<any>(null);
+  const [quote, setQuote] = useState<{
+    duration_minutes: number;
+    price_per_minute_cents: number;
+    request_surcharge_cents: number;
+    total_price_cents: number;
+    pricing_version: number;
+    request_mode: string;
+  } | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
@@ -150,10 +157,14 @@ const SearchWalk = () => {
         _request_mode: mode
       });
       if (error) throw error;
-      setQuote(data);
-    } catch (err: any) {
+      if (data && (data as any[]).length > 0) {
+        setQuote((data as any[])[0]);
+      } else {
+        setQuote(null);
+      }
+    } catch (err: unknown) {
       console.error('Quote error:', err);
-      setQuoteError(err.message || 'Erro ao calcular orçamento');
+      setQuoteError('Orçamento indisponível');
       setQuote(null);
     } finally {
       setQuoteLoading(false);
