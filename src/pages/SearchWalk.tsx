@@ -1015,7 +1015,13 @@ const SearchWalk = () => {
         walk_type: walkType,
         local_stops: orderedStops,
         home_location: userLocation ? { lng: userLocation[0], lat: userLocation[1] } : null,
-      } as never).select().single();
+        request_mode: scheduleMode === 'now' ? 'now' : 'scheduled',
+        scheduled_for: scheduleMode === 'later' ? `${scheduleDate}T${scheduleTime}:00Z` : null,
+        price_per_minute_cents: quote?.price_per_minute_cents,
+        pricing_surcharge_cents: quote?.surcharge_cents,
+        total_price_cents: quote?.total_price_cents,
+        pricing_version: quote?.pricing_version
+      } as any).select().single();
       if (error) throw error;
       // Success: disarm the watchdog BEFORE it can bounce us back to 'waiting'.
       sessionCreatedRef.current = true;
