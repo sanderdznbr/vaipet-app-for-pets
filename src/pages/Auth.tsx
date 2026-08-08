@@ -328,7 +328,7 @@ const Auth = () => {
                   </span>
                   <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
                 </button>
-                <button onClick={() => handleOAuth('apple')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-black/5 shadow-sm bg-white h-[64px] rounded-[20px]">
+                <button onClick={() => handleOAuth('apple')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-black/5 shadow-sm bg-white h-[56px] sm:h-[64px] rounded-[20px]">
                   <span className="flex items-center gap-4">
                     <AppleIcon />
                     <span className="text-[15px] font-bold">Apple</span>
