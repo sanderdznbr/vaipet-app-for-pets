@@ -18,7 +18,7 @@ export const PetwalkerNavigation = () => {
   return (
     <nav
       aria-label="Navegação do PetWalker"
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur"
+      className="fixed bottom-0 left-0 right-0 z-[60] border-t border-border bg-background/95 backdrop-blur"
       style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }}
     >
       <div className="max-w-md mx-auto flex items-center justify-around pt-2">
