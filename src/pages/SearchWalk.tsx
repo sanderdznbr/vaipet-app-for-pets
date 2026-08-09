@@ -244,6 +244,7 @@ const SearchWalk = () => {
   const resumeHandledRef = useRef(false);
   // Return phase state.
   const [isReturning, setIsReturning] = useState(false);
+  const [matchingExpiresAt, setMatchingExpiresAt] = useState<string | null>(null);
 
   useEffect(() => {
     searchStatusRef.current = searchStatus;
@@ -924,6 +925,17 @@ const SearchWalk = () => {
       });
 
       if (rpcError) throw rpcError;
+      
+      const { data: sessionData } = await supabase
+        .from('walk_sessions')
+        .select('matching_expires_at')
+        .eq('id', sessionId)
+        .single();
+      
+      if (sessionData?.matching_expires_at) {
+        setMatchingExpiresAt(sessionData.matching_expires_at);
+      }
+
       setCurrentSessionId(sessionId);
       setSearchStatus('waiting');
       setIsSearching(false);
@@ -944,7 +956,6 @@ const SearchWalk = () => {
     
     setSearchStatus('walking');
     
-    // Disarm watchdog if needed (though we rely more on sessionData now)
     sessionCreatedRef.current = true;
     if (recoveryTimeoutRef.current) {
       clearTimeout(recoveryTimeoutRef.current);
@@ -956,37 +967,20 @@ const SearchWalk = () => {
     const startTime = sessionData.start_time ? new Date(sessionData.start_time).getTime() : Date.now();
     setWalkStartTime(startTime);
     
-    // Fetch walker profile and location
     if (sessionData.walker_id) {
-      const { data: walkerProfile } = await supabase
-        .from('petwalker_profiles')
-        .select('*, profiles(full_name, avatar_url)')
-        .eq('user_id', sessionData.walker_id)
-        .single();
+      const { data: walkerProfile, error: profileError } = await supabase
+        .rpc('get_session_walker_profile' as any, { _session_id: sessionData.id });
       
-      if (walkerProfile) {
+      if (!profileError && walkerProfile && (walkerProfile as any[]).length > 0) {
+        const profile = (walkerProfile as any[])[0];
         setWalker((prev: WalkerProfile) => ({
           ...prev,
-          name: (walkerProfile.profiles as any)?.full_name || 'Pet Walker',
-          firstName: ((walkerProfile.profiles as any)?.full_name || 'Pet Walker').split(' ')[0],
-          avatar: (walkerProfile.profiles as any)?.avatar_url || '',
-          rating: Number(walkerProfile.rating_average || 0),
-          walks: Number(walkerProfile.completed_walks || 0),
+          name: profile.full_name || 'Pet Walker',
+          firstName: (profile.full_name || 'Pet Walker').split(' ')[0],
+          avatar: profile.avatar_url || '',
+          rating: Number(profile.rating_average || 0),
+          walks: Number(profile.completed_walks || 0),
         }));
-        
-        const loc = walkerProfile.last_known_location as { coordinates: [number, number] } | null;
-        if (loc?.coordinates) {
-          const wLoc: [number, number] = [loc.coordinates[0], loc.coordinates[1]];
-          setWalkerLocation(wLoc);
-          
-          if (map.current) {
-             const el = document.createElement('div');
-             el.className = 'relative w-10 h-10';
-             el.innerHTML = `<div class="absolute inset-0 rounded-full bg-[#31D880] animate-pulse opacity-30"></div><div class="relative w-10 h-10 rounded-full border-2 border-[#31D880] overflow-hidden bg-white shadow-lg"><img src="${(walkerProfile.profiles as any)?.avatar_url || '/vaipet-logo.svg'}" alt="Walker" class="w-full h-full object-cover" /></div>`;
-             walkerMarker.current = new mapboxgl.Marker(el, { anchor: 'bottom' }).setLngLat(wLoc).addTo(map.current);
-             addRouteToMap(userLocationRef.current || userLocation || [0, 0], wLoc);
-          }
-        }
       }
     }
   }, [user, walkerMarker, userLocation, addRouteToMap]);
@@ -996,8 +990,8 @@ const SearchWalk = () => {
     if (isReturning) return;
     setIsReturning(true);
     if (currentSessionId) {
-      const { error } = await supabase.rpc('customer_request_return' as any, {
-        _walk_session_id: currentSessionId
+      const { error } = await supabase.rpc('customer_request_return', {
+        _session_id: currentSessionId
       });
       if (error) {
         console.error('Falha ao iniciar retorno:', error);
@@ -1012,8 +1006,8 @@ const SearchWalk = () => {
     const dur = Math.floor((Date.now() - walkStartTime) / 1000);
     setWalkDuration(dur);
     if (currentSessionId) {
-      const { error } = await supabase.rpc('customer_confirm_arrival' as any, {
-        _walk_session_id: currentSessionId
+      const { error } = await supabase.rpc('customer_confirm_arrival', {
+        _session_id: currentSessionId
       });
       if (error) {
         console.error('Falha ao confirmar chegada:', error);
@@ -1050,6 +1044,8 @@ const SearchWalk = () => {
             handleAccepted(payload.new);
           } else if (newStatus === 'expired' || newStatus === 'cancelled') {
             handleTimeout();
+          } else if (payload.new.matching_expires_at) {
+            setMatchingExpiresAt(payload.new.matching_expires_at);
           }
         }
       )
@@ -1058,6 +1054,7 @@ const SearchWalk = () => {
     // Check immediate state if already accepted
     const checkStatus = async () => {
        const { data } = await supabase.from('walk_sessions').select('*').eq('id', currentSessionId).single();
+       if (data?.matching_expires_at) setMatchingExpiresAt(data.matching_expires_at);
        if (data?.current_status === 'accepted' && searchStatusRef.current !== 'walking') {
           handleAccepted(data);
        }
@@ -1131,6 +1128,8 @@ const SearchWalk = () => {
     setIsCancellingWalk(false);
     cleanupPreviousSearch();
     setSearchStatus('idle');
+    setMatchingExpiresAt(null);
+    setCurrentSessionId(null);
     navigate('/');
   };
 

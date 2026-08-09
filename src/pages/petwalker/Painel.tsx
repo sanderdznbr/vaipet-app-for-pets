@@ -75,7 +75,7 @@ const PetwalkerPainel = () => {
           .from('walk_sessions')
           .select('*, customer:profiles!customer_id(full_name), pet:pets!pet_id(name, breed)')
           .eq('walker_id', user.id)
-          .in('current_status', ['accepted', 'heading_to_pickup', 'arrived', 'in_progress'])
+          .in('current_status', ['accepted', 'heading_to_pickup', 'arrived', 'in_progress', 'returning'])
           .maybeSingle();
         
         setActiveRequest(request as WalkSession);

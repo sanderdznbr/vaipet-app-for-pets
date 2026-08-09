@@ -17,6 +17,7 @@ interface WaitingForAcceptanceProps {
     rating?: number;
     completed_walks?: number;
   } | null;
+  matchingExpiresAt?: string | null;
 }
 
 
@@ -24,7 +25,8 @@ export const WaitingForAcceptance: React.FC<WaitingForAcceptanceProps> = ({
   onTimeout, onCancel,
   isDarkMode = false,
   userLocation = null,
-  walkerData = null
+  walkerData = null,
+  matchingExpiresAt = null
 }) => {
   const petwalkerName = walkerData?.name || "Buscando...";
   const petwalkerAvatar = walkerData?.avatar_url || "https://upload.wikimedia.org/wikipedia/commons/b/bf/Foto_Perfil_.jpg";
@@ -84,20 +86,22 @@ export const WaitingForAcceptance: React.FC<WaitingForAcceptanceProps> = ({
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft(prev => { 
-        if (prev <= 1) { 
-          clearInterval(timer); 
-          onTimeout(); 
-          return 0; 
-        } 
-        return prev - 1; 
-      });
+      if (!matchingExpiresAt) return;
+      
+      const expiry = new Date(matchingExpiresAt).getTime();
+      const now = Date.now();
+      const diff = Math.max(0, Math.floor((expiry - now) / 1000));
+      
+      setTimeLeft(diff);
+      
+      if (diff <= 0) {
+        clearInterval(timer);
+        onTimeout();
+      }
     }, 1000);
     
-    // REMOVED acceptanceTimer: Relying solely on real PetWalker acceptance
-    // The monitoring is now handled in SearchWalk.tsx via Realtime
     return () => clearInterval(timer);
-  }, [onTimeout]);
+  }, [onTimeout, matchingExpiresAt]);
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
