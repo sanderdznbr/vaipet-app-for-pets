@@ -236,7 +236,7 @@ const SearchWalk = () => {
   const stopMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sheetExpanded, setSheetExpanded] = useState(true);
-  const [walker, setWalker] = useState<WalkerProfile>(() => generateRandomWalker());
+  const [walker, setWalker] = useState<WalkerProfile | null>(null);
   const [pickupRoute, setPickupRoute] = useState<[number, number][]>([]);
   const [transport, setTransport] = useState<TransportInfo | null>(null);
   // Resume walk state.
