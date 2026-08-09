@@ -637,7 +637,7 @@ const SearchWalk = () => {
           },
         });
         if (error) throw error;
-        const feats = ((data as { results: any[] })?.results || []).map((r: { id: string; address: string; name: string; lng: number; lat: number }) => ({
+        const feats = ((data as { results: Array<{ id: string; address: string; name: string; lng: number; lat: number }> })?.results || []).map((r) => ({
           id: r.id,
           place_name: r.address,
           text: r.name,
