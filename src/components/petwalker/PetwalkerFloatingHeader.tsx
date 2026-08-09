@@ -8,7 +8,7 @@ import { User } from '@supabase/supabase-js';
 interface PetwalkerFloatingHeaderProps {
   user: User | null;
   isOnline: boolean;
-  gpsStatus: 'loading' | 'active' | 'denied' | 'error' | 'unstable';
+  gpsStatus: 'requesting' | 'synced' | 'unstable' | 'stale' | 'denied' | 'error';
 }
 
 export const PetwalkerFloatingHeader = ({ user, isOnline, gpsStatus }: PetwalkerFloatingHeaderProps) => {
