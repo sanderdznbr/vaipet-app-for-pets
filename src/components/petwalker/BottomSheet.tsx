@@ -9,6 +9,8 @@ interface BottomSheetProps {
   title?: string;
   className?: string;
   isHighPriority?: boolean;
+  dismissible?: boolean;
+  navigationOffset?: boolean;
 }
 
 export const BottomSheet = ({ 
@@ -17,7 +19,9 @@ export const BottomSheet = ({
   children, 
   title, 
   className,
-  isHighPriority = false 
+  isHighPriority = false,
+  dismissible = true,
+  navigationOffset = true
 }: BottomSheetProps) => {
   return (
     <AnimatePresence>
