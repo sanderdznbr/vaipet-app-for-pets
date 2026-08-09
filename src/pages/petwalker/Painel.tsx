@@ -331,25 +331,6 @@ const PetwalkerPainel = () => {
             </div>
           )}
 
-          {/* Beta Simulation Tools (Condition Placeholder) */}
-          <Card className="p-5 border-2 border-dashed border-[#31D880]/30 rounded-[28px] bg-white/50">
-            <div className="flex items-center gap-2 mb-4 text-[#31D880]">
-              <ShieldCheck size={18} />
-              <h3 className="font-bold text-sm uppercase tracking-widest">Beta Simulation Tools</h3>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" className="h-10 text-xs rounded-xl border-gray-200">
-                Simular Rota
-              </Button>
-              <Button variant="outline" className="h-10 text-xs rounded-xl border-gray-200">
-                Resetar GPS
-              </Button>
-            </div>
-            <p className="text-[10px] text-muted-foreground mt-3 text-center italic">
-              Apenas visível para contas PetWalker Beta.
-            </p>
-          </Card>
         </main>
 
         <PetwalkerNavigation />

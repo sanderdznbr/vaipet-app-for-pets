@@ -14,7 +14,7 @@ import { WalkInProgress } from '../components/WalkInProgress';
 import { ReviewWalk } from '../components/ReviewWalk';
 import { CancelWalkDialog } from '../components/CancelWalkDialog';
 import { BottomNavigation } from '../components/BottomNavigation';
-import { generateRandomWalker, buildBetaWalker, pickTransportForDistance, TransportInfo, WalkerProfile } from '@/lib/walkerProfile';
+import { pickTransportForDistance, TransportInfo, WalkerProfile } from '@/lib/walkerProfile';
 import { preloadDog3DAsset } from '@/lib/dog3dLayer';
 import { preloadCheckpointAsset } from '@/lib/checkpoint3dLayer';
 import { SlideToConfirm } from '../components/SlideToConfirm';
@@ -236,7 +236,7 @@ const SearchWalk = () => {
   const stopMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sheetExpanded, setSheetExpanded] = useState(true);
-  const [walker, setWalker] = useState<WalkerProfile>(() => generateRandomWalker());
+  const [walker, setWalker] = useState<WalkerProfile | null>(null);
   const [pickupRoute, setPickupRoute] = useState<[number, number][]>([]);
   const [transport, setTransport] = useState<TransportInfo | null>(null);
   // Resume walk state.
@@ -329,7 +329,7 @@ const SearchWalk = () => {
           setWalkerLocation(fallback);
         }
 
-        setWalker(buildBetaWalker());
+        // setWalker(buildBetaWalker()); // Mock removed
         setCurrentSessionId(session.id);
         setWalkStartTime(new Date(session.start_time).getTime());
         if (session.status === 'returning') setIsReturning(true);
@@ -905,8 +905,8 @@ const SearchWalk = () => {
         _duration_minutes: selectedMinutes,
         _request_mode: scheduleMode === 'now' ? 'now' : 'scheduled',
         _scheduled_for: scheduledForIso,
-        _meeting_point_lng: userLocation[0],
-        _meeting_point_lat: userLocation[1],
+        _meeting_point_lng: Number(userLocation[0]),
+        _meeting_point_lat: Number(userLocation[1]),
         _meeting_point_address: 'Localização atual'
       });
 
@@ -983,13 +983,13 @@ const SearchWalk = () => {
     if (isReturning) return;
     setIsReturning(true);
     if (currentSessionId) {
-      try {
-        await supabase
-          .from('walk_sessions')
-          .update({ current_status: 'returning', status: 'returning' })
-          .eq('id', currentSessionId);
-      } catch (e) {
-        console.error('Falha ao iniciar retorno:', e);
+      const { error } = await supabase.rpc('customer_request_return' as any, {
+        _walk_session_id: currentSessionId
+      });
+      if (error) {
+        console.error('Falha ao iniciar retorno:', error);
+        toast.error('Erro ao solicitar retorno');
+        setIsReturning(false);
       }
     }
   };
@@ -999,18 +999,13 @@ const SearchWalk = () => {
     const dur = Math.floor((Date.now() - walkStartTime) / 1000);
     setWalkDuration(dur);
     if (currentSessionId) {
-      try {
-        await supabase
-          .from('walk_sessions')
-          .update({
-            current_status: 'completed',
-            status: 'completed',
-            end_time: new Date().toISOString(),
-            actual_duration_minutes: Math.max(1, Math.round(dur / 60)),
-          })
-          .eq('id', currentSessionId);
-      } catch (e) {
-        console.error('Falha ao confirmar chegada:', e);
+      const { error } = await supabase.rpc('customer_confirm_arrival' as any, {
+        _walk_session_id: currentSessionId
+      });
+      if (error) {
+        console.error('Falha ao confirmar chegada:', error);
+        toast.error('Erro ao confirmar chegada');
+        return;
       }
     }
     setSearchStatus('reviewing');
@@ -1060,7 +1055,9 @@ const SearchWalk = () => {
       supabase.removeChannel(channel);
     };
   }, [currentSessionId]);
-  const handleOpenChat = () => alert('Chat com o PetWalker Beta será aberto em breve!');
+  const handleOpenChat = () => {
+    // Chat implementation will use the session state
+  };
   const handleRequestPhotos = () => alert('Solicitação de fotos enviada!');
   const handleTimeout = () => { cleanupPreviousSearch(); setSearchStatus('idle'); setTimeout(handleSearch, 1000); };
   const handleCancel = () => setShowCancelDialog(true);
@@ -2049,6 +2046,12 @@ const SearchWalk = () => {
           onCancel={handleCancel}
           isDarkMode={!mapIsDay}
           userLocation={userLocation}
+          walkerData={walker ? {
+            name: walker.name,
+            avatar_url: walker.avatar || walker.avatar_url || '',
+            rating: walker.rating,
+            completed_walks: walker.walks || walker.completed_walks || 0
+          } : null}
         />
       )}
 

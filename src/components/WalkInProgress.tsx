@@ -165,7 +165,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
   const [currentRouteIndex, setCurrentRouteIndex] = useState(0);
   const [distanceWalked, setDistanceWalked] = useState(0);
   const [panelExpanded, setPanelExpanded] = useState(true);
-  // Pop-up de chat com o PetWalker Beta (substitui o antigo botão "Encerrar").
+  // Pop-up de chat com o PetWalker (substitui o antigo botão "Encerrar").
   const [chatOpen, setChatOpen] = useState(false);
   // Pop-up de suporte ao vivo VaiPet (acionado pelo botão "Precisa de ajuda?").
   const [supportOpen, setSupportOpen] = useState(false);

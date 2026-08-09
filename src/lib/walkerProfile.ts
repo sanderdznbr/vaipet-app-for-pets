@@ -48,6 +48,8 @@ export interface WalkerProfile {
   rating: number;
   walks: number;
   code: string; // 4-digit pickup confirmation code
+  avatar_url?: string; // Unified with DB schema
+  completed_walks?: number; // Unified with DB schema
 }
 
 // Always returns the single PetWalker Beta profile. A fresh 4-digit pickup
