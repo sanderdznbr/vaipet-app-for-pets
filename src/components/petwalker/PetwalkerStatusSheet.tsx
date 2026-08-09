@@ -8,7 +8,7 @@ import { PetwalkerGpsStatus } from './PetwalkerGpsStatus';
 interface PetwalkerStatusSheetProps {
   isOnline: boolean;
   onToggleOnline: () => void;
-  gpsStatus: 'loading' | 'active' | 'denied' | 'error' | 'unstable';
+  gpsStatus: 'requesting' | 'synced' | 'unstable' | 'stale' | 'denied' | 'error';
   lastSync: Date | null;
   onRetryGps: () => void;
 }
@@ -91,8 +91,6 @@ export const PetwalkerStatusSheet = ({
                 <p className="text-[11px] text-muted-foreground font-medium">As solicitações aparecerão aqui automaticamente</p>
               </div>
             </div>
-
-            <PetwalkerGpsStatus gpsStatus={gpsStatus} lastSync={lastSync} />
           </div>
         </div>
       )}

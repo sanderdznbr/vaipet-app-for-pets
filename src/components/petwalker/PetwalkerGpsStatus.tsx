@@ -3,7 +3,7 @@ import { Locate, LocateOff, Navigation } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PetwalkerGpsStatusProps {
-  gpsStatus: 'loading' | 'active' | 'denied' | 'error' | 'unstable';
+  gpsStatus: 'requesting' | 'synced' | 'unstable' | 'stale' | 'denied' | 'error';
   lastSync: Date | null;
   className?: string;
 }
@@ -23,8 +23,8 @@ export const PetwalkerGpsStatus = ({ gpsStatus, lastSync, className }: Petwalker
   return (
     <div className={cn("flex items-center justify-between text-[11px] text-muted-foreground font-medium px-1", className)}>
       <div className="flex items-center gap-1.5">
-        <Locate size={12} className={cn(gpsStatus === 'active' ? "text-[#31D880]" : "text-orange-400")} />
-        <span>{gpsStatus === 'active' ? 'Localização ativa' : 'GPS instável'}</span>
+        <Locate size={12} className={cn(gpsStatus === 'synced' ? "text-[#31D880]" : "text-orange-400")} />
+        <span>{gpsStatus === 'synced' ? 'Localização ativa' : 'GPS instável'}</span>
       </div>
       <span>
         {lastSync 

@@ -8,7 +8,7 @@ import { User } from '@supabase/supabase-js';
 interface PetwalkerFloatingHeaderProps {
   user: User | null;
   isOnline: boolean;
-  gpsStatus: 'loading' | 'active' | 'denied' | 'error' | 'unstable';
+  gpsStatus: 'requesting' | 'synced' | 'unstable' | 'stale' | 'denied' | 'error';
 }
 
 export const PetwalkerFloatingHeader = ({ user, isOnline, gpsStatus }: PetwalkerFloatingHeaderProps) => {
@@ -37,16 +37,19 @@ export const PetwalkerFloatingHeader = ({ user, isOnline, gpsStatus }: Petwalker
           <div className={cn(
             "w-2 h-2 rounded-full",
             !isOnline ? "bg-gray-400" : 
-            gpsStatus === 'active' ? "bg-[#31D880] animate-pulse" :
-            gpsStatus === 'unstable' ? "bg-orange-400" : "bg-red-500"
+            gpsStatus === 'synced' ? "bg-[#31D880] animate-pulse" :
+            gpsStatus === 'unstable' ? "bg-orange-400" : 
+            gpsStatus === 'stale' ? "bg-orange-500" : "bg-red-500"
           )} />
           <span className={cn(
             "text-[13px] font-bold tracking-tight",
             !isOnline ? "text-gray-500" : "text-ink"
           )}>
             {!isOnline ? 'Offline' : 
-             gpsStatus === 'active' ? 'Online' : 
-             gpsStatus === 'unstable' ? 'GPS instável' : 'Sem localização'}
+             gpsStatus === 'synced' ? 'Online' : 
+             gpsStatus === 'unstable' ? 'Ajustando GPS' : 
+             gpsStatus === 'stale' ? 'Localização desatualizada' : 
+             gpsStatus === 'denied' ? 'Ativar localização' : 'Sem localização'}
           </span>
         </div>
       </div>
