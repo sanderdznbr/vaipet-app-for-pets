@@ -329,7 +329,7 @@ const SearchWalk = () => {
           setWalkerLocation(fallback);
         }
 
-        // setWalker(buildBetaWalker()); // Mock removed
+        // setWalker(null); // Explicitly null while searching
         setCurrentSessionId(session.id);
         setWalkStartTime(new Date(session.start_time).getTime());
         if (session.status === 'returning') setIsReturning(true);
@@ -776,11 +776,6 @@ const SearchWalk = () => {
 
   // Dark mode only.
 
-  const generateRandomWalkerLocation = (loc: [number, number]): [number, number] => {
-    const d = Math.random() * 0.015 + 0.005;
-    const a = Math.random() * 2 * Math.PI;
-    return [loc[0] + d * Math.cos(a), loc[1] + d * Math.sin(a)];
-  };
 
   const calculateRouteInfo = (u: [number, number], w: [number, number]) => {
     const R = 6371;
@@ -903,7 +898,7 @@ const SearchWalk = () => {
       const { data: sessionId, error: rpcError } = await supabase.rpc('create_walk_request', {
         _pet_id: selectedPets[0]?.id,
         _duration_minutes: selectedMinutes,
-        _request_mode: scheduleMode === 'now' ? 'now' : 'scheduled',
+        _request_mode: (scheduleMode === 'now' ? 'now' : 'scheduled'),
         _scheduled_for: scheduledForIso,
         _meeting_point_lng: Number(userLocation[0]),
         _meeting_point_lat: Number(userLocation[1]),
@@ -1055,6 +1050,38 @@ const SearchWalk = () => {
       supabase.removeChannel(channel);
     };
   }, [currentSessionId]);
+  
+  // Continuous walker tracking for the customer
+  useEffect(() => {
+    if (!currentSessionId || searchStatus !== 'walking') return;
+    
+    let isSubscribed = true;
+    const pollInterval = setInterval(async () => {
+      const { data, error } = await supabase.rpc('get_active_walker_location', {
+        _session_id: currentSessionId
+      });
+      
+      if (!isSubscribed) return;
+      
+      if (!error && data && (data as any[]).length > 0) {
+        const loc = (data as any[])[0];
+        if (loc.lng && loc.lat) {
+          const newPos: [number, number] = [loc.lng, loc.lat];
+          // Update walker location only if it significantly moved
+          setWalkerLocation(prev => {
+            if (!prev) return newPos;
+            const dist = distanceMeters(prev, newPos);
+            return dist > 5 ? newPos : prev;
+          });
+        }
+      }
+    }, 5000); // 5s poll for tracking
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(pollInterval);
+    };
+  }, [currentSessionId, searchStatus]);
   const handleOpenChat = () => {
     // Chat implementation will use the session state
   };
@@ -1073,15 +1100,14 @@ const SearchWalk = () => {
   const handleCancelComplete = async () => {
     if (currentSessionId) {
       try {
-        await supabase
-          .from('walk_sessions')
-          .update({
-            status: 'cancelled',
-            end_time: new Date().toISOString(),
-          } as never)
-          .eq('id', currentSessionId);
+        const { data, error } = await supabase.rpc('customer_cancel_search', {
+          _session_id: currentSessionId
+        });
+        if (error) throw error;
       } catch (e) {
-        console.error('Falha ao cancelar passeio:', e);
+        console.error('Falha ao cancelar solicitação:', e);
+        toast.error('Erro ao cancelar solicitação');
+        return; // Don't advance UI if server failed
       }
     }
     setIsCancellingWalk(false);

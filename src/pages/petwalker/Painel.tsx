@@ -30,6 +30,17 @@ type WalkOffer = {
 
 type uuid = string;
 
+const distanceMeters = (a: [number, number], b: [number, number]) => {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b[1] - a[1]);
+  const dLng = toRad(b[0] - a[0]);
+  const lat1 = toRad(a[1]);
+  const lat2 = toRad(b[1]);
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+};
+
 const PetwalkerPainel = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -38,6 +49,8 @@ const PetwalkerPainel = () => {
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
   const watchId = useRef<number | null>(null);
+  const lastLocationUpdateAtRef = useRef<number>(0);
+  const lastLocationRef = useRef<[number, number] | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -119,11 +132,21 @@ const PetwalkerPainel = () => {
     
     watchId.current = window.navigator.geolocation.watchPosition(
       async (pos) => {
-        const { latitude, longitude, accuracy } = pos.coords;
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        const now = Date.now();
+        
+        // Throttle: max 1 update every 10s or if moved > 10m
+        const prev = lastLocationRef.current;
+        const moved = prev ? distanceMeters(prev, [lng, lat]) : Infinity;
+        
+        if (now - lastLocationUpdateAtRef.current < 10000 && moved < 10) return;
+        
         try {
+            lastLocationUpdateAtRef.current = now;
+            lastLocationRef.current = [lng, lat];
             await supabase.rpc('update_walker_location', {
-              _lat: latitude,
-              _lng: longitude,
+              _lat: lat,
+              _lng: lng,
               _accuracy: accuracy
             });
         } catch (err) {
