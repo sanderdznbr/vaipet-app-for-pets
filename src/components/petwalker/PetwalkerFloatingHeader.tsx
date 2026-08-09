@@ -24,7 +24,7 @@ export const PetwalkerFloatingHeader = ({ user, isOnline, gpsStatus }: Petwalker
         {user?.user_metadata?.avatar_url ? (
           <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-50"><User className="text-gray-400" size={20} /></div>
+          <div className="w-full h-full flex items-center justify-center bg-gray-50"><LucideUser className="text-gray-400" size={20} /></div>
         )}
       </button>
 
