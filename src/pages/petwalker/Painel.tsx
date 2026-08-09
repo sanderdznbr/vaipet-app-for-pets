@@ -16,13 +16,7 @@ type WalkSession = Database['public']['Tables']['walk_sessions']['Row'] & {
   pet?: { name: string; breed: string | null };
 };
 
-type WalkOffer = Database['public']['Tables']['walk_offers']['Row'] & {
-  pet_name?: string;
-  pet_avatar_url?: string;
-  distance_to_walker_meters: number;
-  planned_duration_minutes: number;
-  total_price_cents: number;
-};
+type WalkOffer = Database['public']['Functions']['get_available_walk_offers']['Returns'][number];
 
 const distanceMeters = (a: [number, number], b: [number, number]) => {
   const R = 6371000;
@@ -98,7 +92,7 @@ const PetwalkerPainel = () => {
         if (updated.walker_id === user.id) {
           setActiveRequest(updated);
         }
-        if (payload.old && (payload.old as any).walker_id === user.id && ['completed', 'cancelled'].includes(updated.current_status || '')) {
+        if (payload.old && payload.old.walker_id === user.id && ['completed', 'cancelled'].includes(updated.current_status || '')) {
           setActiveRequest(null);
         }
         fetchOpenRequests(isOnline);
@@ -170,7 +164,7 @@ const PetwalkerPainel = () => {
     
     const { data, error } = await supabase.rpc('get_available_walk_offers');
     if (!error && data) {
-      setOpenOffers(data as any[]);
+      setOpenOffers(data);
     }
   };
 

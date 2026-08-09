@@ -159,7 +159,7 @@ const SearchWalk = () => {
       });
       if (error) throw error;
       if (data) {
-        const quote = (data as any)?.[0] ?? null;
+        const quote = data?.[0] ?? null;
         setQuote(quote);
       } else {
         setQuote(null);
@@ -297,7 +297,7 @@ const SearchWalk = () => {
           return;
         }
         // Hydrate the pet
-        const petIds = (session as any).pet_ids || [session.pet_id].filter(Boolean);
+        const petIds = session.pet_ids || [session.pet_id].filter(Boolean);
         const { data: petList } = await supabase
           .from('pets')
           .select('id, name, avatar_url')
