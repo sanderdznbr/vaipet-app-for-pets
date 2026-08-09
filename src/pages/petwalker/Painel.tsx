@@ -28,19 +28,21 @@ type WalkOffer = Database['public']['Functions']['get_available_walk_offers']['R
 const Painel = () => {
   const { user } = useAuth();
   const mapRef = useRef<mapboxgl.Map | null>(null);
-  const markerRef = useRef<mapboxgl.Marker | null>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
   const routeLayerId = 'walk-route';
   
   const [activeRequest, setActiveRequest] = useState<WalkSession | null>(null);
   const [isOnline, setIsOnline] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [gpsStatus, setGpsStatus] = useState<'loading' | 'active' | 'denied' | 'error' | 'unstable'>('loading');
+  const [gpsStatus, setGpsStatus] = useState<'requesting' | 'synced' | 'unstable' | 'stale' | 'denied' | 'error'>('requesting');
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [showOfferSheet, setShowOfferSheet] = useState<WalkOffer | null>(null);
   const [offerAction, setOfferAction] = useState<'accepting' | 'declining' | null>(null);
+  const [walkerCoords, setWalkerCoords] = useState<[number, number] | null>(null);
+  const [walkerAccuracy, setWalkerAccuracy] = useState<number | null>(null);
+  const [isFirstLock, setIsFirstLock] = useState(true);
 
   const watchId = useRef<number | null>(null);
-  const lastLocationRef = useRef<[number, number] | null>(null);
   const lastUpdateRef = useRef<number>(0);
   const UPDATE_INTERVAL = 10000; // 10s frequency control
 
@@ -144,22 +146,31 @@ const Painel = () => {
         const { latitude: lat, longitude: lng, accuracy } = pos.coords;
         const now = Date.now();
         
-        // Update local marker immediately for UX
-        if (mapRef.current) {
-          if (!markerRef.current) {
-            const el = document.createElement('div');
-            el.className = 'marker-walker-pulse';
-            markerRef.current = new mapboxgl.Marker(el).setLngLat([lng, lat]).addTo(mapRef.current);
-            // First fix: center map on walker
-            mapRef.current.easeTo({ center: [lng, lat], zoom: 15, duration: 1000 });
-          } else {
-            markerRef.current.setLngLat([lng, lat]);
-          }
-        }
+        // 1. Accuracy check
+        const isUnstable = accuracy > 60;
         
-        lastLocationRef.current = [lng, lat];
+        // 2. Update local state for Map component
+        setWalkerCoords([lng, lat]);
+        setWalkerAccuracy(accuracy);
+        
+        // 3. Auto-centering on first lock
+        if (isFirstLock && mapRef.current) {
+          mapRef.current.easeTo({ 
+            center: [lng, lat], 
+            zoom: 16.5, 
+            pitch: 0,
+            duration: 800,
+            offset: [0, -70]
+          });
+          setIsFirstLock(false);
+        }
 
-        // Frequency and accuracy validation
+        // 4. Stale check (if last sync was too long ago)
+        if (lastSync && (now - lastSync.getTime() > 45000)) {
+          setGpsStatus('stale');
+        }
+
+        // 5. Frequency and server sync
         const shouldUpdate = now - lastUpdateRef.current > UPDATE_INTERVAL;
         if (shouldUpdate) {
           const { error } = await supabase.rpc('update_walker_location', { 
@@ -169,12 +180,16 @@ const Painel = () => {
           });
 
           if (!error) {
-            setGpsStatus(accuracy > 50 ? 'unstable' : 'active');
+            setGpsStatus(isUnstable ? 'unstable' : 'synced');
             setLastSync(new Date());
             lastUpdateRef.current = now;
           } else {
+            console.error('RPC update_walker_location error:', error);
             setGpsStatus('error');
           }
+        } else if (gpsStatus !== 'synced' && !isUnstable && gpsStatus !== 'stale') {
+           // If we're not syncing yet but GPS is fine, keep at least showing we have a lock
+           // but 'synced' only after RPC success as per requirements
         }
       },
       (err) => {
@@ -183,19 +198,17 @@ const Painel = () => {
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
-  }, []);
+  }, [isFirstLock, lastSync, gpsStatus]);
 
   const stopTracking = useCallback(() => {
     if (watchId.current !== null) {
       navigator.geolocation.clearWatch(watchId.current);
       watchId.current = null;
     }
-    if (markerRef.current) {
-      markerRef.current.remove();
-      markerRef.current = null;
-    }
-    setGpsStatus('loading');
-    lastLocationRef.current = null;
+    setGpsStatus('requesting');
+    setWalkerCoords(null);
+    setWalkerAccuracy(null);
+    setIsFirstLock(true);
   }, []);
 
   // --- Effects ---
@@ -260,12 +273,12 @@ const Painel = () => {
 
   // Route drawing logic
   useEffect(() => {
-    if (activeRequest && ['accepted', 'heading_to_pickup', 'arrived'].includes(activeRequest.current_status) && lastLocationRef.current) {
+    if (activeRequest && ['accepted', 'heading_to_pickup', 'arrived'].includes(activeRequest.current_status) && walkerCoords) {
       const destLat = (activeRequest as any).meeting_point_geom?.coordinates?.[1];
       const destLng = (activeRequest as any).meeting_point_geom?.coordinates?.[0];
       
       if (destLat && destLng) {
-        drawRoute(lastLocationRef.current, [destLng, destLat]);
+        drawRoute(walkerCoords, [destLng, destLat]);
       }
     } else if (mapRef.current && mapRef.current.getLayer(routeLayerId)) {
       mapRef.current.removeLayer(routeLayerId);
@@ -329,8 +342,12 @@ const Painel = () => {
   };
 
   const recenter = () => {
-    if (lastLocationRef.current && mapRef.current) {
-      mapRef.current.easeTo({ center: lastLocationRef.current, zoom: 16 });
+    if (walkerCoords && mapRef.current) {
+      mapRef.current.easeTo({ 
+        center: walkerCoords, 
+        zoom: 16.5,
+        offset: [0, -70]
+      });
     }
   };
 
@@ -344,6 +361,11 @@ const Painel = () => {
           mapboxToken={MAPBOX_TOKEN} 
           isOnline={isOnline} 
           onMapLoad={(map) => { mapRef.current = map; }} 
+          walkerCoords={walkerCoords}
+          walkerAccuracy={walkerAccuracy}
+          meetingCoords={showOfferSheet ? [showOfferSheet.meeting_point_lng, showOfferSheet.meeting_point_lat] : 
+                        (activeRequest && (activeRequest as any).meeting_point_geom?.coordinates) ? 
+                        [(activeRequest as any).meeting_point_geom.coordinates[0], (activeRequest as any).meeting_point_geom.coordinates[1]] : null}
         />
         
         {/* Layer 2: Floating Header */}
@@ -352,7 +374,7 @@ const Painel = () => {
         {/* Layer 3: Recentering Button */}
         <button 
           onClick={recenter}
-          disabled={!lastLocationRef.current}
+          disabled={!walkerCoords}
           className={cn(
             "absolute right-4 z-30 w-12 h-12 rounded-full bg-white shadow-xl flex items-center justify-center text-ink active:scale-90 transition-transform disabled:opacity-50",
             // Dynamic position based on sheets
@@ -389,34 +411,6 @@ const Painel = () => {
         {/* Layer 5: Bottom Navigation */}
         {!activeRequest && !showOfferSheet && <PetwalkerNavigation />}
 
-        {/* Map Pulse Style */}
-        <style dangerouslySetInnerHTML={{ __html: `
-          .marker-walker-pulse {
-            width: 32px;
-            height: 32px;
-            background: rgba(49, 216, 128, 0.2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: markerPulse 2s infinite ease-out;
-          }
-          .marker-walker-pulse::after {
-            content: '';
-            width: 14px;
-            height: 14px;
-            background: #31D880;
-            border: 3px solid white;
-            border-radius: 50%;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            z-index: 10;
-          }
-          @keyframes markerPulse {
-            0% { transform: scale(0.9); opacity: 0.8; }
-            50% { transform: scale(1.4); opacity: 0.3; }
-            100% { transform: scale(0.9); opacity: 0.8; }
-          }
-        `}} />
       </div>
     </PetwalkerProtectedRoute>
   );
