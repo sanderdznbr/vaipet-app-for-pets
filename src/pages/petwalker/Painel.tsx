@@ -17,8 +17,8 @@ type WalkSession = Database['public']['Tables']['walk_sessions']['Row'] & {
 };
 
 type WalkOffer = {
-  id: uuid;
-  session_id: uuid;
+  id: string;
+  walk_session_id: string;
   pet_name: string;
   pet_avatar_url: string;
   meeting_point_lat: number;
@@ -27,8 +27,6 @@ type WalkOffer = {
   total_price_cents: number;
   distance_to_walker_meters: number;
 };
-
-type uuid = string;
 
 const distanceMeters = (a: [number, number], b: [number, number]) => {
   const R = 6371000;
@@ -176,7 +174,7 @@ const PetwalkerPainel = () => {
     
     const { data, error } = await supabase.rpc('get_available_walk_offers');
     if (!error && data) {
-      setOpenOffers(data as WalkOffer[]);
+      setOpenOffers(data as any[]);
     }
   };
 
@@ -204,8 +202,13 @@ const PetwalkerPainel = () => {
   const handleAccept = async (requestId: string) => {
     try {
       setLoading(true);
-      const { error } = await supabase.rpc('accept_walk_request', { _session_id: requestId });
+      const { data: success, error } = await supabase.rpc('accept_walk_request', { _session_id: requestId });
       if (error) throw error;
+      if (!success) {
+        toast.error('Este pedido já foi aceito por outro PetWalker ou expirou.');
+        fetchOpenRequests(isOnline);
+        return;
+      }
       toast.success('Passeio aceito! Vá ao encontro do pet.');
     } catch (err: any) {
       toast.error(err.message || 'Erro ao aceitar pedido');
