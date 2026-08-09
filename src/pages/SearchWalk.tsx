@@ -14,7 +14,7 @@ import { WalkInProgress } from '../components/WalkInProgress';
 import { ReviewWalk } from '../components/ReviewWalk';
 import { CancelWalkDialog } from '../components/CancelWalkDialog';
 import { BottomNavigation } from '../components/BottomNavigation';
-import { generateRandomWalker, buildBetaWalker, pickTransportForDistance, TransportInfo, WalkerProfile } from '@/lib/walkerProfile';
+import { pickTransportForDistance, TransportInfo, WalkerProfile } from '@/lib/walkerProfile';
 import { preloadDog3DAsset } from '@/lib/dog3dLayer';
 import { preloadCheckpointAsset } from '@/lib/checkpoint3dLayer';
 import { SlideToConfirm } from '../components/SlideToConfirm';
