@@ -11,6 +11,12 @@ interface WaitingForAcceptanceProps {
   onCancel: () => void;
   isDarkMode?: boolean;
   userLocation?: [number, number] | null;
+  walkerData?: {
+    name: string;
+    avatar_url: string;
+    rating?: number;
+    completed_walks?: number;
+  } | null;
 }
 
 
