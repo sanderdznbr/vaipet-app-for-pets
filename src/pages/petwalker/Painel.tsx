@@ -121,11 +121,21 @@ const PetwalkerPainel = () => {
     
     watchId.current = window.navigator.geolocation.watchPosition(
       async (pos) => {
-        const { latitude, longitude, accuracy } = pos.coords;
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        const now = Date.now();
+        
+        // Throttle: max 1 update every 10s or if moved > 10m
+        const prev = lastLocationRef.current;
+        const moved = prev ? distanceMeters(prev, [lng, lat]) : Infinity;
+        
+        if (now - lastLocationUpdateAtRef.current < 10000 && moved < 10) return;
+        
         try {
+            lastLocationUpdateAtRef.current = now;
+            lastLocationRef.current = [lng, lat];
             await supabase.rpc('update_walker_location', {
-              _lat: latitude,
-              _lng: longitude,
+              _lat: lat,
+              _lng: lng,
               _accuracy: accuracy
             });
         } catch (err) {
