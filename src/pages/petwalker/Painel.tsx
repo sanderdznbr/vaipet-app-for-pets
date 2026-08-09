@@ -201,9 +201,8 @@ const PetwalkerPainel = () => {
         return;
       }
       toast.success('Passeio aceito! Vá ao encontro do pet.');
-    } catch (err: unknown) {
-      const error = err as Error;
-      toast.error(error.message || 'Erro ao aceitar pedido');
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao aceitar pedido');
     } finally {
       setLoading(false);
     }

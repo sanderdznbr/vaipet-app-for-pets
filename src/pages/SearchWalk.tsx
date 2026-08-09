@@ -10,7 +10,6 @@ import { useHomeTheme } from '@/hooks/useHomeTheme';
 import { supabase } from '@/integrations/supabase/client';
 import { RouteInfo } from '../components/RouteInfo';
 import { WaitingForAcceptance } from '../components/WaitingForAcceptance';
-import { Database } from '@/integrations/supabase/types';
 import { WalkInProgress } from '../components/WalkInProgress';
 import { ReviewWalk } from '../components/ReviewWalk';
 import { CancelWalkDialog } from '../components/CancelWalkDialog';
@@ -306,14 +305,9 @@ const SearchWalk = () => {
         if (petList) setSelectedPets(petList as Pet[]);
 
         // Hydrate stops + home location
-        const stops = (Array.isArray(session.local_stops) ? session.local_stops : []) as Array<{
-          label?: string;
-          address?: string;
-          lng: number;
-          lat: number;
-        }>;
+        const stops = Array.isArray(session.local_stops) ? session.local_stops : [];
         setLocalStops(
-          stops.map((s, i) => ({
+          stops.map((s: any, i: number) => ({
             id: `${sessionId}-${i}`,
             label: s.label ?? `Parada ${i + 1}`,
             address: s.address ?? '',
@@ -637,16 +631,15 @@ const SearchWalk = () => {
           },
         });
         if (error) throw error;
-        const feats = ((data as { results: Array<{ id: string; address: string; name: string; lng: number; lat: number }> })?.results || []).map((r: { id: string; address: string; name: string; lng: number; lat: number }) => ({
+        const feats = (data?.results || []).map((r: any) => ({
           id: r.id,
           place_name: r.address,
           text: r.name,
           center: [r.lng, r.lat] as [number, number],
         }));
         setAddrSuggestions(feats);
-      } catch (e: unknown) {
-        const err = e as { name?: string };
-        if (err?.name !== 'AbortError') setAddrSuggestions([]);
+      } catch (e: any) {
+        if (e?.name !== 'AbortError') setAddrSuggestions([]);
       } finally {
         setAddrLoading(false);
       }
@@ -956,7 +949,7 @@ const SearchWalk = () => {
     }
   };
 
-  const handleAccepted = useCallback(async (sessionData: Database['public']['Tables']['walk_sessions']['Row']) => {
+  const handleAccepted = useCallback(async (sessionData: any) => {
     if (searchStatusRef.current === 'walking' || !user) return;
 
     preloadDog3DAsset().catch(() => {});
@@ -1046,7 +1039,7 @@ const SearchWalk = () => {
           table: 'walk_sessions',
           filter: `id=eq.${currentSessionId}`
         },
-        (payload: { new: Database['public']['Tables']['walk_sessions']['Row'] }) => {
+        (payload: any) => {
           const newStatus = payload.new.current_status;
           if (newStatus === 'accepted' && searchStatusRef.current !== 'walking') {
             handleAccepted(payload.new);
@@ -1740,7 +1733,7 @@ const SearchWalk = () => {
                 const types: Array<{
                   id: 'livre' | 'local';
                   label: string;
-                  Icon: React.ElementType;
+                  Icon: any;
                   desc: string;
                 }> = [
                   { id: 'livre', label: isCollective ? 'Coletivo' : 'Livre', Icon: Sparkles, desc: isCollective ? 'Passeio com múltiplos pets selecionados.' : 'O petwalker decide tudo sobre o passeio.' },
