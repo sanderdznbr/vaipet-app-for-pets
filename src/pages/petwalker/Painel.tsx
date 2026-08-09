@@ -4,13 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { PetwalkerNavigation } from '@/components/petwalker/PetwalkerNavigation';
 import { PetwalkerProtectedRoute } from '@/components/PetwalkerProtectedRoute';
 import { Button } from '@/components/ui/button';
-import { User, MapPin, Navigation, Dog, Bell, Target, GpsFixed, GpsOff } from 'lucide-react';
+import { User, MapPin, Navigation, Dog, Bell, Target, Locate, LocateOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { NotificationSheet } from '@/components/NotificationSheet';
 import { useNavigate } from 'react-router-dom';
 import { Database } from '@/integrations/supabase/types';
 import { BottomSheet } from '@/components/petwalker/BottomSheet';
-import { PetwalkerMapMarker } from '@/components/petwalker/PetwalkerMapMarker';
 import { cn } from '@/lib/utils';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -31,9 +30,9 @@ const PetwalkerPainel = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
+  const lastLocationRef = useRef<[number, number] | null>(null);
   
   const [activeRequest, setActiveRequest] = useState<WalkSession | null>(null);
-  const [openOffers, setOpenOffers] = useState<WalkOffer[]>([]);
   const [isOnline, setIsOnline] = useState(false);
   const [loading, setLoading] = useState(true);
   const [gpsStatus, setGpsStatus] = useState<'loading' | 'active' | 'denied' | 'error'>('loading');
@@ -82,6 +81,7 @@ const PetwalkerPainel = () => {
         const { latitude: lat, longitude: lng, accuracy } = pos.coords;
         setGpsStatus('active');
         setLastSync(new Date());
+        lastLocationRef.current = [lng, lat];
 
         // Update Map Marker
         if (map.current) {
@@ -95,7 +95,6 @@ const PetwalkerPainel = () => {
           map.current.easeTo({ center: [lng, lat], duration: 1000 });
         }
 
-        // RPC update logic...
         await supabase.rpc('update_walker_location', { _lat: lat, _lng: lng, _accuracy: accuracy });
       },
       (err) => {
@@ -116,6 +115,7 @@ const PetwalkerPainel = () => {
       markerRef.current = null;
     }
     setGpsStatus('loading');
+    lastLocationRef.current = null;
   };
 
   useEffect(() => {
@@ -226,7 +226,7 @@ const PetwalkerPainel = () => {
                   <div>
                     <h3 className="text-lg font-bold font-space">Procurando solicitações</h3>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-                      {gpsStatus === 'active' ? <GpsFixed size={12} className="text-[#31D880]" /> : <GpsOff size={12} className="text-red-500" />}
+                      {gpsStatus === 'active' ? <Locate size={12} className="text-[#31D880]" /> : <LocateOff size={12} className="text-red-500" />}
                       <span>GPS {gpsStatus === 'active' ? 'Ativo' : 'Indisponível'} • {lastSync ? lastSync.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--'}</span>
                     </div>
                   </div>
