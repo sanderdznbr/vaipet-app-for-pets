@@ -1,11 +1,12 @@
 import React from 'react';
-import { User, Bell } from 'lucide-react';
+import { User as LucideUser, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { NotificationSheet } from '@/components/NotificationSheet';
+import { User } from '@supabase/supabase-js';
 
 interface PetwalkerFloatingHeaderProps {
-  user: any; // We'll refine this if possible, but useAuth returns a User type usually
+  user: User | null;
   isOnline: boolean;
   gpsStatus: 'loading' | 'active' | 'denied' | 'error' | 'unstable';
 }
