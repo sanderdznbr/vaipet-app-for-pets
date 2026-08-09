@@ -1104,7 +1104,7 @@ const SearchWalk = () => {
   const handleTimeout = () => { cleanupPreviousSearch(); setSearchStatus('idle'); };
   const handleCancel = () => setShowCancelDialog(true);
   const handleGoHome = () => { setShowCancelDialog(false); navigate('/'); };
-  const handleSearchAnother = () => { setShowCancelDialog(false); cleanupPreviousSearch(); setSearchStatus('idle'); setTimeout(handleSearch, 500); };
+  const handleSearchAnother = () => { setShowCancelDialog(false); cleanupPreviousSearch(); setSearchStatus('idle'); };
 
   // Active walk cancellation logic.
   const [isCancellingWalk, setIsCancellingWalk] = useState(false);
