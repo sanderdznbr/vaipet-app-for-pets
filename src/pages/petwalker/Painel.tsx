@@ -16,16 +16,10 @@ type WalkSession = Database['public']['Tables']['walk_sessions']['Row'] & {
   pet?: { name: string; breed: string | null };
 };
 
-type WalkOffer = {
-  id: string;
-  walk_session_id: string;
-  pet_name: string;
-  pet_avatar_url: string;
-  meeting_point_lat: number;
-  meeting_point_lng: number;
-  planned_duration_minutes: number;
-  total_price_cents: number;
-  distance_to_walker_meters: number;
+type WalkOffer = Database['public']['Tables']['walk_offers']['Row'] & {
+  pet_name?: string;
+  pet_avatar_url?: string;
+  distance_to_walker_meters?: number;
 };
 
 const distanceMeters = (a: [number, number], b: [number, number]) => {
