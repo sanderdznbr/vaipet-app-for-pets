@@ -244,6 +244,7 @@ const SearchWalk = () => {
   const resumeHandledRef = useRef(false);
   // Return phase state.
   const [isReturning, setIsReturning] = useState(false);
+  const [matchingExpiresAt, setMatchingExpiresAt] = useState<string | null>(null);
 
   useEffect(() => {
     searchStatusRef.current = searchStatus;
