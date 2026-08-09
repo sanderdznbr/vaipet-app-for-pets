@@ -983,13 +983,13 @@ const SearchWalk = () => {
     if (isReturning) return;
     setIsReturning(true);
     if (currentSessionId) {
-      try {
-        await supabase
-          .from('walk_sessions')
-          .update({ current_status: 'returning', status: 'returning' })
-          .eq('id', currentSessionId);
-      } catch (e) {
-        console.error('Falha ao iniciar retorno:', e);
+      const { error } = await supabase.rpc('customer_request_return', {
+        _walk_session_id: currentSessionId
+      });
+      if (error) {
+        console.error('Falha ao iniciar retorno:', error);
+        toast.error('Erro ao solicitar retorno');
+        setIsReturning(false);
       }
     }
   };
@@ -999,18 +999,13 @@ const SearchWalk = () => {
     const dur = Math.floor((Date.now() - walkStartTime) / 1000);
     setWalkDuration(dur);
     if (currentSessionId) {
-      try {
-        await supabase
-          .from('walk_sessions')
-          .update({
-            current_status: 'completed',
-            status: 'completed',
-            end_time: new Date().toISOString(),
-            actual_duration_minutes: Math.max(1, Math.round(dur / 60)),
-          })
-          .eq('id', currentSessionId);
-      } catch (e) {
-        console.error('Falha ao confirmar chegada:', e);
+      const { error } = await supabase.rpc('customer_confirm_arrival', {
+        _walk_session_id: currentSessionId
+      });
+      if (error) {
+        console.error('Falha ao confirmar chegada:', error);
+        toast.error('Erro ao confirmar chegada');
+        return;
       }
     }
     setSearchStatus('reviewing');
