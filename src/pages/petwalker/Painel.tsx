@@ -316,14 +316,14 @@ const PetwalkerPainel = () => {
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="font-bold text-lg">{offer.pet_name}</h4>
-                      <p className="text-sm text-muted-foreground">{offer.planned_duration_minutes}min</p>
+                      <p className="text-sm text-muted-foreground">{offer.planned_duration_minutes || 0}min</p>
                       <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
                         <MapPin size={12} />
-                        <span>{Math.round(offer.distance_to_walker_meters)}m de distância</span>
+                        <span>{Math.round(offer.distance_to_walker_meters || 0)}m de distância</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-[#31D880]">R$ {(offer.total_price_cents / 100).toFixed(2)}</p>
+                      <p className="font-bold text-[#31D880]">R$ {((offer.total_price_cents || 0) / 100).toFixed(2)}</p>
                       <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter">Valor Total</p>
                     </div>
                   </div>
