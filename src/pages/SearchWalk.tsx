@@ -2048,9 +2048,9 @@ const SearchWalk = () => {
           userLocation={userLocation}
           walkerData={walker ? {
             name: walker.name,
-            avatar_url: walker.avatar_url,
+            avatar_url: walker.avatar || walker.avatar_url || '',
             rating: walker.rating,
-            completed_walks: walker.completed_walks
+            completed_walks: walker.walks || walker.completed_walks || 0
           } : null}
         />
       )}
