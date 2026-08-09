@@ -70,7 +70,6 @@
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.3.0",
     "framer-motion": "^12.43.0",
-    "google-maps-react-markers": "^2.0.15",
     "input-otp": "^1.2.4",
     "lucide-react": "^0.462.0",
     "mapbox-gl": "^3.14.0",
