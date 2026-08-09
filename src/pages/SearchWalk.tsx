@@ -776,11 +776,6 @@ const SearchWalk = () => {
 
   // Dark mode only.
 
-  const generateRandomWalkerLocation = (loc: [number, number]): [number, number] => {
-    const d = Math.random() * 0.015 + 0.005;
-    const a = Math.random() * 2 * Math.PI;
-    return [loc[0] + d * Math.cos(a), loc[1] + d * Math.sin(a)];
-  };
 
   const calculateRouteInfo = (u: [number, number], w: [number, number]) => {
     const R = 6371;
