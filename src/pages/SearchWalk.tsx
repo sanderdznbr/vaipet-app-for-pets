@@ -1128,6 +1128,8 @@ const SearchWalk = () => {
     setIsCancellingWalk(false);
     cleanupPreviousSearch();
     setSearchStatus('idle');
+    setMatchingExpiresAt(null);
+    setCurrentSessionId(null);
     navigate('/');
   };
 
