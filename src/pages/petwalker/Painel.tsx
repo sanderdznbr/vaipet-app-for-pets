@@ -38,6 +38,8 @@ const PetwalkerPainel = () => {
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
   const watchId = useRef<number | null>(null);
+  const lastLocationUpdateAtRef = useRef<number>(0);
+  const lastLocationRef = useRef<[number, number] | null>(null);
 
   useEffect(() => {
     if (!user) return;
