@@ -2180,7 +2180,7 @@ export type Database = {
         Returns: undefined
       }
       update_walker_location: {
-        Args: { _accuracy: number; _lat: number; _lng: number }
+        Args: { _accuracy?: number; _lat: number; _lng: number }
         Returns: undefined
       }
       updategeometrysrid: {

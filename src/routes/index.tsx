@@ -1,14 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-/**
- * PORTAL PETWALKER - FASE 2: PRECIFICAÇÃO E PERFIL SIMPLIFICADO
- * 
- * 1. PRECIFICAÇÃO: Centralizada no servidor via RPC get_walk_quote e configurações em centavos.
- * 2. SNAPSHOT: Armazenamento imutável do preço em walk_sessions na criação.
- * 3. SIMPLIFICAÇÃO: PetWalker não define mais preço ou raio (regra de negócio da plataforma).
- * 4. SEGURANÇA: RPCs com SECURITY DEFINER e validações rigorosas de duração e modalidade.
- */
 export const RedirectIndex = () => {
   const navigate = useNavigate();
   
