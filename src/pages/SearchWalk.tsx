@@ -329,7 +329,7 @@ const SearchWalk = () => {
           setWalkerLocation(fallback);
         }
 
-        // setWalker(buildBetaWalker()); // Mock removed
+        // setWalker(null); // Explicitly null while searching
         setCurrentSessionId(session.id);
         setWalkStartTime(new Date(session.start_time).getTime());
         if (session.status === 'returning') setIsReturning(true);
