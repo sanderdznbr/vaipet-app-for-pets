@@ -46,6 +46,14 @@ export const BottomSheet = ({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            drag={dismissible ? "y" : false}
+            dragConstraints={{ top: 0 }}
+            dragElastic={0.2}
+            onDragEnd={(_, info) => {
+              if (dismissible && onClose && info.offset.y > 100) {
+                onClose();
+              }
+            }}
             className={cn(
               "fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] z-[70] px-6 pb-8 pt-2 max-w-lg mx-auto",
               isHighPriority && "z-[80]",
@@ -53,8 +61,7 @@ export const BottomSheet = ({
             )}
             style={{ 
               paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 24px)`,
-              // Ensure it sits above the standard navigation if it's high priority
-              marginBottom: isHighPriority ? 0 : 'calc(64px + env(safe-area-inset-bottom, 0px))'
+              marginBottom: navigationOffset ? 'calc(64px + env(safe-area-inset-bottom, 0px))' : 0
             }}
           >
             <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
