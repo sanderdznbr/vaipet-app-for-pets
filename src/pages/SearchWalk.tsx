@@ -159,7 +159,8 @@ const SearchWalk = () => {
       });
       if (error) throw error;
       if (data) {
-        setQuote(data as any);
+        const quote = (data as any)?.[0] ?? null;
+        setQuote(quote);
       } else {
         setQuote(null);
       }
@@ -971,8 +972,8 @@ const SearchWalk = () => {
       const { data: walkerProfile, error: profileError } = await supabase
         .rpc('get_session_walker_profile', { _session_id: sessionData.id });
       
-      if (!profileError && walkerProfile) {
-        const profile = walkerProfile as any;
+      if (!profileError && walkerProfile && walkerProfile.length > 0) {
+        const profile = walkerProfile[0];
         setWalker({
           name: profile.full_name || 'Pet Walker',
           firstName: (profile.full_name || 'Pet Walker').split(' ')[0],
@@ -1303,7 +1304,7 @@ const SearchWalk = () => {
                         animationDuration: `${duration}s`,
                         filter: layer.blur ? `blur(${layer.blur}px)` : undefined,
                         ['--vp-op' as any]: Math.min(op, 0.8).toFixed(3),
-                      }}
+                      } as React.CSSProperties}
                     />
                   );
                 })}
@@ -1330,7 +1331,7 @@ const SearchWalk = () => {
                     animationDelay: `${delay}s`,
                     animationDuration: `${duration}s`,
                     ['--vp-sop' as any]: sop.toFixed(3),
-                  }}
+                  } as React.CSSProperties}
                 />
               );
             })}
