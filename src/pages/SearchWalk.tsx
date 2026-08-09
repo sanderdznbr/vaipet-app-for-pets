@@ -969,18 +969,17 @@ const SearchWalk = () => {
     
     if (sessionData.walker_id) {
       const { data: walkerProfile, error: profileError } = await supabase
-        .rpc('get_session_walker_profile' as any, { _session_id: sessionData.id });
+        .rpc('get_session_walker_profile', { _session_id: sessionData.id });
       
       if (!profileError && walkerProfile && (walkerProfile as any[]).length > 0) {
         const profile = (walkerProfile as any[])[0];
-        setWalker((prev: WalkerProfile) => ({
-          ...prev,
+        setWalker({
           name: profile.full_name || 'Pet Walker',
           firstName: (profile.full_name || 'Pet Walker').split(' ')[0],
           avatar: profile.avatar_url || '',
           rating: Number(profile.rating_average || 0),
           walks: Number(profile.completed_walks || 0),
-        }));
+        });
       }
     }
   }, [user, walkerMarker, userLocation, addRouteToMap]);
@@ -1101,7 +1100,7 @@ const SearchWalk = () => {
     // Chat implementation will use the session state
   };
   const handleRequestPhotos = () => alert('Solicitação de fotos enviada!');
-  const handleTimeout = () => { cleanupPreviousSearch(); setSearchStatus('idle'); setTimeout(handleSearch, 1000); };
+  const handleTimeout = () => { cleanupPreviousSearch(); setSearchStatus('idle'); };
   const handleCancel = () => setShowCancelDialog(true);
   const handleGoHome = () => { setShowCancelDialog(false); navigate('/'); };
   const handleSearchAnother = () => { setShowCancelDialog(false); cleanupPreviousSearch(); setSearchStatus('idle'); setTimeout(handleSearch, 500); };
