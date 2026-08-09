@@ -318,3 +318,53 @@ REVOKE ALL ON FUNCTION public.process_walk_matching() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.process_walk_matching() FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.process_walk_matching() TO service_role;
 
+
+-- 7. CUSTOMER (OWNER) OPERATIONAL RPCS
+
+CREATE OR REPLACE FUNCTION public.customer_cancel_search(_walk_session_id uuid)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    UPDATE public.walk_sessions 
+    SET current_status = 'cancelled'
+    WHERE id = _walk_session_id 
+      AND customer_id = auth.uid() 
+      AND current_status = 'searching';
+    
+    RETURN FOUND;
+END; $$;
+
+CREATE OR REPLACE FUNCTION public.customer_request_return(_walk_session_id uuid)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    UPDATE public.walk_sessions 
+    SET current_status = 'returning'
+    WHERE id = _walk_session_id 
+      AND customer_id = auth.uid() 
+      AND current_status = 'in_progress';
+    
+    RETURN FOUND;
+END; $$;
+
+CREATE OR REPLACE FUNCTION public.customer_confirm_arrival(_walk_session_id uuid)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    UPDATE public.walk_sessions 
+    SET current_status = 'completed', end_time = now()
+    WHERE id = _walk_session_id 
+      AND customer_id = auth.uid() 
+      AND current_status = 'returning';
+    
+    IF NOT FOUND THEN RETURN false; END IF;
+
+    -- Cleanup walker profile
+    UPDATE public.petwalker_profiles 
+    SET current_walk_id = NULL 
+    WHERE user_id = (SELECT walker_id FROM public.walk_sessions WHERE id = _walk_session_id);
+
+    RETURN true;
+END; $$;
+
+GRANT EXECUTE ON FUNCTION public.customer_cancel_search(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.customer_request_return(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.customer_confirm_arrival(uuid) TO authenticated, service_role;
+
