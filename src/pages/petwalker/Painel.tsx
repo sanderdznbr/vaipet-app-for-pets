@@ -19,7 +19,9 @@ type WalkSession = Database['public']['Tables']['walk_sessions']['Row'] & {
 type WalkOffer = Database['public']['Tables']['walk_offers']['Row'] & {
   pet_name?: string;
   pet_avatar_url?: string;
-  distance_to_walker_meters?: number;
+  distance_to_walker_meters: number;
+  planned_duration_minutes: number;
+  total_price_cents: number;
 };
 
 const distanceMeters = (a: [number, number], b: [number, number]) => {
