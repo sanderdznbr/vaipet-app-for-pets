@@ -2046,6 +2046,12 @@ const SearchWalk = () => {
           onCancel={handleCancel}
           isDarkMode={!mapIsDay}
           userLocation={userLocation}
+          walkerData={walker ? {
+            name: walker.name,
+            avatar_url: walker.avatar_url,
+            rating: walker.rating,
+            completed_walks: walker.completed_walks
+          } : null}
         />
       )}
 
