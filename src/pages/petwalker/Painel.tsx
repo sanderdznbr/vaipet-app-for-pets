@@ -357,7 +357,7 @@ const PetwalkerPainel = () => {
               <div className="space-y-6 flex-1 overflow-y-auto pr-2 pb-4">
                 <div className="space-y-1">
                   <h4 className="text-3xl font-black font-space text-ink tracking-tight leading-none">{showOfferSheet.pet_name}</h4>
-                  <p className="text-muted-foreground font-bold">{showOfferSheet.pet_breed || 'Raça não informada'}</p>
+                  <p className="text-muted-foreground font-bold">Solicitação de passeio</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
