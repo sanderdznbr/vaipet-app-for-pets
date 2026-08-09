@@ -1259,42 +1259,30 @@ export type Database = {
         Returns: undefined
       }
       cancel_walk_session: { Args: { _session_id: string }; Returns: undefined }
-      create_walk_request:
-        | {
-            Args: {
-              _duration_minutes: number
-              _meeting_point_address: string
-              _meeting_point_lat: number
-              _meeting_point_lng: number
-              _pet_id: string
-              _request_mode: Database["public"]["Enums"]["walk_request_mode"]
-              _scheduled_for?: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              _duration_minutes: number
-              _meeting_point_address?: string
-              _meeting_point_lat?: number
-              _meeting_point_lng?: number
-              _pet_id: string
-              _request_mode: Database["public"]["Enums"]["walk_request_mode"]
-              _scheduled_for?: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              _duration_minutes: number
-              _lat: number
-              _lng: number
-              _mode?: string
-              _pet_id: string
-              _scheduled_at?: string
-            }
-            Returns: string
-          }
+      create_walk_request: {
+        Args: {
+          _duration_minutes: number
+          _meeting_point_address: string
+          _meeting_point_lat: number
+          _meeting_point_lng: number
+          _pet_id: string
+          _request_mode: Database["public"]["Enums"]["walk_request_mode"]
+          _scheduled_for: string
+        }
+        Returns: string
+      }
+      customer_cancel_search: {
+        Args: { _session_id: string }
+        Returns: boolean
+      }
+      customer_confirm_arrival: {
+        Args: { _session_id: string }
+        Returns: boolean
+      }
+      customer_request_return: {
+        Args: { _session_id: string }
+        Returns: boolean
+      }
       decline_walk_offer: { Args: { _session_id: string }; Returns: undefined }
       disablelongtransactions: { Args: never; Returns: string }
       dropgeometrycolumn:
@@ -1432,6 +1420,7 @@ export type Database = {
       get_active_walker_location: {
         Args: { _session_id: string }
         Returns: {
+          accuracy: number
           lat: number
           lng: number
           updated_at: string
@@ -1542,12 +1531,10 @@ export type Database = {
         Args: { _session_id: string }
         Returns: boolean
       }
-      petwalker_complete_walk:
-        | { Args: { _session_id: string }; Returns: boolean }
-        | {
-            Args: { _distance_km: number; _session_id: string }
-            Returns: undefined
-          }
+      petwalker_complete_walk: {
+        Args: { _session_id: string }
+        Returns: boolean
+      }
       petwalker_start_heading: {
         Args: { _session_id: string }
         Returns: boolean
@@ -2193,7 +2180,7 @@ export type Database = {
         Returns: undefined
       }
       update_walker_location: {
-        Args: { _accuracy?: number; _lat: number; _lng: number }
+        Args: { _accuracy: number; _lat: number; _lng: number }
         Returns: undefined
       }
       updategeometrysrid: {
