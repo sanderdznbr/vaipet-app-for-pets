@@ -23,12 +23,13 @@ interface WaitingForAcceptanceProps {
 export const WaitingForAcceptance: React.FC<WaitingForAcceptanceProps> = ({ 
   onTimeout, onCancel,
   isDarkMode = false,
-  userLocation = null
+  userLocation = null,
+  walkerData = null
 }) => {
-  const petwalkerName = "Buscando...";
-  const petwalkerAvatar = "https://upload.wikimedia.org/wikipedia/commons/b/bf/Foto_Perfil_.jpg";
-  const petwalkerRating = 5.0;
-  const petwalkerWalks = 0;
+  const petwalkerName = walkerData?.name || "Buscando...";
+  const petwalkerAvatar = walkerData?.avatar_url || "https://upload.wikimedia.org/wikipedia/commons/b/bf/Foto_Perfil_.jpg";
+  const petwalkerRating = walkerData?.rating || 5.0;
+  const petwalkerWalks = walkerData?.completed_walks || 0;
 
   const [timeLeft, setTimeLeft] = useState(300);
   const [showProfile, setShowProfile] = useState(false);
