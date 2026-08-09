@@ -983,7 +983,7 @@ const SearchWalk = () => {
     if (isReturning) return;
     setIsReturning(true);
     if (currentSessionId) {
-      const { error } = await supabase.rpc('customer_request_return', {
+      const { error } = await supabase.rpc('customer_request_return' as any, {
         _walk_session_id: currentSessionId
       });
       if (error) {
