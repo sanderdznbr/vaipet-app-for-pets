@@ -905,8 +905,8 @@ const SearchWalk = () => {
         _duration_minutes: selectedMinutes,
         _request_mode: scheduleMode === 'now' ? 'now' : 'scheduled',
         _scheduled_for: scheduledForIso,
-        _meeting_point_lng: userLocation[0],
-        _meeting_point_lat: userLocation[1],
+        _meeting_point_lng: Number(userLocation[0]),
+        _meeting_point_lat: Number(userLocation[1]),
         _meeting_point_address: 'Localização atual'
       });
 
