@@ -969,7 +969,7 @@ const SearchWalk = () => {
     
     if (sessionData.walker_id) {
       const { data: walkerProfile, error: profileError } = await supabase
-        .rpc('get_session_walker_profile', { _session_id: sessionData.id });
+        .rpc('get_session_walker_profile' as any, { _session_id: sessionData.id });
       
       if (!profileError && walkerProfile && (walkerProfile as any[]).length > 0) {
         const profile = (walkerProfile as any[])[0];
