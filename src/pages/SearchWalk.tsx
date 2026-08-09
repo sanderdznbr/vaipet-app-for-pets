@@ -903,7 +903,7 @@ const SearchWalk = () => {
       const { data: sessionId, error: rpcError } = await supabase.rpc('create_walk_request', {
         _pet_id: selectedPets[0]?.id,
         _duration_minutes: selectedMinutes,
-        _request_mode: (scheduleMode === 'now' ? 'now' : 'scheduled') as any,
+        _request_mode: (scheduleMode === 'now' ? 'now' : 'scheduled'),
         _scheduled_for: scheduledForIso,
         _meeting_point_lng: Number(userLocation[0]),
         _meeting_point_lat: Number(userLocation[1]),
