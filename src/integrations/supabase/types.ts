@@ -1215,7 +1215,7 @@ export type Database = {
         Returns: unknown
       }
       _st_within: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
-      accept_walk_request: { Args: { _session_id: string }; Returns: undefined }
+      accept_walk_request: { Args: { _session_id: string }; Returns: boolean }
       addauth: { Args: { "": string }; Returns: boolean }
       addgeometrycolumn:
         | {
@@ -1283,7 +1283,7 @@ export type Database = {
         Args: { _session_id: string }
         Returns: boolean
       }
-      decline_walk_offer: { Args: { _session_id: string }; Returns: undefined }
+      decline_walk_offer: { Args: { _session_id: string }; Returns: boolean }
       disablelongtransactions: { Args: never; Returns: string }
       dropgeometrycolumn:
         | {
