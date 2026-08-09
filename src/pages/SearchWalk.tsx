@@ -924,6 +924,17 @@ const SearchWalk = () => {
       });
 
       if (rpcError) throw rpcError;
+      
+      const { data: sessionData } = await supabase
+        .from('walk_sessions')
+        .select('matching_expires_at')
+        .eq('id', sessionId)
+        .single();
+      
+      if (sessionData?.matching_expires_at) {
+        setMatchingExpiresAt(sessionData.matching_expires_at);
+      }
+
       setCurrentSessionId(sessionId);
       setSearchStatus('waiting');
       setIsSearching(false);
@@ -1032,6 +1043,8 @@ const SearchWalk = () => {
             handleAccepted(payload.new);
           } else if (newStatus === 'expired' || newStatus === 'cancelled') {
             handleTimeout();
+          } else if (payload.new.matching_expires_at) {
+            setMatchingExpiresAt(payload.new.matching_expires_at);
           }
         }
       )
@@ -1040,6 +1053,7 @@ const SearchWalk = () => {
     // Check immediate state if already accepted
     const checkStatus = async () => {
        const { data } = await supabase.from('walk_sessions').select('*').eq('id', currentSessionId).single();
+       if (data?.matching_expires_at) setMatchingExpiresAt(data.matching_expires_at);
        if (data?.current_status === 'accepted' && searchStatusRef.current !== 'walking') {
           handleAccepted(data);
        }
