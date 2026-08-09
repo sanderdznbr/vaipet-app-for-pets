@@ -28,7 +28,6 @@ type WalkOffer = Database['public']['Functions']['get_available_walk_offers']['R
 const Painel = () => {
   const { user } = useAuth();
   const mapRef = useRef<mapboxgl.Map | null>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
   const routeLayerId = 'walk-route';
   
   const [activeRequest, setActiveRequest] = useState<WalkSession | null>(null);
