@@ -158,8 +158,8 @@ const SearchWalk = () => {
         _request_mode: mode
       });
       if (error) throw error;
-      if (data && (data as any[]).length > 0) {
-        setQuote((data as any[])[0]);
+      if (data) {
+        setQuote(data as any);
       } else {
         setQuote(null);
       }
