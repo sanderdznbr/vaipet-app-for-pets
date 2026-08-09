@@ -1303,7 +1303,7 @@ const SearchWalk = () => {
                         animationDelay: `${delay}s`,
                         animationDuration: `${duration}s`,
                         filter: layer.blur ? `blur(${layer.blur}px)` : undefined,
-                        ['--vp-op' as any]: Math.min(op, 0.8).toFixed(3),
+                        ['--vp-op' as keyof React.CSSProperties]: Math.min(op, 0.8).toFixed(3),
                       } as React.CSSProperties}
                     />
                   );
@@ -1330,7 +1330,7 @@ const SearchWalk = () => {
                     height: `${size * 0.32}px`,
                     animationDelay: `${delay}s`,
                     animationDuration: `${duration}s`,
-                    ['--vp-sop' as any]: sop.toFixed(3),
+                    ['--vp-sop' as keyof React.CSSProperties]: sop.toFixed(3),
                   } as React.CSSProperties}
                 />
               );
