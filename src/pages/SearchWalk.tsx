@@ -861,6 +861,24 @@ const SearchWalk = () => {
   const handleSearch = async () => {
     if (!user || selectedPets.length === 0 || !userLocation) return;
     
+    // Check for existing active session first
+    const { data: existingSession } = await supabase
+      .from('walk_sessions')
+      .select('id, current_status')
+      .eq('customer_id', user.id)
+      .in('current_status', ['searching', 'accepted', 'heading_to_pickup', 'arrived', 'in_progress', 'returning'])
+      .maybeSingle();
+
+    if (existingSession) {
+      setCurrentSessionId(existingSession.id);
+      if (existingSession.current_status === 'searching') {
+        setSearchStatus('waiting');
+      } else {
+        setSearchStatus('walking');
+      }
+      return;
+    }
+    
     try {
       cleanupPreviousSearch();
       setIsSearching(true);
@@ -1100,14 +1118,14 @@ const SearchWalk = () => {
   const handleCancelComplete = async () => {
     if (currentSessionId) {
       try {
-        const { data, error } = await supabase.rpc('customer_cancel_search', {
+        const { error } = await supabase.rpc('customer_cancel_search', {
           _session_id: currentSessionId
         });
         if (error) throw error;
       } catch (e) {
         console.error('Falha ao cancelar solicitação:', e);
         toast.error('Erro ao cancelar solicitação');
-        return; // Don't advance UI if server failed
+        return; 
       }
     }
     setIsCancellingWalk(false);
