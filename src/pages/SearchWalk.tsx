@@ -10,6 +10,7 @@ import { useHomeTheme } from '@/hooks/useHomeTheme';
 import { supabase } from '@/integrations/supabase/client';
 import { RouteInfo } from '../components/RouteInfo';
 import { WaitingForAcceptance } from '../components/WaitingForAcceptance';
+import { Database } from '@/integrations/supabase/types';
 import { WalkInProgress } from '../components/WalkInProgress';
 import { ReviewWalk } from '../components/ReviewWalk';
 import { CancelWalkDialog } from '../components/CancelWalkDialog';
