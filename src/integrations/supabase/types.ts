@@ -1503,6 +1503,15 @@ export type Database = {
           id: string
         }[]
       }
+      get_session_walker_profile: {
+        Args: { _session_id: string }
+        Returns: {
+          avatar_url: string
+          completed_walks: number
+          full_name: string
+          rating_average: number
+        }[]
+      }
       get_walk_quote: {
         Args: {
           _duration_minutes: number
@@ -2181,7 +2190,7 @@ export type Database = {
       }
       update_walker_location: {
         Args: { _accuracy?: number; _lat: number; _lng: number }
-        Returns: undefined
+        Returns: boolean
       }
       updategeometrysrid: {
         Args: {
