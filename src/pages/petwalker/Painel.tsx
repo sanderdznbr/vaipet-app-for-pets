@@ -66,7 +66,7 @@ const PetwalkerPainel = () => {
           .in('current_status', ['accepted', 'heading_to_pickup', 'arrived', 'in_progress', 'returning'])
           .maybeSingle();
         
-        setActiveRequest(request as WalkSession);
+        setActiveRequest(request as unknown as WalkSession);
         
         // Pass online status directly to avoid stale state in init
         if (online) {
@@ -89,10 +89,11 @@ const PetwalkerPainel = () => {
         table: 'walk_sessions'
       }, (payload) => {
         const updated = payload.new as WalkSession;
+        const old = payload.old as WalkSession;
         if (updated.walker_id === user.id) {
           setActiveRequest(updated);
         }
-        if (payload.old && payload.old.walker_id === user.id && ['completed', 'cancelled'].includes(updated.current_status || '')) {
+        if (old && old.walker_id === user.id && ['completed', 'cancelled'].includes(updated.current_status || '')) {
           setActiveRequest(null);
         }
         fetchOpenRequests(isOnline);

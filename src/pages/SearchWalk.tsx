@@ -688,7 +688,7 @@ const SearchWalk = () => {
           fetch(`https://api.mapbox.com/directions/v5/mapbox/walking/${coordStr}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`),
           walkerPoints.length >= 2
             ? fetch(`https://api.mapbox.com/directions/v5/mapbox/walking/${walkerCoordStr}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`)
-            : Promise.resolve(null as any),
+            : Promise.resolve<Response | null>(null),
         ]);
         const json = await res.json();
         if (cancelled) return;
@@ -841,7 +841,7 @@ const SearchWalk = () => {
           bearing: 0,
           essential: true,
           easing: (t: number) => 1 - Math.pow(1 - t, 3),
-        } as any);
+        });
       }
     } catch {
       const info = calculateRouteInfo(u, w);
@@ -1079,8 +1079,8 @@ const SearchWalk = () => {
       
       if (!isSubscribed) return;
       
-      if (!error && data && (data as any[]).length > 0) {
-        const loc = (data as any[])[0];
+      if (!error && data && data.length > 0) {
+        const loc = data[0];
         if (loc.lng && loc.lat) {
           const newPos: [number, number] = [loc.lng, loc.lat];
           // Update walker location only if it significantly moved
@@ -1303,7 +1303,7 @@ const SearchWalk = () => {
                         animationDelay: `${delay}s`,
                         animationDuration: `${duration}s`,
                         filter: layer.blur ? `blur(${layer.blur}px)` : undefined,
-                        ['--vp-op' as any]: Math.min(op, 0.8).toFixed(3),
+                        ['--vp-op' as keyof React.CSSProperties]: Math.min(op, 0.8).toFixed(3),
                       } as React.CSSProperties}
                     />
                   );
@@ -1330,7 +1330,7 @@ const SearchWalk = () => {
                     height: `${size * 0.32}px`,
                     animationDelay: `${delay}s`,
                     animationDuration: `${duration}s`,
-                    ['--vp-sop' as any]: sop.toFixed(3),
+                    ['--vp-sop' as keyof React.CSSProperties]: sop.toFixed(3),
                   } as React.CSSProperties}
                 />
               );
