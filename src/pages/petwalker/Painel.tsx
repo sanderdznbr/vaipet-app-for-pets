@@ -66,7 +66,7 @@ const PetwalkerPainel = () => {
           .in('current_status', ['accepted', 'heading_to_pickup', 'arrived', 'in_progress', 'returning'])
           .maybeSingle();
         
-        setActiveRequest(request as WalkSession);
+        setActiveRequest(request as unknown as WalkSession);
         
         // Pass online status directly to avoid stale state in init
         if (online) {
