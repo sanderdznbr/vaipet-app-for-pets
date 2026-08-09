@@ -999,7 +999,7 @@ const SearchWalk = () => {
     const dur = Math.floor((Date.now() - walkStartTime) / 1000);
     setWalkDuration(dur);
     if (currentSessionId) {
-      const { error } = await supabase.rpc('customer_confirm_arrival', {
+      const { error } = await supabase.rpc('customer_confirm_arrival' as any, {
         _walk_session_id: currentSessionId
       });
       if (error) {
