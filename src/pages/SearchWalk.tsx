@@ -979,6 +979,7 @@ const SearchWalk = () => {
           avatar: profile.avatar_url || '',
           rating: Number(profile.rating_average || 0),
           walks: Number(profile.completed_walks || 0),
+          code: ''
         });
       }
     }
