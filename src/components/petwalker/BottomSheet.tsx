@@ -33,8 +33,11 @@ export const BottomSheet = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={onClose}
-              className="fixed inset-0 bg-black/40 z-[60] backdrop-blur-[2px]"
+              onClick={dismissible ? onClose : undefined}
+              className={cn(
+                "fixed inset-0 bg-black/40 z-[60] backdrop-blur-[2px]",
+                !dismissible && "cursor-default"
+              )}
             />
           )}
           
