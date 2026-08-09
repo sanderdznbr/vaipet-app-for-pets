@@ -1073,15 +1073,14 @@ const SearchWalk = () => {
   const handleCancelComplete = async () => {
     if (currentSessionId) {
       try {
-        await supabase
-          .from('walk_sessions')
-          .update({
-            status: 'cancelled',
-            end_time: new Date().toISOString(),
-          } as never)
-          .eq('id', currentSessionId);
+        const { data, error } = await supabase.rpc('customer_cancel_search', {
+          _session_id: currentSessionId
+        });
+        if (error) throw error;
       } catch (e) {
-        console.error('Falha ao cancelar passeio:', e);
+        console.error('Falha ao cancelar solicitação:', e);
+        toast.error('Erro ao cancelar solicitação');
+        return; // Don't advance UI if server failed
       }
     }
     setIsCancellingWalk(false);
