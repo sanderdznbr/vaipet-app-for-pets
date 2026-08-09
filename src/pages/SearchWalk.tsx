@@ -1055,6 +1055,38 @@ const SearchWalk = () => {
       supabase.removeChannel(channel);
     };
   }, [currentSessionId]);
+  
+  // Continuous walker tracking for the customer
+  useEffect(() => {
+    if (!currentSessionId || searchStatus !== 'walking') return;
+    
+    let isSubscribed = true;
+    const pollInterval = setInterval(async () => {
+      const { data, error } = await supabase.rpc('get_active_walker_location', {
+        _session_id: currentSessionId
+      });
+      
+      if (!isSubscribed) return;
+      
+      if (!error && data && (data as any[]).length > 0) {
+        const loc = (data as any[])[0];
+        if (loc.lng && loc.lat) {
+          const newPos: [number, number] = [loc.lng, loc.lat];
+          // Update walker location only if it significantly moved
+          setWalkerLocation(prev => {
+            if (!prev) return newPos;
+            const dist = distanceMeters(prev, newPos);
+            return dist > 5 ? newPos : prev;
+          });
+        }
+      }
+    }, 5000); // 5s poll for tracking
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(pollInterval);
+    };
+  }, [currentSessionId, searchStatus]);
   const handleOpenChat = () => {
     // Chat implementation will use the session state
   };
