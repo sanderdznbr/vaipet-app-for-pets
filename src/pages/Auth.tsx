@@ -197,9 +197,9 @@ const Auth = () => {
     <div
       className="min-h-[100dvh] w-full flex items-center justify-center overflow-hidden relative bg-background"
     >
-      <header className="fixed top-0 left-0 right-0 z-20 flex flex-col items-center pt-safe-plus pb-4 pointer-events-none bg-background/80 backdrop-blur-xl border-b border-separator/50">
+      <header className="fixed top-0 left-0 right-0 z-20 flex flex-col items-center pt-safe-plus pb-4 pointer-events-none">
         <div className="w-full max-w-md px-6 flex flex-col items-center pointer-events-auto">
-          <img src="/vaipet-logo.svg" alt="VaiPet" className="h-8 w-auto mb-10" />
+          <img src="/vaipet-logo.svg" alt="VaiPet" className="h-10 w-auto mb-12" />
           
           <div className="w-full flex items-center min-h-[40px]">
             <AnimatePresence>
@@ -390,11 +390,11 @@ const Auth = () => {
                   </div>
                   <div className="relative group">
                     <div className="absolute left-6 top-1/2 -translate-y-1/2 text-primary">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="11" x="8" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="12" height="11" x="6" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     </div>
                     <input type={showPassword ? "text" : "password"} placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full h-[56px] pl-14 pr-14 rounded-2xl border border-separator bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-ios-body" />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-60 transition-opacity">
-                      {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-30 hover:opacity-50 transition-opacity">
+                      <Eye size={20} />
                     </button>
                   </div>
                   {isRegistering && (
@@ -410,7 +410,7 @@ const Auth = () => {
                   </button>
                 </form>
                 
-                <div className="flex flex-col gap-4 mt-2">
+                <div className="flex flex-col gap-6 mt-4">
                   {!isRegistering && (
                     <button onClick={() => setIsForgotPassword(true)} className="text-[15px] font-semibold text-center text-primary hover:underline transition-all">
                       Esqueci minha senha
@@ -427,30 +427,34 @@ const Auth = () => {
 
           {!isRegistering && !isForgotPassword && !isRecoveryMode && (
             <>
-              <div className="relative my-4">
+              <div className="relative my-8">
                 <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-separator"></span></div>
                 <div className="relative flex justify-center text-[11px] font-bold uppercase tracking-widest"><span className="px-4 text-muted-foreground bg-background">Ou continue com</span></div>
               </div>
-              <div className="w-full flex flex-col gap-3">
-                <button onClick={() => handleOAuth('google')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-separator shadow-sm bg-surface h-[60px] rounded-2xl hover:border-primary/30">
-                  <span className="flex items-center gap-4">
+              <div className="w-full flex flex-col gap-4">
+                <button onClick={() => handleOAuth('google')} className="group w-full flex items-center justify-center px-6 transition-all active:scale-[0.98] border border-separator shadow-sm bg-surface h-[60px] rounded-2xl hover:border-primary/30 relative">
+                  <div className="absolute left-6">
                     <GoogleIcon />
-                    <span className="text-[16px] font-bold">Continuar com Google</span>
-                  </span>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-20 group-hover:opacity-100 transition-opacity"><path d="m9 18 6-6-6-6"/></svg>
+                  </div>
+                  <span className="text-[16px] font-bold">Continuar com Google</span>
+                  <div className="absolute right-6 opacity-20 group-hover:opacity-100 transition-opacity">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                  </div>
                 </button>
-                <button onClick={() => handleOAuth('apple')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-separator shadow-sm bg-surface h-[60px] rounded-2xl hover:border-primary/30">
-                  <span className="flex items-center gap-4">
+                <button onClick={() => handleOAuth('apple')} className="group w-full flex items-center justify-center px-6 transition-all active:scale-[0.98] border border-separator shadow-sm bg-surface h-[60px] rounded-2xl hover:border-primary/30 relative">
+                  <div className="absolute left-6">
                     <AppleIcon />
-                    <span className="text-[16px] font-bold">Continuar com Apple</span>
-                  </span>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-20 group-hover:opacity-100 transition-opacity"><path d="m9 18 6-6-6-6"/></svg>
+                  </div>
+                  <span className="text-[16px] font-bold">Continuar com Apple</span>
+                  <div className="absolute right-6 opacity-20 group-hover:opacity-100 transition-opacity">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                  </div>
                 </button>
               </div>
             </>
           )}
 
-          <div className="flex flex-col items-center gap-1 mt-10">
+          <div className="flex flex-col items-center gap-1 mt-12">
             <div className="flex items-center gap-1.5 opacity-60">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               <p className="text-[11px] font-medium leading-relaxed text-center">
