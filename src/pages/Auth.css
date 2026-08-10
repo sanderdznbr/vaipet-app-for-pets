@@ -207,7 +207,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 20px 0 16px;
+  margin: 12px 0 12px;
 }
 
 .divider span {
@@ -228,12 +228,12 @@
 .social-button {
   position: relative;
   width: 100%;
-  min-height: 50px;
-  margin-bottom: 12px;
+  min-height: 52px;
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #C6C6C8 !important; /* Apple Light Separator */
+  border: none !important;
   border-radius: 12px;
   background: #FFFFFF;
   color: #000000;
@@ -241,15 +241,18 @@
   font-size: 17px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 140ms ease, transform 120ms ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: background 140ms ease, transform 120ms ease, box-shadow 140ms ease;
 }
 
 .social-button:hover {
-  background: #E5E5EA;
+  background: #F2F2F7;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 .social-button:active {
   transform: scale(0.98);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
 .social-button > span:not(.social-icon) {
