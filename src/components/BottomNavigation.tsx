@@ -2,6 +2,7 @@ import React from 'react';
 import { Home, PawPrint, Users, Store, Settings } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useHomeTheme } from '@/hooks/useHomeTheme';
+import { cn } from '@/lib/utils';
 
 const BRAND = '#31D880';
 
