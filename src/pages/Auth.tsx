@@ -372,7 +372,7 @@ const Auth = () => {
                 </button>
               </form>
 
-              <div className="flex flex-col gap-2 mt-6">
+              <div className="flex flex-col gap-1 mt-4">
                 {!isRegistering && (
                   <button onClick={() => setIsForgotPassword(true)} className="text-button">
                     Esqueci minha senha
