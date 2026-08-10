@@ -91,16 +91,19 @@
 
 .input-wrapper {
   position: relative;
-  height: 50px;
+  height: 54px;
   display: flex;
   align-items: center;
-  border-bottom: 0.5px solid #C6C6C8; /* Apple Thin Separator */
-  background: transparent;
-  transition: opacity 160ms ease;
+  border: none;
+  background: #F2F2F7; /* Apple System Gray 6 - Light subtle background */
+  border-radius: 12px;
+  margin-bottom: 12px;
+  padding: 0 16px;
+  transition: background-color 160ms ease;
 }
 
 .input-wrapper:focus-within {
-  opacity: 1;
+  background: #E5E5EA; /* Apple System Gray 5 - slightly darker when focused */
 }
 
 .input-icon {
@@ -109,7 +112,6 @@
   margin-right: 12px;
   color: #8E8E93;
   flex-shrink: 0;
-  margin-left: 0;
 }
 
 .input-wrapper input {
