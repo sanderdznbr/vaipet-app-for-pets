@@ -197,11 +197,11 @@ const Auth = () => {
     <div
       className="min-h-[100dvh] w-full flex items-center justify-center overflow-hidden relative bg-background"
     >
-      <header className="fixed top-0 left-0 right-0 z-20 flex flex-col items-center py-6 sm:py-8 pointer-events-none bg-inherit">
-        <div className="w-full max-w-md px-6 flex flex-col items-center gap-4 sm:gap-6 pointer-events-auto">
-          <img src="/vaipet-logo.svg" alt="VaiPet" className="w-20 sm:w-24 h-auto" />
+      <header className="fixed top-0 left-0 right-0 z-20 flex flex-col items-center pt-safe-plus pb-4 pointer-events-none bg-background/80 backdrop-blur-xl border-b border-separator/50">
+        <div className="w-full max-w-md px-6 flex flex-col items-center pointer-events-auto">
+          <img src="/vaipet-logo.svg" alt="VaiPet" className="h-8 w-auto mb-10" />
           
-          <div className="w-full h-8 sm:h-10 flex items-center">
+          <div className="w-full flex items-center min-h-[40px]">
             <AnimatePresence>
               {(isForgotPassword || isOTPMode || (isRegistering && signupIntent)) && (
                 <motion.button
@@ -213,9 +213,9 @@ const Auth = () => {
                     else if (isOTPMode) setIsOTPMode(false);
                     else setSignupIntent(null);
                   }}
-                  className="p-2 -ml-2 hover:bg-black/5 rounded-full transition-colors flex items-center gap-2 text-xs font-medium opacity-60"
+                  className="p-2 -ml-2 hover:bg-black/5 rounded-full transition-colors flex items-center gap-2 text-sm font-medium text-primary"
                 >
-                  <ArrowLeft size={16} />
+                  <ArrowLeft size={20} />
                   <span>Voltar</span>
                 </motion.button>
               )}
@@ -362,78 +362,107 @@ const Auth = () => {
                 exit={{ opacity: 0, y: -10 }}
                 className="w-full flex flex-col gap-6"
               >
-                <div className="flex flex-col items-center gap-2">
-                  <h2 className="text-2xl font-bold text-center">{isRegistering ? 'Criar Conta' : 'Entrar no VaiPet'}</h2>
+                <div className="flex flex-col items-center gap-2 mb-2">
+                  <h2 className="text-[32px] font-bold tracking-tight text-center">
+                    {isRegistering ? 'Criar Conta' : 'Entrar no VaiPet'}
+                  </h2>
+                  <p className="text-ios-body text-muted-foreground text-center">
+                    {isRegistering ? 'Preencha os dados para começar' : 'Acesse sua conta para continuar'}
+                  </p>
                 </div>
+
                 <form onSubmit={handleEmailAuth} className="flex flex-col gap-4">
                   {isRegistering && (
                     <>
-                      <input type="text" placeholder="Nome Completo" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body" />
-                      <input type="tel" placeholder="Telefone" value={phone} onChange={(e) => setPhone(e.target.value)} required className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body" />
+                      <div className="relative group">
+                        <input type="text" placeholder="Nome Completo" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full h-[56px] px-6 rounded-2xl border border-separator bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-ios-body" />
+                      </div>
+                      <div className="relative group">
+                        <input type="tel" placeholder="Telefone" value={phone} onChange={(e) => setPhone(e.target.value)} required className="w-full h-[56px] px-6 rounded-2xl border border-separator bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-ios-body" />
+                      </div>
                     </>
                   )}
-                  <input type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body" />
-                  <div className="relative">
-                    <input type={showPassword ? "text" : "password"} placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body pr-14" />
+                  <div className="relative group">
+                    <div className="absolute left-6 top-1/2 -translate-y-1/2 text-primary">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                    </div>
+                    <input type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full h-[56px] pl-14 pr-6 rounded-2xl border border-separator bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-ios-body" />
+                  </div>
+                  <div className="relative group">
+                    <div className="absolute left-6 top-1/2 -translate-y-1/2 text-primary">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="11" x="8" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                    <input type={showPassword ? "text" : "password"} placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full h-[56px] pl-14 pr-14 rounded-2xl border border-separator bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-ios-body" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-60 transition-opacity">
                       {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
                     </button>
                   </div>
                   {isRegistering && (
-                    <div className="relative">
-                      <input type={showConfirmPassword ? "text" : "password"} placeholder="Confirmar Senha" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body pr-14" />
+                    <div className="relative group">
+                      <input type={showConfirmPassword ? "text" : "password"} placeholder="Confirmar Senha" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full h-[56px] px-6 rounded-2xl border border-separator bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-ios-body pr-14" />
                       <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-60 transition-opacity">
                         {showConfirmPassword ? <EyeOff size={22} /> : <Eye size={22} />}
                       </button>
                     </div>
                   )}
-                  <button type="submit" disabled={isLoading} className="w-full h-[56px] rounded-xl font-bold text-primary-foreground shadow-sm bg-primary active:scale-[0.98] transition-all disabled:opacity-40 mt-2">
+                  <button type="submit" disabled={isLoading} className="w-full h-[56px] rounded-2xl font-bold text-white shadow-lg shadow-primary/20 bg-primary active:scale-[0.98] hover:brightness-105 transition-all disabled:opacity-40 mt-2 text-lg">
                     {isLoading ? 'Aguarde...' : (isRegistering ? 'Cadastrar' : 'Entrar')}
                   </button>
                 </form>
-                {!isRegistering && (
-                  <button onClick={() => setIsForgotPassword(true)} className="text-sm font-semibold text-center underline opacity-60 hover:opacity-100 transition-opacity -mt-2">
-                    Esqueci minha senha
+                
+                <div className="flex flex-col gap-4 mt-2">
+                  {!isRegistering && (
+                    <button onClick={() => setIsForgotPassword(true)} className="text-[15px] font-semibold text-center text-primary hover:underline transition-all">
+                      Esqueci minha senha
+                    </button>
+                  )}
+                  <button onClick={() => { setIsRegistering(!isRegistering); setSignupIntent(null); }} className="text-[15px] font-medium text-center text-foreground transition-all">
+                    {isRegistering ? 'Já tem conta? ' : 'Não tem conta? '}
+                    <span className="text-primary font-bold">{isRegistering ? 'Entre aqui' : 'Crie uma'}</span>
                   </button>
-                )}
-                <button onClick={() => { setIsRegistering(!isRegistering); setSignupIntent(null); }} className="text-sm font-semibold text-center underline opacity-60 hover:opacity-100 transition-opacity">
-                  {isRegistering ? 'Já tem conta? Entre aqui' : 'Não tem conta? Crie uma'}
-                </button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
 
           {!isRegistering && !isForgotPassword && !isRecoveryMode && (
             <>
-              <div className="relative my-2">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-black/10"></span></div>
-                <div className="relative flex justify-center text-xs uppercase"><span className="px-2 text-muted-foreground bg-background">Ou continue com</span></div>
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-separator"></span></div>
+                <div className="relative flex justify-center text-[11px] font-bold uppercase tracking-widest"><span className="px-4 text-muted-foreground bg-background">Ou continue com</span></div>
               </div>
               <div className="w-full flex flex-col gap-3">
-                <button onClick={() => handleOAuth('google')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-separator shadow-sm bg-surface h-[56px] rounded-xl">
+                <button onClick={() => handleOAuth('google')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-separator shadow-sm bg-surface h-[60px] rounded-2xl hover:border-primary/30">
                   <span className="flex items-center gap-4">
                     <GoogleIcon />
-                    <span className="text-[15px] font-bold">Google</span>
+                    <span className="text-[16px] font-bold">Continuar com Google</span>
                   </span>
-                  <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-20 group-hover:opacity-100 transition-opacity"><path d="m9 18 6-6-6-6"/></svg>
                 </button>
-                <button onClick={() => handleOAuth('apple')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-separator shadow-sm bg-surface h-[56px] rounded-xl">
+                <button onClick={() => handleOAuth('apple')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-separator shadow-sm bg-surface h-[60px] rounded-2xl hover:border-primary/30">
                   <span className="flex items-center gap-4">
                     <AppleIcon />
-                    <span className="text-[15px] font-bold">Apple</span>
+                    <span className="text-[16px] font-bold">Continuar com Apple</span>
                   </span>
-                  <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-20 group-hover:opacity-100 transition-opacity"><path d="m9 18 6-6-6-6"/></svg>
                 </button>
               </div>
             </>
           )}
 
-          <p className="text-[11px] font-medium leading-relaxed text-center mt-6 w-full opacity-60">
-            Ao continuar, você aceita os{' '}
-            <Link to="/termos-de-uso" className="underline">Termos</Link>
-            {' '}e{' '}
-            <Link to="/politica-de-privacidade" className="underline">Privacidade</Link>.
-          </p>
+          <div className="flex flex-col items-center gap-1 mt-10">
+            <div className="flex items-center gap-1.5 opacity-60">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <p className="text-[11px] font-medium leading-relaxed text-center">
+                Ao continuar, você concorda com os
+              </p>
+            </div>
+            <div className="text-[11px] font-bold">
+              <Link to="/termos-de-uso" className="text-primary underline">Termos de Uso</Link>
+              <span className="mx-1 opacity-60">e</span>
+              <Link to="/politica-de-privacidade" className="text-primary underline">Política de Privacidade</Link>.
+            </div>
+          </div>
         </div>
       </main>
 
