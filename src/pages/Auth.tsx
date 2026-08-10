@@ -42,6 +42,33 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [signupIntent, setSignupIntent] = useState<'pet_owner' | 'petwalker' | null>(null);
+  const [identifiedRole, setIdentifiedRole] = useState<'user' | 'petwalker' | null>(null);
+
+  useEffect(() => {
+    const identifyUserRole = async () => {
+      if (!email || !email.includes('@') || isRegistering || isForgotPassword || isRecoveryMode || isOTPMode) {
+        setIdentifiedRole(null);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.rpc('check_user_is_petwalker', { 
+          email_address: email 
+        });
+
+        if (!error && data === true) {
+          setIdentifiedRole('petwalker');
+        } else {
+          setIdentifiedRole('user');
+        }
+      } catch (e) {
+        setIdentifiedRole(null);
+      }
+    };
+
+    const timer = setTimeout(identifyUserRole, 600);
+    return () => clearTimeout(timer);
+  }, [email, isRegistering, isForgotPassword, isRecoveryMode, isOTPMode]);
 
   useEffect(() => {
     const type = searchParams.get('type');
@@ -368,7 +395,11 @@ const Auth = () => {
                   </div>
                 )}
                 <button type="submit" disabled={isLoading} className="primary-button">
-                  {isLoading ? 'Aguarde...' : (isRegistering ? 'Cadastrar' : 'Entrar')}
+                  {isLoading ? 'Aguarde...' : (
+                    isRegistering ? 'Cadastrar' : (
+                      identifiedRole === 'petwalker' ? 'Entrar como PetWalker' : 'Entrar'
+                    )
+                  )}
                 </button>
               </form>
 

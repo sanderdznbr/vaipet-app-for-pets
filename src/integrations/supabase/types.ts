@@ -1259,6 +1259,10 @@ export type Database = {
         Returns: undefined
       }
       cancel_walk_session: { Args: { _session_id: string }; Returns: undefined }
+      check_user_is_petwalker: {
+        Args: { email_address: string }
+        Returns: boolean
+      }
       create_walk_request: {
         Args: {
           _duration_minutes: number
