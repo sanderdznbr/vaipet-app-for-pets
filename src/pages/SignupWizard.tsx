@@ -372,7 +372,7 @@ const SignupWizard = ({ initialIntent: propIntent }: { initialIntent?: 'pet_owne
     }
   };
 
-  const inputClasses = "h-12 rounded-xl border-gray-200 px-4 text-sm";
+  const inputClasses = "h-12 rounded-xl border-none bg-[#F2F2F7] focus:bg-[#E5E5EA] px-4 text-sm transition-colors";
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
