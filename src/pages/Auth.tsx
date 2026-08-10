@@ -52,27 +52,24 @@ const Auth = () => {
       }
 
       try {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', (await supabase.from('profiles').select('id').eq('email', email).single()).data?.id)
-          .single();
-        
-        // Since we can't easily fetch roles by email without a secure RPC or profile join, 
-        // and standard users can't read other's roles, we should use a dedicated RPC or 
-        // check if the user has a petwalker profile linked to that email if public.
-        // For now, let's try a safer approach: check the profiles table if it has the email and join with roles.
-        
+        // We check if a petwalker profile exists for this email using the RPC or a simple select
+        // if the policy allows. Since we want a robust check, let's use the profiles table.
+        // We'll look for the role through a secure join if possible, or just check the petwalker table.
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('id, user_roles(role)')
+          .select('id')
           .eq('email', email)
           .maybeSingle();
 
-        if (profileData?.user_roles) {
-          const roles = profileData.user_roles as any[];
-          const isWalker = roles.some(r => r.role === 'petwalker');
-          setIdentifiedRole(isWalker ? 'petwalker' : 'user');
+        if (profileData) {
+          const { data: roleData } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', profileData.id)
+            .eq('role', 'petwalker')
+            .maybeSingle();
+
+          setIdentifiedRole(roleData ? 'petwalker' : 'user');
         } else {
           setIdentifiedRole(null);
         }
@@ -81,7 +78,7 @@ const Auth = () => {
       }
     };
 
-    const timer = setTimeout(identifyUserRole, 500);
+    const timer = setTimeout(identifyUserRole, 600);
     return () => clearTimeout(timer);
   }, [email, isRegistering, isForgotPassword, isRecoveryMode, isOTPMode]);
 
