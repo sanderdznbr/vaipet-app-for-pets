@@ -407,7 +407,11 @@ const Auth = () => {
                   </div>
                 )}
                 <button type="submit" disabled={isLoading} className="primary-button">
-                  {isLoading ? 'Aguarde...' : (isRegistering ? 'Cadastrar' : 'Entrar')}
+                  {isLoading ? 'Aguarde...' : (
+                    isRegistering ? 'Cadastrar' : (
+                      identifiedRole === 'petwalker' ? 'Entrar como PetWalker' : 'Entrar'
+                    )
+                  )}
                 </button>
               </form>
 
