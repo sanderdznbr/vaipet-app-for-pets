@@ -52,26 +52,14 @@ const Auth = () => {
       }
 
       try {
-        // We check if a petwalker profile exists for this email using the RPC or a simple select
-        // if the policy allows. Since we want a robust check, let's use the profiles table.
-        // We'll look for the role through a secure join if possible, or just check the petwalker table.
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('email', email)
-          .maybeSingle();
+        const { data, error } = await supabase.rpc('check_user_is_petwalker', { 
+          email_address: email 
+        });
 
-        if (profileData) {
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', profileData.id)
-            .eq('role', 'petwalker')
-            .maybeSingle();
-
-          setIdentifiedRole(roleData ? 'petwalker' : 'user');
+        if (!error && data === true) {
+          setIdentifiedRole('petwalker');
         } else {
-          setIdentifiedRole(null);
+          setIdentifiedRole('user');
         }
       } catch (e) {
         setIdentifiedRole(null);
