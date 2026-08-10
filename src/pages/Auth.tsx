@@ -281,7 +281,7 @@ const Auth = () => {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       required
-                      className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg pr-14"
+                      className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body pr-14"
                     />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-60 transition-opacity">
                       {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
@@ -294,13 +294,13 @@ const Auth = () => {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
-                      className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg pr-14"
+                      className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body pr-14"
                     />
                     <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-60 transition-opacity">
                       {showConfirmPassword ? <EyeOff size={22} /> : <Eye size={22} />}
                     </button>
                   </div>
-                  <button type="submit" disabled={isLoading} className="w-full h-14 sm:h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
+                  <button type="submit" disabled={isLoading} className="w-full h-[56px] rounded-xl font-bold text-primary-foreground shadow-sm bg-primary active:scale-[0.98] transition-all disabled:opacity-40 mt-2">
                     {isLoading ? 'Atualizando...' : 'Atualizar Senha'}
                   </button>
                 </form>
@@ -324,9 +324,9 @@ const Auth = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg"
+                    className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body"
                   />
-                  <button type="submit" disabled={isLoading} className="w-full h-14 sm:h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
+                  <button type="submit" disabled={isLoading} className="w-full h-[56px] rounded-xl font-bold text-primary-foreground shadow-sm bg-primary active:scale-[0.98] transition-all disabled:opacity-40 mt-2">
                     {isLoading ? 'Enviando...' : 'Enviar link de recuperação'}
                   </button>
                 </form>
@@ -341,13 +341,13 @@ const Auth = () => {
               >
                 <h2 className="text-2xl font-bold text-center">Como você quer usar o VaiPet?</h2>
                 <div className="flex flex-col gap-4">
-                  <button onClick={() => setSignupIntent('pet_owner')} className="p-6 rounded-2xl border-2 border-black/5 hover:border-[#31D880] text-left transition-all bg-white group">
-                    <h3 className="text-lg font-bold mb-1">Dono(a) de Pet</h3>
-                    <p className="text-sm text-black/60">Quero cuidar dos meus pets e solicitar passeios.</p>
+                  <button onClick={() => setSignupIntent('pet_owner')} className="p-6 rounded-xl border border-separator hover:border-primary text-left transition-all bg-surface active:scale-[0.98] group">
+                    <h3 className="text-ios-headline font-bold mb-1">Dono(a) de Pet</h3>
+                    <p className="text-ios-subheadline text-muted-foreground">Quero cuidar dos meus pets e solicitar passeios.</p>
                   </button>
-                  <button onClick={() => setSignupIntent('petwalker')} className="p-6 rounded-2xl border-2 border-black/5 hover:border-[#31D880] text-left transition-all bg-white group">
-                    <h3 className="text-lg font-bold mb-1">Quero ser PetWalker</h3>
-                    <p className="text-sm text-black/60">Crie sua conta e depois envie sua candidatura.</p>
+                  <button onClick={() => setSignupIntent('petwalker')} className="p-6 rounded-xl border border-separator hover:border-primary text-left transition-all bg-surface active:scale-[0.98] group">
+                    <h3 className="text-ios-headline font-bold mb-1">Quero ser PetWalker</h3>
+                    <p className="text-ios-subheadline text-muted-foreground">Crie sua conta e depois envie sua candidatura.</p>
                   </button>
                 </div>
                 <button onClick={() => setIsRegistering(false)} className="text-sm font-semibold text-center underline opacity-60 hover:opacity-100 transition-opacity">
