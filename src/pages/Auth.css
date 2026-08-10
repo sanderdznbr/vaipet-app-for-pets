@@ -30,15 +30,16 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  background: var(--background);
+  background: #FFFFFF; /* Apple System Background */
   padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+  color: #000000;
 }
 
 .auth-container {
   width: 100%;
-  max-width: 430px;
+  max-width: 400px;
   height: 100%;
-  max-height: 850px;
   display: flex;
   flex-direction: column;
   justify-content: center;
