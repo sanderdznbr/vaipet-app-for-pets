@@ -66,48 +66,49 @@
 
 .auth-header h1 {
   margin: 0;
-  font-size: 28px;
-  line-height: 1.15;
+  font-size: 34px;
+  line-height: 41px;
   font-weight: 700;
-  letter-spacing: -0.7px;
+  letter-spacing: -0.4px;
+  color: #000000;
 }
 
 .auth-header p {
-  margin: 12px 0 0;
-  color: var(--text-secondary);
+  margin: 8px 0 0;
+  color: #8E8E93; /* Apple Secondary Label */
   font-size: 17px;
-  line-height: 1.45;
-  letter-spacing: -0.1px;
+  line-height: 22px;
+  letter-spacing: -0.4px;
 }
 
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
+  margin-top: 20px;
 }
 
 .input-wrapper {
   position: relative;
-  height: 56px;
+  height: 50px;
   display: flex;
   align-items: center;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-input);
-  background: #ffffff;
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+  border-bottom: 0.5px solid #C6C6C8; /* Apple Thin Separator */
+  background: transparent;
+  transition: opacity 160ms ease;
 }
 
 .input-wrapper:focus-within {
-  border-color: var(--vaipet-green);
-  box-shadow: 0 0 0 3px rgba(49, 216, 128, 0.13);
+  opacity: 1;
 }
 
 .input-icon {
-  width: 21px;
-  height: 21px;
-  margin-left: 16px;
-  color: var(--vaipet-green);
+  width: 20px;
+  height: 20px;
+  margin-right: 12px;
+  color: #8E8E93;
   flex-shrink: 0;
+  margin-left: 0;
 }
 
 .input-wrapper input {
@@ -116,8 +117,8 @@
   border: 0;
   outline: 0;
   background: transparent;
-  padding: 0 16px;
-  color: var(--text-primary);
+  padding: 0;
+  color: #000000;
   font-family: inherit;
   font-size: 17px;
   -webkit-appearance: none;
@@ -147,38 +148,37 @@
 
 .primary-button {
   width: 100%;
-  min-height: 56px;
-  margin-top: 4px;
+  min-height: 50px;
+  margin-top: 24px;
   border: 0;
-  border-radius: var(--radius-button);
-  background: var(--vaipet-green);
-  color: #07150e;
+  border-radius: 12px;
+  background: #007AFF; /* Apple System Blue */
+  color: #FFFFFF;
   font-family: inherit;
   font-size: 17px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  transition: transform 120ms ease, background 160ms ease, box-shadow 160ms ease;
+  transition: opacity 120ms ease, transform 120ms ease;
 }
 
 .primary-button:hover {
-  background: var(--vaipet-green-dark);
+  opacity: 0.9;
 }
 
 .primary-button:active {
-  transform: scale(0.985);
+  transform: scale(0.98);
 }
 
 .text-button,
 .inline-button {
   border: 0;
   background: transparent;
-  color: var(--text-secondary);
+  color: #007AFF;
   font-family: inherit;
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 17px;
+  font-weight: 400;
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration: none;
 }
 
 .text-button {
@@ -241,17 +241,14 @@
 }
 
 .social-button:hover {
-  background: #fafafa;
+  background: #E5E5EA;
 }
 
 .social-button:active {
-  transform: scale(0.985);
+  transform: scale(0.98);
 }
 
 .social-button > span:not(.social-icon) {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
   white-space: nowrap;
 }
 
@@ -286,18 +283,17 @@
 }
 
 .legal {
-  max-width: 330px;
-  margin: 26px auto 0;
+  max-width: 300px;
+  margin: 32px auto 0;
   text-align: center;
-  color: #858b92;
-  font-size: 12px;
-  line-height: 1.55;
+  color: #8E8E93;
+  font-size: 13px;
+  line-height: 18px;
 }
 
 .legal a {
-  color: #62686e;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  color: #007AFF;
+  text-decoration: none;
 }
 
 @media (max-width: 380px) {
