@@ -368,26 +368,26 @@ const Auth = () => {
                 <form onSubmit={handleEmailAuth} className="flex flex-col gap-4">
                   {isRegistering && (
                     <>
-                      <input type="text" placeholder="Nome Completo" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg" />
-                      <input type="tel" placeholder="Telefone" value={phone} onChange={(e) => setPhone(e.target.value)} required className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg" />
+                      <input type="text" placeholder="Nome Completo" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body" />
+                      <input type="tel" placeholder="Telefone" value={phone} onChange={(e) => setPhone(e.target.value)} required className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body" />
                     </>
                   )}
-                  <input type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg" />
+                  <input type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body" />
                   <div className="relative">
-                    <input type={showPassword ? "text" : "password"} placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg pr-14" />
+                    <input type={showPassword ? "text" : "password"} placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body pr-14" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-60 transition-opacity">
                       {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
                     </button>
                   </div>
                   {isRegistering && (
                     <div className="relative">
-                      <input type={showConfirmPassword ? "text" : "password"} placeholder="Confirmar Senha" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg pr-14" />
+                      <input type={showConfirmPassword ? "text" : "password"} placeholder="Confirmar Senha" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body pr-14" />
                       <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-60 transition-opacity">
                         {showConfirmPassword ? <EyeOff size={22} /> : <Eye size={22} />}
                       </button>
                     </div>
                   )}
-                  <button type="submit" disabled={isLoading} className="w-full h-14 sm:h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
+                  <button type="submit" disabled={isLoading} className="w-full h-[56px] rounded-xl font-bold text-primary-foreground shadow-sm bg-primary active:scale-[0.98] transition-all disabled:opacity-40 mt-2">
                     {isLoading ? 'Aguarde...' : (isRegistering ? 'Cadastrar' : 'Entrar')}
                   </button>
                 </form>
@@ -407,17 +407,17 @@ const Auth = () => {
             <>
               <div className="relative my-2">
                 <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-black/10"></span></div>
-                <div className="relative flex justify-center text-xs uppercase"><span className="px-2 text-black/40" style={{ backgroundColor: PAPER }}>Ou continue com</span></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="px-2 text-muted-foreground bg-background">Ou continue com</span></div>
               </div>
               <div className="w-full flex flex-col gap-3">
-                <button onClick={() => handleOAuth('google')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-black/5 shadow-sm bg-white h-[56px] sm:h-[64px] rounded-[20px]">
+                <button onClick={() => handleOAuth('google')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-separator shadow-sm bg-surface h-[56px] rounded-xl">
                   <span className="flex items-center gap-4">
                     <GoogleIcon />
                     <span className="text-[15px] font-bold">Google</span>
                   </span>
                   <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
                 </button>
-                <button onClick={() => handleOAuth('apple')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-black/5 shadow-sm bg-white h-[56px] sm:h-[64px] rounded-[20px]">
+                <button onClick={() => handleOAuth('apple')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-separator shadow-sm bg-surface h-[56px] rounded-xl">
                   <span className="flex items-center gap-4">
                     <AppleIcon />
                     <span className="text-[15px] font-bold">Apple</span>
