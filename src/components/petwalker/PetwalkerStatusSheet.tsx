@@ -31,15 +31,15 @@ export const PetwalkerStatusSheet = ({
               <Navigation size={24} />
             </div>
             <div>
-              <h3 className="text-lg font-bold font-space text-red-900">Ative sua localização</h3>
-              <p className="text-sm text-red-700 leading-tight">Precisamos do seu GPS para você receber solicitações de passeio.</p>
+              <h3 className="text-ios-headline font-bold text-red-900">Ative sua localização</h3>
+              <p className="text-ios-caption-1 text-red-700 leading-tight">Precisamos do seu GPS para você receber solicitações de passeio.</p>
             </div>
           </div>
           
           <div className="space-y-3">
             <Button 
               onClick={onRetryGps}
-              className="w-full bg-ink text-white hover:bg-ink/90 h-[54px] rounded-2xl font-bold"
+              className="w-full bg-foreground text-background"
             >
               Tentar novamente
             </Button>
@@ -55,12 +55,12 @@ export const PetwalkerStatusSheet = ({
       {!isOnline ? (
         <div className="space-y-6">
           <div className="text-center space-y-1">
-            <h3 className="text-xl font-bold font-space text-ink">Você está offline</h3>
-            <p className="text-sm text-muted-foreground">Fique online para receber solicitações de passeio próximas</p>
+            <h3 className="text-ios-title-2 font-bold text-foreground">Você está offline</h3>
+            <p className="text-ios-subheadline text-muted-foreground">Fique online para receber solicitações de passeio próximas</p>
           </div>
           <Button 
             onClick={onToggleOnline} 
-            className="w-full bg-[#31D880] text-ink hover:bg-[#2bc473] h-[54px] rounded-2xl font-black text-lg shadow-lg"
+            className="w-full bg-primary text-primary-foreground text-ios-headline"
           >
             Ficar Online
           </Button>
@@ -75,20 +75,20 @@ export const PetwalkerStatusSheet = ({
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#31D880] animate-pulse" />
-              <h3 className="text-lg font-bold font-space text-ink">Você está online</h3>
+              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              <h3 className="text-ios-headline font-bold text-foreground">Você está online</h3>
             </div>
             <button onClick={onToggleOnline} className="text-sm font-bold text-red-500 px-2 py-1">Ficar offline</button>
           </div>
           
           <div className="space-y-4">
-            <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-2xl border border-gray-100">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-[#31D880]">
+            <div className="flex items-center gap-3 bg-muted/30 p-4 rounded-xl border border-separator">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary">
                 <Navigation size={18} className="animate-pulse" />
               </div>
               <div>
-                <p className="text-sm font-bold text-ink">Procurando solicitações...</p>
-                <p className="text-[11px] text-muted-foreground font-medium">As solicitações aparecerão aqui automaticamente</p>
+                <p className="text-ios-subheadline font-bold text-foreground">Procurando solicitações...</p>
+                <p className="text-ios-caption-2 text-muted-foreground font-medium">As solicitações aparecerão aqui automaticamente</p>
               </div>
             </div>
           </div>

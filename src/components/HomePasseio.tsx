@@ -376,9 +376,9 @@ export const HomePasseio: React.FC = () => {
       initial="hidden"
       animate="visible"
       className="min-h-screen pb-10"
-      style={{ background: PAPER, color: INK, fontFamily: 'DM Sans, sans-serif' }}
+      style={{ background: PAPER, color: INK }}
     >
-      <div className="px-5 pt-2 pb-2 space-y-5">
+      <div className="px-4 pt-2 pb-2 space-y-6">
         {loading ? (
           <HomeSkeleton paper={PAPER} ink={INK} />
         ) : (
@@ -389,9 +389,9 @@ export const HomePasseio: React.FC = () => {
             <h1
               className="font-bold leading-[0.9] -ml-0.5"
               style={{
-                fontFamily: 'Space Grotesk, sans-serif',
-                fontSize: 'clamp(44px, 12vw, 54px)',
-                letterSpacing: '-0.05em',
+                fontSize: '34px',
+                letterSpacing: '-0.02em',
+                lineHeight: '1.1'
               }}
             >
               Bora<br />
@@ -425,7 +425,6 @@ export const HomePasseio: React.FC = () => {
               <span
                 className="font-bold mt-0.5"
                 style={{
-                  fontFamily: 'Space Grotesk, sans-serif',
                   fontSize: 22,
                   letterSpacing: '-0.02em',
                 }}
@@ -468,8 +467,7 @@ export const HomePasseio: React.FC = () => {
                   )}
                 </div>
                 <span
-                  className="text-[12px] font-semibold pr-0.5"
-                  style={{ fontFamily: 'Space Grotesk, sans-serif' }}
+                  className="text-ios-subheadline font-semibold pr-0.5"
                 >
                   {pet.name}
                 </span>

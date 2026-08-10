@@ -195,8 +195,7 @@ const Auth = () => {
 
   return (
     <div
-      className="min-h-[100dvh] w-full flex items-center justify-center overflow-hidden relative"
-      style={{ backgroundColor: PAPER, color: INK, fontFamily: "'DM Sans', system-ui, sans-serif" }}
+      className="min-h-[100dvh] w-full flex items-center justify-center overflow-hidden relative bg-background"
     >
       <header className="fixed top-0 left-0 right-0 z-20 flex flex-col items-center py-6 sm:py-8 pointer-events-none bg-inherit">
         <div className="w-full max-w-md px-6 flex flex-col items-center gap-4 sm:gap-6 pointer-events-auto">
@@ -247,9 +246,9 @@ const Auth = () => {
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     required
-                    className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg text-center tracking-widest font-bold"
+                    className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-title-2 text-center tracking-widest font-bold"
                   />
-                  <button type="submit" disabled={isLoading || otpCode.length < 6} className="w-full h-14 sm:h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
+                  <button type="submit" disabled={isLoading || otpCode.length < 6} className="w-full h-[56px] rounded-xl font-bold text-primary-foreground shadow-sm bg-primary active:scale-[0.98] transition-all disabled:opacity-40 mt-2">
                     {isLoading ? 'Verificando...' : 'Confirmar Código'}
                   </button>
                 </form>
@@ -282,7 +281,7 @@ const Auth = () => {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       required
-                      className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg pr-14"
+                      className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body pr-14"
                     />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-60 transition-opacity">
                       {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
@@ -295,13 +294,13 @@ const Auth = () => {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
-                      className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg pr-14"
+                      className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body pr-14"
                     />
                     <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-60 transition-opacity">
                       {showConfirmPassword ? <EyeOff size={22} /> : <Eye size={22} />}
                     </button>
                   </div>
-                  <button type="submit" disabled={isLoading} className="w-full h-14 sm:h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
+                  <button type="submit" disabled={isLoading} className="w-full h-[56px] rounded-xl font-bold text-primary-foreground shadow-sm bg-primary active:scale-[0.98] transition-all disabled:opacity-40 mt-2">
                     {isLoading ? 'Atualizando...' : 'Atualizar Senha'}
                   </button>
                 </form>
@@ -325,9 +324,9 @@ const Auth = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg"
+                    className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body"
                   />
-                  <button type="submit" disabled={isLoading} className="w-full h-14 sm:h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
+                  <button type="submit" disabled={isLoading} className="w-full h-[56px] rounded-xl font-bold text-primary-foreground shadow-sm bg-primary active:scale-[0.98] transition-all disabled:opacity-40 mt-2">
                     {isLoading ? 'Enviando...' : 'Enviar link de recuperação'}
                   </button>
                 </form>
@@ -342,13 +341,13 @@ const Auth = () => {
               >
                 <h2 className="text-2xl font-bold text-center">Como você quer usar o VaiPet?</h2>
                 <div className="flex flex-col gap-4">
-                  <button onClick={() => setSignupIntent('pet_owner')} className="p-6 rounded-2xl border-2 border-black/5 hover:border-[#31D880] text-left transition-all bg-white group">
-                    <h3 className="text-lg font-bold mb-1">Dono(a) de Pet</h3>
-                    <p className="text-sm text-black/60">Quero cuidar dos meus pets e solicitar passeios.</p>
+                  <button onClick={() => setSignupIntent('pet_owner')} className="p-6 rounded-xl border border-separator hover:border-primary text-left transition-all bg-surface active:scale-[0.98] group">
+                    <h3 className="text-ios-headline font-bold mb-1">Dono(a) de Pet</h3>
+                    <p className="text-ios-subheadline text-muted-foreground">Quero cuidar dos meus pets e solicitar passeios.</p>
                   </button>
-                  <button onClick={() => setSignupIntent('petwalker')} className="p-6 rounded-2xl border-2 border-black/5 hover:border-[#31D880] text-left transition-all bg-white group">
-                    <h3 className="text-lg font-bold mb-1">Quero ser PetWalker</h3>
-                    <p className="text-sm text-black/60">Crie sua conta e depois envie sua candidatura.</p>
+                  <button onClick={() => setSignupIntent('petwalker')} className="p-6 rounded-xl border border-separator hover:border-primary text-left transition-all bg-surface active:scale-[0.98] group">
+                    <h3 className="text-ios-headline font-bold mb-1">Quero ser PetWalker</h3>
+                    <p className="text-ios-subheadline text-muted-foreground">Crie sua conta e depois envie sua candidatura.</p>
                   </button>
                 </div>
                 <button onClick={() => setIsRegistering(false)} className="text-sm font-semibold text-center underline opacity-60 hover:opacity-100 transition-opacity">
@@ -369,26 +368,26 @@ const Auth = () => {
                 <form onSubmit={handleEmailAuth} className="flex flex-col gap-4">
                   {isRegistering && (
                     <>
-                      <input type="text" placeholder="Nome Completo" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg" />
-                      <input type="tel" placeholder="Telefone" value={phone} onChange={(e) => setPhone(e.target.value)} required className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg" />
+                      <input type="text" placeholder="Nome Completo" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body" />
+                      <input type="tel" placeholder="Telefone" value={phone} onChange={(e) => setPhone(e.target.value)} required className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body" />
                     </>
                   )}
-                  <input type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg" />
+                  <input type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body" />
                   <div className="relative">
-                    <input type={showPassword ? "text" : "password"} placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg pr-14" />
+                    <input type={showPassword ? "text" : "password"} placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body pr-14" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-60 transition-opacity">
                       {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
                     </button>
                   </div>
                   {isRegistering && (
                     <div className="relative">
-                      <input type={showConfirmPassword ? "text" : "password"} placeholder="Confirmar Senha" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg pr-14" />
+                      <input type={showConfirmPassword ? "text" : "password"} placeholder="Confirmar Senha" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-body pr-14" />
                       <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-60 transition-opacity">
                         {showConfirmPassword ? <EyeOff size={22} /> : <Eye size={22} />}
                       </button>
                     </div>
                   )}
-                  <button type="submit" disabled={isLoading} className="w-full h-14 sm:h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
+                  <button type="submit" disabled={isLoading} className="w-full h-[56px] rounded-xl font-bold text-primary-foreground shadow-sm bg-primary active:scale-[0.98] transition-all disabled:opacity-40 mt-2">
                     {isLoading ? 'Aguarde...' : (isRegistering ? 'Cadastrar' : 'Entrar')}
                   </button>
                 </form>
@@ -408,17 +407,17 @@ const Auth = () => {
             <>
               <div className="relative my-2">
                 <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-black/10"></span></div>
-                <div className="relative flex justify-center text-xs uppercase"><span className="px-2 text-black/40" style={{ backgroundColor: PAPER }}>Ou continue com</span></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="px-2 text-muted-foreground bg-background">Ou continue com</span></div>
               </div>
               <div className="w-full flex flex-col gap-3">
-                <button onClick={() => handleOAuth('google')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-black/5 shadow-sm bg-white h-[56px] sm:h-[64px] rounded-[20px]">
+                <button onClick={() => handleOAuth('google')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-separator shadow-sm bg-surface h-[56px] rounded-xl">
                   <span className="flex items-center gap-4">
                     <GoogleIcon />
                     <span className="text-[15px] font-bold">Google</span>
                   </span>
                   <ArrowUpRight size={18} className="opacity-20 group-hover:opacity-100 transition-opacity" />
                 </button>
-                <button onClick={() => handleOAuth('apple')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-black/5 shadow-sm bg-white h-[56px] sm:h-[64px] rounded-[20px]">
+                <button onClick={() => handleOAuth('apple')} className="group w-full flex items-center justify-between px-6 transition-all active:scale-[0.98] border border-separator shadow-sm bg-surface h-[56px] rounded-xl">
                   <span className="flex items-center gap-4">
                     <AppleIcon />
                     <span className="text-[15px] font-bold">Apple</span>

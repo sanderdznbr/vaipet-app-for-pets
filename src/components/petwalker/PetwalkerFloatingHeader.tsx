@@ -19,7 +19,7 @@ export const PetwalkerFloatingHeader = ({ user, isOnline, gpsStatus }: Petwalker
       {/* Left: Profile Button */}
       <button 
         onClick={() => navigate('/petwalker/perfil')}
-        className="w-11 h-11 rounded-full overflow-hidden border border-border bg-white shadow-sm pointer-events-auto active:scale-95 transition-transform"
+        className="w-11 h-11 rounded-full overflow-hidden border border-separator bg-surface shadow-sm pointer-events-auto active:scale-95 transition-transform"
       >
         {user?.user_metadata?.avatar_url ? (
           <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
@@ -31,7 +31,7 @@ export const PetwalkerFloatingHeader = ({ user, isOnline, gpsStatus }: Petwalker
       {/* Center: Status Capsule */}
       <div className="pointer-events-auto">
         <div className={cn(
-          "px-4 py-2 rounded-full shadow-md border flex items-center gap-2 bg-white",
+          "px-4 py-2 rounded-full shadow-md border flex items-center gap-2 bg-surface",
           isOnline ? "border-green-100" : "border-gray-100"
         )}>
           <div className={cn(
@@ -42,8 +42,8 @@ export const PetwalkerFloatingHeader = ({ user, isOnline, gpsStatus }: Petwalker
             gpsStatus === 'stale' ? "bg-orange-500" : "bg-red-500"
           )} />
           <span className={cn(
-            "text-[13px] font-bold tracking-tight",
-            !isOnline ? "text-gray-500" : "text-ink"
+            "text-ios-caption-1 font-bold tracking-tight",
+            !isOnline ? "text-muted-foreground" : "text-foreground"
           )}>
             {!isOnline ? 'Offline' : 
              gpsStatus === 'synced' ? 'Online' : 

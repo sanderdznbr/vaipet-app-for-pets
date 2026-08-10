@@ -2,6 +2,7 @@ import React from 'react';
 import { Home, PawPrint, Users, Store, Settings } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useHomeTheme } from '@/hooks/useHomeTheme';
+import { cn } from '@/lib/utils';
 
 const BRAND = '#31D880';
 
@@ -25,16 +26,14 @@ export const BottomNavigation = () => {
     route === '/inicio' ? location.pathname === '/inicio' || location.pathname === '/' : location.pathname.startsWith(route);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
-      <div className="max-w-md mx-auto pointer-events-auto">
+    <div className="fixed bottom-0 left-0 right-0 z-50">
+      <div className="max-w-md mx-auto">
         <div
-          className="relative"
+          className="relative backdrop-blur-xl bg-background/80"
           style={{
-            background: BG,
-            borderRadius: '32px 32px 0 0',
-            paddingTop: 16,
-            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
-            boxShadow: '0 -12px 40px rgba(0,0,0,0.12)',
+            paddingTop: 8,
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
+            borderTop: `0.5px solid hsl(var(--separator))`,
           }}
         >
           {/* subtle organic highlight */}
@@ -60,10 +59,10 @@ export const BottomNavigation = () => {
                   id={item.route === '/petshop' ? 'tour-nav-shop' : item.route === '/search-walk' ? 'tour-nav-walk' : undefined}
                   onClick={() => navigate(item.route)}
                   aria-label={item.label}
-                  className="relative flex items-center justify-center transition-all duration-300 active:scale-90"
+                  className="relative flex flex-col items-center justify-center transition-all duration-200 active:opacity-60"
                   style={{
-                    width: active ? 64 : 48,
-                    height: active ? 64 : 48,
+                    width: 72,
+                    height: 50,
                   }}
                 >
                   {active && (
@@ -71,21 +70,28 @@ export const BottomNavigation = () => {
                       aria-hidden
                       className="absolute inset-0"
                       style={{
-                        background: BRAND,
-                        borderRadius: '58% 42% 55% 45% / 50% 55% 45% 50%',
-                        boxShadow: '0 10px 26px -8px rgba(49,216,128,0.7)',
+                        background: 'transparent',
+                        borderRadius: '12px',
                       }}
                     />
                   )}
-                  <IconComponent
-                    className="relative transition-all duration-300"
-                    style={{
-                      width: active ? 26 : 22,
-                      height: active ? 26 : 22,
-                      color: active ? '#0B1410' : `${FG}8C`,
-                    }}
-                    strokeWidth={active ? 2.4 : 1.7}
-                  />
+                  <div className="flex flex-col items-center gap-1">
+                    <IconComponent
+                      className="relative transition-all duration-300"
+                      style={{
+                        width: 24,
+                        height: 24,
+                        color: active ? BRAND : `hsl(var(--muted-foreground))`,
+                      }}
+                      strokeWidth={active ? 2.4 : 2}
+                    />
+                    <span className={cn(
+                      "text-[10px] font-medium transition-colors",
+                      active ? "text-primary" : "text-muted-foreground"
+                    )}>
+                      {item.label}
+                    </span>
+                  </div>
                 </button>
               );
             })}

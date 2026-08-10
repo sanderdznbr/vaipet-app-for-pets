@@ -19,10 +19,9 @@ export default {
 		},
 		extend: {
 			fontFamily: {
-				'inter': ['DM Sans', 'system-ui', 'sans-serif'],
-				'sans': ['DM Sans', 'system-ui', 'sans-serif'],
-				'google': ['DM Sans', 'sans-serif'],
-				'display': ['Space Grotesk', 'system-ui', 'sans-serif'],
+				'sans': ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"SF Pro Display"', 'Inter', 'system-ui', 'sans-serif'],
+				'display': ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', 'Inter', 'system-ui', 'sans-serif'],
+				'mono': ['"SF Mono"', 'Monaco', 'Menlo', 'monospace'],
 			},
 			colors: {
 				border: 'hsl(var(--border))',
@@ -58,27 +57,43 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
-				sidebar: {
-					DEFAULT: 'hsl(var(--sidebar-background))',
-					foreground: 'hsl(var(--sidebar-foreground))',
-					primary: 'hsl(var(--sidebar-primary))',
-					'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-					accent: 'hsl(var(--sidebar-accent))',
-					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-					border: 'hsl(var(--sidebar-border))',
-					ring: 'hsl(var(--sidebar-ring))'
-				},
-				'app-orange': 'hsl(var(--app-orange))',
-				'app-purple': 'hsl(var(--app-purple))',
-				'app-red': 'hsl(var(--app-red))',
-				'app-purple-light': 'hsl(var(--app-purple-light))',
-				'pet-primary': 'hsl(var(--pet-primary))',
-				'pet-accent-orange': 'hsl(var(--pet-accent-orange))',
-				'pet-accent-purple': 'hsl(var(--pet-accent-purple))',
-				'pet-card-blue': 'hsl(var(--pet-card-blue))',
-				'pet-card-pink': 'hsl(var(--pet-card-pink))',
-				'pet-stats-heart': 'hsl(var(--pet-stats-heart))',
-				'pet-stats-bone': 'hsl(var(--pet-stats-bone))'
+				// iOS Semantic-like colors
+				surface: 'hsl(var(--surface))',
+				'surface-elevated': 'hsl(var(--surface-elevated))',
+				separator: 'hsl(var(--separator))',
+				success: 'hsl(var(--success))',
+				warning: 'hsl(var(--warning))',
+				error: 'hsl(var(--error))',
+				
+				// VaiPet Brand
+				'vaipet-green': '#31D880',
+				'vaipet-dark': '#0B1410',
+			},
+			fontSize: {
+				// iOS Dynamic Type Scale
+				'ios-large-title': ['34px', { lineHeight: '41px', letterSpacing: '0.37px', fontWeight: '700' }],
+				'ios-title-1': ['28px', { lineHeight: '34px', letterSpacing: '0.34px', fontWeight: '700' }],
+				'ios-title-2': ['22px', { lineHeight: '28px', letterSpacing: '0.35px', fontWeight: '600' }],
+				'ios-title-3': ['20px', { lineHeight: '25px', letterSpacing: '0.38px', fontWeight: '600' }],
+				'ios-headline': ['17px', { lineHeight: '22px', letterSpacing: '-0.41px', fontWeight: '600' }],
+				'ios-body': ['17px', { lineHeight: '22px', letterSpacing: '-0.41px', fontWeight: '400' }],
+				'ios-callout': ['16px', { lineHeight: '21px', letterSpacing: '-0.32px', fontWeight: '400' }],
+				'ios-subheadline': ['15px', { lineHeight: '20px', letterSpacing: '-0.24px', fontWeight: '400' }],
+				'ios-footnote': ['13px', { lineHeight: '18px', letterSpacing: '-0.08px', fontWeight: '400' }],
+				'ios-caption-1': ['12px', { lineHeight: '16px', letterSpacing: '0px', fontWeight: '400' }],
+				'ios-caption-2': ['11px', { lineHeight: '13px', letterSpacing: '0.07px', fontWeight: '400' }],
+			},
+			spacing: {
+				'4': '4px',
+				'8': '8px',
+				'12': '12px',
+				'16': '16px',
+				'20': '20px',
+				'24': '24px',
+				'32': '32px',
+				'40': '40px',
+				'48': '48px',
+				'64': '64px',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
