@@ -183,9 +183,7 @@ const Auth = () => {
     <main className="auth-page">
       <section className="auth-container">
         {/* Brand/Logo */}
-        <div className="brand">
-          <span>Vaipet</span>
-        </div>
+        {/* Removed brand logo per user request */}
 
         <AnimatePresence mode="wait">
           {isOTPMode ? (
