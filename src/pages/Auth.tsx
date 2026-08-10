@@ -197,9 +197,9 @@ const Auth = () => {
     <div
       className="min-h-[100dvh] w-full flex items-center justify-center overflow-hidden relative bg-background"
     >
-      <header className="fixed top-0 left-0 right-0 z-20 flex flex-col items-center pt-safe-plus pb-4 pointer-events-none bg-background/80 backdrop-blur-xl border-b border-separator/50">
+      <header className="fixed top-0 left-0 right-0 z-20 flex flex-col items-center pt-safe-plus pb-4 pointer-events-none">
         <div className="w-full max-w-md px-6 flex flex-col items-center pointer-events-auto">
-          <img src="/vaipet-logo.svg" alt="VaiPet" className="h-8 w-auto mb-10" />
+          <img src="/vaipet-logo.svg" alt="VaiPet" className="h-10 w-auto mb-12" />
           
           <div className="w-full flex items-center min-h-[40px]">
             <AnimatePresence>
