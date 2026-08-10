@@ -216,7 +216,7 @@ const PetwalkerInscricao = () => {
                   <label className="text-sm font-bold ml-1">Nome Completo (Conforme documento)</label>
                   <Input 
                     required 
-                    className="h-14 rounded-2xl bg-white border-none shadow-sm"
+                    className="h-14 rounded-2xl bg-[#F2F2F7] border-none shadow-none focus:bg-[#E5E5EA] transition-colors"
                     value={formData.legal_name}
                     onChange={e => setFormData({...formData, legal_name: e.target.value})}
                   />
@@ -227,7 +227,7 @@ const PetwalkerInscricao = () => {
                   <Input 
                     required 
                     type="date"
-                    className="h-14 rounded-2xl bg-white border-none shadow-sm"
+                    className="h-14 rounded-2xl bg-[#F2F2F7] border-none shadow-none focus:bg-[#E5E5EA] transition-colors"
                     value={formData.birth_date}
                     onChange={e => setFormData({...formData, birth_date: e.target.value})}
                   />
@@ -238,7 +238,7 @@ const PetwalkerInscricao = () => {
                   <Input 
                     required 
                     placeholder="(00) 00000-0000"
-                    className="h-14 rounded-2xl bg-white border-none shadow-sm"
+                    className="h-14 rounded-2xl bg-[#F2F2F7] border-none shadow-none focus:bg-[#E5E5EA] transition-colors"
                     value={formData.phone}
                     onChange={e => setFormData({...formData, phone: e.target.value})}
                   />
@@ -248,7 +248,7 @@ const PetwalkerInscricao = () => {
                   <label className="text-sm font-bold ml-1">Cidade</label>
                   <Input 
                     required 
-                    className="h-14 rounded-2xl bg-white border-none shadow-sm"
+                    className="h-14 rounded-2xl bg-[#F2F2F7] border-none shadow-none focus:bg-[#E5E5EA] transition-colors"
                     value={formData.city}
                     onChange={e => setFormData({...formData, city: e.target.value})}
                   />
@@ -281,7 +281,7 @@ const PetwalkerInscricao = () => {
                   <Textarea 
                     required 
                     placeholder="Descreva brevemente seu contato anterior com animais..."
-                    className="min-h-[120px] rounded-2xl bg-white border-none shadow-sm p-4"
+                    className="min-h-[120px] rounded-2xl bg-[#F2F2F7] border-none shadow-none focus:bg-[#E5E5EA] transition-colors p-4"
                     value={formData.experience_description}
                     onChange={e => setFormData({...formData, experience_description: e.target.value})}
                   />
@@ -293,14 +293,14 @@ const PetwalkerInscricao = () => {
                     <Input 
                       required 
                       placeholder="Nome do contato"
-                      className="h-14 rounded-2xl bg-white border-none shadow-sm"
+                      className="h-14 rounded-2xl bg-[#F2F2F7] border-none shadow-none focus:bg-[#E5E5EA] transition-colors"
                       value={formData.emergency_contact_name}
                       onChange={e => setFormData({...formData, emergency_contact_name: e.target.value})}
                     />
                     <Input 
                       required 
                       placeholder="Telefone do contato"
-                      className="h-14 rounded-2xl bg-white border-none shadow-sm"
+                      className="h-14 rounded-2xl bg-[#F2F2F7] border-none shadow-none focus:bg-[#E5E5EA] transition-colors"
                       value={formData.emergency_contact_phone}
                       onChange={e => setFormData({...formData, emergency_contact_phone: e.target.value})}
                     />
