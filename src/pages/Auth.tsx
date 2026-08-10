@@ -183,12 +183,6 @@ const Auth = () => {
   return (
     <main className="auth-page">
       <section className="auth-container">
-        <Link 
-          to="/" 
-          className="absolute top-12 left-6 p-2 rounded-full bg-[#F2F2F7] active:scale-95 transition-transform"
-        >
-          <ArrowLeft className="w-5 h-5 text-[#000000]" />
-        </Link>
 
         <AnimatePresence mode="wait">
           {isOTPMode ? (
