@@ -183,9 +183,7 @@ const Auth = () => {
     <main className="auth-page">
       <section className="auth-container">
         {/* Brand/Logo */}
-        <div className="brand">
-          <span>Vaipet</span>
-        </div>
+        {/* Removed brand logo per user request */}
 
         <AnimatePresence mode="wait">
           {isOTPMode ? (
@@ -375,18 +373,18 @@ const Auth = () => {
                 </button>
               </form>
 
-              <div className="flex flex-col gap-4 mt-2">
+              <div className="flex flex-col gap-2 mt-6">
                 {!isRegistering && (
                   <button onClick={() => setIsForgotPassword(true)} className="text-button">
                     Esqueci minha senha
                   </button>
                 )}
-                <p className="register-text">
-                  {isRegistering ? 'Já tem conta? ' : 'Não tem conta? '}
+                <div className="flex items-center justify-center gap-1 text-[17px]">
+                  <span className="text-[#8E8E93]">{isRegistering ? 'Já tem conta? ' : 'Não tem conta? '}</span>
                   <button onClick={() => { setIsRegistering(!isRegistering); setSignupIntent(null); }} className="inline-button">
                     {isRegistering ? 'Entre aqui' : 'Crie uma'}
                   </button>
-                </p>
+                </div>
               </div>
 
               {!isRegistering && !isForgotPassword && !isRecoveryMode && (
