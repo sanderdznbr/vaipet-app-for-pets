@@ -44,6 +44,7 @@
   flex-direction: column;
   justify-content: center;
   padding: 20px;
+  position: relative;
 }
 
 .brand {
@@ -152,8 +153,8 @@
   margin-top: 24px;
   border: 0;
   border-radius: 12px;
-  background: #007AFF; /* Apple System Blue */
-  color: #FFFFFF;
+  background: var(--vaipet-green); /* VaiPet Green */
+  color: #000000;
   font-family: inherit;
   font-size: 17px;
   font-weight: 600;

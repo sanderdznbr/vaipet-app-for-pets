@@ -60,6 +60,7 @@ const Auth = () => {
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     setIsLoading(true);
     try {
       if (isRegistering) {
@@ -182,8 +183,12 @@ const Auth = () => {
   return (
     <main className="auth-page">
       <section className="auth-container">
-        {/* Brand/Logo */}
-        {/* Removed brand logo per user request */}
+        <Link 
+          to="/" 
+          className="absolute top-12 left-6 p-2 rounded-full bg-[#F2F2F7] active:scale-95 transition-transform"
+        >
+          <ArrowLeft className="w-5 h-5 text-[#000000]" />
+        </Link>
 
         <AnimatePresence mode="wait">
           {isOTPMode ? (
@@ -379,9 +384,13 @@ const Auth = () => {
                     Esqueci minha senha
                   </button>
                 )}
-                <div className="flex items-center justify-center gap-1 text-[17px]">
+                <div className="flex items-center justify-center gap-1 text-[17px] mt-2">
                   <span className="text-[#8E8E93]">{isRegistering ? 'Já tem conta? ' : 'Não tem conta? '}</span>
-                  <button onClick={() => { setIsRegistering(!isRegistering); setSignupIntent(null); }} className="inline-button">
+                  <button 
+                    type="button"
+                    onClick={() => { setIsRegistering(!isRegistering); setSignupIntent(null); }} 
+                    className="text-[#007AFF] font-medium"
+                  >
                     {isRegistering ? 'Entre aqui' : 'Crie uma'}
                   </button>
                 </div>
@@ -393,16 +402,26 @@ const Auth = () => {
                     <span /><p>OU CONTINUE COM</p><span />
                   </div>
                   <div className="flex flex-col gap-3">
-                    <button onClick={() => handleOAuth('google')} className="social-button">
+                    <button 
+                      type="button"
+                      onClick={() => handleOAuth('google')} 
+                      className="social-button"
+                      disabled={oauthLoading !== null}
+                    >
                       <GoogleIcon />
-                      <span>Continuar com Google</span>
+                      <span>{oauthLoading === 'google' ? 'Conectando...' : 'Continuar com Google'}</span>
                       <svg className="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                         <path d="m9 5 7 7-7 7" />
                       </svg>
                     </button>
-                    <button onClick={() => handleOAuth('apple')} className="social-button">
+                    <button 
+                      type="button"
+                      onClick={() => handleOAuth('apple')} 
+                      className="social-button"
+                      disabled={oauthLoading !== null}
+                    >
                       <AppleIcon />
-                      <span>Continuar com Apple</span>
+                      <span>{oauthLoading === 'apple' ? 'Conectando...' : 'Continuar com Apple'}</span>
                       <svg className="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                         <path d="m9 5 7 7-7 7" />
                       </svg>
