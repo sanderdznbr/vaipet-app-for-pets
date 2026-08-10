@@ -42,6 +42,48 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [signupIntent, setSignupIntent] = useState<'pet_owner' | 'petwalker' | null>(null);
+  const [identifiedRole, setIdentifiedRole] = useState<'user' | 'petwalker' | null>(null);
+
+  useEffect(() => {
+    const identifyUserRole = async () => {
+      if (!email || !email.includes('@') || isRegistering || isForgotPassword || isRecoveryMode || isOTPMode) {
+        setIdentifiedRole(null);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', (await supabase.from('profiles').select('id').eq('email', email).single()).data?.id)
+          .single();
+        
+        // Since we can't easily fetch roles by email without a secure RPC or profile join, 
+        // and standard users can't read other's roles, we should use a dedicated RPC or 
+        // check if the user has a petwalker profile linked to that email if public.
+        // For now, let's try a safer approach: check the profiles table if it has the email and join with roles.
+        
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('id, user_roles(role)')
+          .eq('email', email)
+          .maybeSingle();
+
+        if (profileData?.user_roles) {
+          const roles = profileData.user_roles as any[];
+          const isWalker = roles.some(r => r.role === 'petwalker');
+          setIdentifiedRole(isWalker ? 'petwalker' : 'user');
+        } else {
+          setIdentifiedRole(null);
+        }
+      } catch (e) {
+        setIdentifiedRole(null);
+      }
+    };
+
+    const timer = setTimeout(identifyUserRole, 500);
+    return () => clearTimeout(timer);
+  }, [email, isRegistering, isForgotPassword, isRecoveryMode, isOTPMode]);
 
   useEffect(() => {
     const type = searchParams.get('type');
