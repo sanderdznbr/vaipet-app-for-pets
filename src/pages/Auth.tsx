@@ -195,8 +195,7 @@ const Auth = () => {
 
   return (
     <div
-      className="min-h-[100dvh] w-full flex items-center justify-center overflow-hidden relative"
-      style={{ backgroundColor: PAPER, color: INK, fontFamily: "'DM Sans', system-ui, sans-serif" }}
+      className="min-h-[100dvh] w-full flex items-center justify-center overflow-hidden relative bg-background"
     >
       <header className="fixed top-0 left-0 right-0 z-20 flex flex-col items-center py-6 sm:py-8 pointer-events-none bg-inherit">
         <div className="w-full max-w-md px-6 flex flex-col items-center gap-4 sm:gap-6 pointer-events-auto">
@@ -247,9 +246,9 @@ const Auth = () => {
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     required
-                    className="w-full h-14 sm:h-16 px-6 rounded-2xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#31D880] transition-all text-base sm:text-lg text-center tracking-widest font-bold"
+                    className="w-full h-[56px] px-6 rounded-xl border border-separator bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all text-ios-title-2 text-center tracking-widest font-bold"
                   />
-                  <button type="submit" disabled={isLoading || otpCode.length < 6} className="w-full h-14 sm:h-16 rounded-2xl font-bold text-white shadow-lg bg-[#31D880] disabled:opacity-70 mt-2">
+                  <button type="submit" disabled={isLoading || otpCode.length < 6} className="w-full h-[56px] rounded-xl font-bold text-primary-foreground shadow-sm bg-primary active:scale-[0.98] transition-all disabled:opacity-40 mt-2">
                     {isLoading ? 'Verificando...' : 'Confirmar Código'}
                   </button>
                 </form>
