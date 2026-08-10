@@ -24,38 +24,43 @@
 }
 
 .auth-page {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   display: flex;
   justify-content: center;
+  align-items: center;
   background: var(--background);
-  padding: max(32px, env(safe-area-inset-top)) 20px max(32px, env(safe-area-inset-bottom));
+  padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
 }
 
 .auth-container {
   width: 100%;
   max-width: 430px;
+  height: 100%;
+  max-height: 850px;
   display: flex;
   flex-direction: column;
-  padding: 56px 20px 32px;
+  justify-content: center;
+  padding: 20px;
 }
 
 .brand {
   display: flex;
   justify-content: center;
-  margin-bottom: 82px;
+  margin-bottom: 40px;
 }
 
 .brand span {
   color: var(--vaipet-green);
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 800;
   letter-spacing: -1.4px;
 }
 
 .auth-header {
   text-align: center;
-  margin-bottom: 34px;
+  margin-bottom: 24px;
 }
 
 .auth-header h1 {
@@ -198,7 +203,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 26px 0 16px;
+  margin: 20px 0 16px;
 }
 
 .divider span {
@@ -223,7 +228,7 @@
   margin-bottom: 12px;
   display: flex;
   align-items: center;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border) !important;
   border-radius: var(--radius-button);
   background: #ffffff;
   color: var(--text-primary);
@@ -253,17 +258,16 @@
 .apple-icon {
   position: absolute;
   left: 20px;
-  width: 21px;
-  height: 21px;
-  display: grid;
-  place-items: center;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .google-icon {
-  font-family: Arial, sans-serif;
-  font-size: 21px;
-  font-weight: 700;
-  color: #4285f4;
+  width: 20px;
+  height: 20px;
 }
 
 .apple-icon {
