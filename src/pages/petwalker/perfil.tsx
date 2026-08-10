@@ -8,9 +8,12 @@ import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const PetwalkerPerfil = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     public_bio: '',
@@ -55,6 +58,16 @@ const PetwalkerPerfil = () => {
     }
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast.success('Você saiu da conta.');
+      navigate('/auth', { replace: true });
+    } catch {
+      toast.error('Erro ao sair da conta');
+    }
+  };
+
   return (
     <PetwalkerProtectedRoute>
       <div className="min-h-screen bg-[#F7F5EF] pb-24">
@@ -88,6 +101,18 @@ const PetwalkerPerfil = () => {
               {loading ? 'Salvando...' : 'Salvar Alterações'}
             </Button>
           </form>
+
+          <div className="mt-10 pt-6 border-t border-separator">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSignOut}
+              className="w-full h-12 gap-2 text-destructive border-none bg-[#F2F2F7]"
+            >
+              <LogOut className="w-4 h-4" />
+              Sair da conta
+            </Button>
+          </div>
         </div>
         <PetwalkerNavigation />
       </div>
