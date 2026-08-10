@@ -390,11 +390,11 @@ const Auth = () => {
                   </div>
                   <div className="relative group">
                     <div className="absolute left-6 top-1/2 -translate-y-1/2 text-primary">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="11" x="8" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="12" height="11" x="6" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     </div>
                     <input type={showPassword ? "text" : "password"} placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full h-[56px] pl-14 pr-14 rounded-2xl border border-separator bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-ios-body" />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-60 transition-opacity">
-                      {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 opacity-30 hover:opacity-50 transition-opacity">
+                      <Eye size={20} />
                     </button>
                   </div>
                   {isRegistering && (
