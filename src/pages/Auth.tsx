@@ -137,7 +137,7 @@ const Auth = () => {
       if (error) throw error;
       toast.success('Link de recuperação enviado para seu e-mail!');
     } catch (error: any) {
-      toast.error(translateError(error.message));
+      toast.error(translateError(error));
     } finally {
       setIsLoading(false);
     }
