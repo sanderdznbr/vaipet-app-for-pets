@@ -1610,6 +1610,10 @@ export type Database = {
         Args: { _application_id: string; _reason: string }
         Returns: Json
       }
+      send_transactional_email: {
+        Args: { _html: string; _subject: string; _to: string }
+        Returns: Json
+      }
       set_petwalker_availability: {
         Args: { _status: string }
         Returns: undefined
