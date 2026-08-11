@@ -77,11 +77,17 @@ const Auth = () => {
     }
   }, [searchParams]);
 
-  const translateError = (message: string) => {
+  const translateError = (error: any) => {
+    const message = error?.message || '';
+    console.error('Auth error:', error);
+    
     if (message.includes('Invalid login credentials')) return 'E-mail ou senha incorretos.';
     if (message.includes('User already registered')) return 'Este e-mail já está cadastrado.';
     if (message.includes('Password is too short')) return 'A senha deve ter pelo menos 6 caracteres.';
     if (message.includes('Email not confirmed')) return 'Por favor, confirme seu e-mail.';
+    if (message.includes('Invalid OTP') || message.includes('Token has expired') || error?.status === 403 || error?.status === 401) {
+      return 'Código inválido ou expirado. Tente novamente.';
+    }
     return message;
   };
 
