@@ -208,7 +208,7 @@ const Auth = () => {
       });
       if (error) throw error;
     } catch (error: any) {
-      toast.error(translateError(error.message));
+      toast.error(translateError(error));
       setOauthLoading(null);
     }
   };
