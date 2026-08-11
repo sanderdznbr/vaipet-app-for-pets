@@ -191,7 +191,7 @@ const Auth = () => {
       if (error) throw error;
       toast.success('Novo código enviado!');
     } catch (error: any) {
-      toast.error(translateError(error.message));
+      toast.error(translateError(error));
     } finally {
       setIsLoading(false);
     }
