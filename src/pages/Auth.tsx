@@ -121,7 +121,7 @@ const Auth = () => {
         navigate('/inicio');
       }
     } catch (error: any) {
-      toast.error(translateError(error.message));
+      toast.error(translateError(error));
     } finally {
       setIsLoading(false);
     }
