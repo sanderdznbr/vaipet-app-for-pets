@@ -7,6 +7,27 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const VAIPET_LOGO = 'https://vaipet.app/logo.png'; // Assuming this is the logo path, fallback to text if broken
+const PRIMARY_COLOR = '#31D880';
+const BG_COLOR = '#F2F2F7';
+
+const emailWrapper = (content: string) => `
+  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1C1C1E; background-color: white; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+    <div style="text-align: center; margin-bottom: 32px;">
+      <h1 style="color: ${PRIMARY_COLOR}; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">VaiPet</h1>
+    </div>
+    
+    ${content}
+    
+    <div style="margin-top: 48px; padding-top: 24px; border-top: 1px solid #E5E5EA; text-align: center;">
+      <p style="font-size: 13px; color: #8E8E93; line-height: 1.4;">
+        © 2026 VaiPet. Todos os direitos reservados.<br>
+        O app feito com amor para o seu pet. 🐾
+      </p>
+    </div>
+  </div>
+`;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -20,46 +41,36 @@ serve(async (req) => {
       return new Response(JSON.stringify({ message: "No email provided" }), { status: 200 });
     }
 
-    console.log(`Auth Hook Triggered: Event=${event}, Email=${email}`);
-
     let subject = "VaiPet";
-    let html = "";
+    let bodyContent = "";
 
     if (event === 'signup' || event === 'resend_otp') {
       subject = "Seu código de verificação VaiPet";
-      html = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #31D880; margin: 0;">VaiPet</h1>
-          </div>
-          <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Bem-vindo ao VaiPet!</h2>
-          <p style="font-size: 16px; line-height: 24px; color: #666;">Para concluir seu cadastro, use o código de verificação abaixo:</p>
-          <div style="background: #F2F2F7; padding: 32px; text-align: center; border-radius: 16px; margin: 24px 0;">
-            <span style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #000; font-family: monospace;">${otp}</span>
-          </div>
-          <p style="font-size: 14px; color: #999; text-align: center;">Este código expira em breve.</p>
-          <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #EEE; font-size: 12px; color: #AAA; text-align: center;">
-            Se você não solicitou este e-mail, por favor ignore-o.
-          </div>
+      bodyContent = `
+        <h2 style="font-size: 22px; font-weight: 700; margin-bottom: 16px; text-align: center; letter-spacing: -0.4px;">Verifique seu e-mail</h2>
+        <p style="font-size: 16px; line-height: 24px; color: #3A3A3C; text-align: center; margin-bottom: 32px;">
+          Olá! Use o código abaixo para confirmar sua conta e começar a usar o VaiPet.
+        </p>
+        <div style="background: ${BG_COLOR}; padding: 32px; text-align: center; border-radius: 20px; margin-bottom: 32px;">
+          <span style="font-size: 42px; font-weight: 800; letter-spacing: 12px; color: #1C1C1E; font-family: 'SF Mono', SFMono-Regular, ui-monospace, monospace;">${otp}</span>
         </div>
+        <p style="font-size: 14px; color: #8E8E93; text-align: center;">
+          Este código expira em 10 minutos. Se você não solicitou este e-mail, pode ignorá-lo.
+        </p>
       `;
     } else if (event === 'recovery') {
-      subject = "Recuperação de Senha - VaiPet";
-      html = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #31D880; margin: 0;">VaiPet</h1>
-          </div>
-          <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Recuperação de Senha</h2>
-          <p style="font-size: 16px; line-height: 24px; color: #666;">Recebemos uma solicitação para redefinir sua senha.</p>
-          <div style="background: #F2F2F7; padding: 32px; text-align: center; border-radius: 16px; margin: 24px 0;">
-             <span style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #000; font-family: monospace;">${otp}</span>
-          </div>
-          <p style="font-size: 16px; line-height: 24px; color: #666;">Insira este código no aplicativo para prosseguir.</p>
-          <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #EEE; font-size: 12px; color: #AAA; text-align: center;">
-            Se você não solicitou a troca de senha, sua conta está segura.
-          </div>
+      subject = "Recupere sua senha no VaiPet";
+      bodyContent = `
+        <h2 style="font-size: 22px; font-weight: 700; margin-bottom: 16px; text-align: center; letter-spacing: -0.4px;">Recuperação de Senha</h2>
+        <p style="font-size: 16px; line-height: 24px; color: #3A3A3C; text-align: center; margin-bottom: 32px;">
+          Recebemos uma solicitação para redefinir sua senha. Utilize o código de segurança abaixo:
+        </p>
+        <div style="background: ${BG_COLOR}; padding: 32px; text-align: center; border-radius: 20px; margin-bottom: 32px;">
+          <span style="font-size: 42px; font-weight: 800; letter-spacing: 12px; color: #1C1C1E; font-family: 'SF Mono', SFMono-Regular, ui-monospace, monospace;">${otp}</span>
         </div>
+        <p style="font-size: 16px; line-height: 24px; color: #3A3A3C; text-align: center;">
+          Insira este código no aplicativo para criar uma nova senha.
+        </p>
       `;
     } else {
       return new Response(JSON.stringify({ message: `Event ${event} not handled` }), { status: 200 });
@@ -75,7 +86,7 @@ serve(async (req) => {
         from: 'VaiPet <noreply@vaipet.app>',
         to: [email],
         subject: subject,
-        html: html,
+        html: emailWrapper(bodyContent),
       }),
     });
 
