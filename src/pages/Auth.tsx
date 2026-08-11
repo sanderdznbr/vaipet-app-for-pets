@@ -156,7 +156,7 @@ const Auth = () => {
       toast.success('Senha atualizada com sucesso!');
       navigate('/auth');
     } catch (error: any) {
-      toast.error(translateError(error.message));
+      toast.error(translateError(error));
     } finally {
       setIsLoading(false);
     }
