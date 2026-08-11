@@ -22,7 +22,8 @@ const emailWrapper = (content: string) => `
     <div style="margin-top: 48px; padding-top: 24px; border-top: 1px solid #E5E5EA; text-align: center;">
       <p style="font-size: 13px; color: #8E8E93; line-height: 1.4;">
         © 2026 VaiPet. Todos os direitos reservados.<br>
-        O app feito com amor para o seu pet. 🐾
+        O app feito com amor para o seu pet. 🐾<br>
+        <a href="https://vaipet.app" style="color: ${PRIMARY_COLOR}; text-decoration: none; font-weight: 600;">vaipet.app</a>
       </p>
     </div>
   </div>
