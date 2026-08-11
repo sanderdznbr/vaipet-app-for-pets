@@ -225,18 +225,71 @@ const Auth = () => {
                 <p>Digite o código enviado para <strong>{email}</strong></p>
               </header>
               <form onSubmit={handleVerifyOTP} className="auth-form">
-                <div className="input-wrapper">
-                  <input
-                    type="text"
-                    placeholder="Código de 6 dígitos"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    required
-                    style={{ textAlign: 'center', letterSpacing: '4px', fontWeight: 'bold' }}
-                  />
+                <div className="otp-container">
+                  {[...Array(6)].map((_, index) => (
+                    <div key={index} className="otp-input-wrapper">
+                      <input
+                        id={`otp-${index}`}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={1}
+                        value={otpCode[index] || ''}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '');
+                          if (value) {
+                            const newOtp = otpCode.split('');
+                            newOtp[index] = value;
+                            const combined = newOtp.join('').slice(0, 6);
+                            setOtpCode(combined);
+                            
+                            // Auto-focus next
+                            if (index < 5) {
+                              const nextInput = document.getElementById(`otp-${index + 1}`);
+                              nextInput?.focus();
+                            }
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Backspace' && !otpCode[index] && index > 0) {
+                            const prevInput = document.getElementById(`otp-${index - 1}`);
+                            prevInput?.focus();
+                          }
+                        }}
+                        required
+                        className="otp-digit-input"
+                      />
+                    </div>
+                  ))}
                 </div>
-                <button type="submit" disabled={isLoading} className="primary-button">
-                  {isLoading ? 'Verificando...' : 'Confirmar Código'}
+                
+                <button 
+                  type="submit" 
+                  disabled={isLoading || otpCode.length !== 6} 
+                  className={`primary-button ${otpCode.length === 6 && !isLoading ? 'pulse-animation' : ''}`}
+                >
+                  <AnimatePresence mode="wait">
+                    {isLoading ? (
+                      <motion.div
+                        key="loading"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="flex items-center justify-center gap-2"
+                      >
+                        <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                        Verificando...
+                      </motion.div>
+                    ) : (
+                      <motion.span
+                        key="label"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      >
+                        Confirmar Código
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </button>
               </form>
               <button onClick={handleResendOTP} className="text-button">
