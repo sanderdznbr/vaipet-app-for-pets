@@ -1263,6 +1263,10 @@ export type Database = {
         Args: { email_address: string }
         Returns: boolean
       }
+      confirm_and_promote_user_by_email: {
+        Args: { target_email: string; target_role: string }
+        Returns: Json
+      }
       create_walk_request: {
         Args: {
           _duration_minutes: number
@@ -1606,6 +1610,10 @@ export type Database = {
       postgis_version: { Args: never; Returns: string }
       postgis_wagyu_version: { Args: never; Returns: string }
       process_walk_matching: { Args: never; Returns: undefined }
+      promote_user_to_petwalker: {
+        Args: { target_email: string }
+        Returns: undefined
+      }
       reject_petwalker_application: {
         Args: { _application_id: string; _reason: string }
         Returns: Json
