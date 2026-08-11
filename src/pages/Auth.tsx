@@ -175,7 +175,7 @@ const Auth = () => {
       toast.success('E-mail verificado com sucesso!');
       navigate('/inicio');
     } catch (error: any) {
-      toast.error(translateError(error.message));
+      toast.error(translateError(error));
     } finally {
       setIsLoading(false);
     }
