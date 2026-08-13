@@ -377,6 +377,25 @@ test("petwalker fica online, recebe oferta real via matching e aceita", async ()
   }, 180_000, 3_000);
   log(`oferta ${short((offer as any).id)} status=${(offer as any).offer_status}`);
 
+  // Diagnóstico isolado: a RPC do próprio PetWalker autenticado deve retornar a oferta.
+  const rpcOffers = await waitFor(
+    "get_available_walk_offers retornar a oferta (RPC do petwalker)",
+    async () => {
+      const r = await rpcAsUser(walkerCtx, "get_available_walk_offers", {});
+      log(
+        `RPC get_available_walk_offers status=${r.status} erro=${
+          (r.body as any)?.code ?? "null"
+        } ofertas=${Array.isArray(r.body) ? r.body.length : "n/a"}`,
+      );
+      return Array.isArray(r.body) && r.body.length > 0 ? r : null;
+    },
+    120_000,
+    3_000,
+  );
+  const rpcRow = (rpcOffers.body as any[])[0];
+  expect(rpcRow.session_id, "RPC deve retornar a oferta da sessão do teste").toBe(sessionId);
+  log(`RPC confirmou oferta session=${short(rpcRow.session_id)} pet=${rpcRow.pet_name}`);
+
   // A oferta deve surgir na UI sem reload (Realtime).
   const accept = p.getByRole("button", { name: /aceitar passeio/i });
   await expect(accept).toBeVisible({ timeout: 120_000 });
