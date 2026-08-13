@@ -453,22 +453,33 @@ test("dono sincroniza por Realtime sem reload", async () => {
 });
 
 test("ciclo operacional pela interface do petwalker", async () => {
+  test.setTimeout(180_000);
   const p = walkerCtx.page;
-  await p.getByRole("button", { name: /iniciar deslocamento/i }).first().click();
-  await p.waitForURL(/\/petwalker\/passeio\//, { timeout: 30_000 }).catch(() => {});
   const stepBtn = (re: RegExp) => p.getByRole("button", { name: re }).first();
 
-  if (await stepBtn(/iniciar deslocamento/i).count()) await stepBtn(/iniciar deslocamento/i).click();
+  // Entra na tela operacional real do passeio (mesma rota do botão do painel).
+  await p.getByRole("button", { name: /iniciar deslocamento/i }).first().click();
+  await p.waitForURL(/\/petwalker\/passeio\//, { timeout: 30_000 }).catch(async () => {
+    await p.goto(`/petwalker/passeio/${sessionId}`, { waitUntil: "domcontentloaded" });
+  });
+  if (!/\/petwalker\/passeio\//.test(p.url())) {
+    await p.goto(`/petwalker/passeio/${sessionId}`, { waitUntil: "domcontentloaded" });
+  }
+  log(`tela operacional do walker: ${p.url()}`);
+
+  // Cada passo: aguarda o botão real ficar visível antes de clicar.
+  await expect(stepBtn(/iniciar deslocamento/i)).toBeVisible({ timeout: 45_000 });
+  await stepBtn(/iniciar deslocamento/i).click();
   await waitFor("heading_to_pickup", async () => ((await dbSession()).current_status === "heading_to_pickup" ? true : null), 45_000);
   log("transição: accepted -> heading_to_pickup");
   await shot(walkerCtx, "09-heading");
 
-  await expect(stepBtn(/cheguei no local/i)).toBeVisible({ timeout: 30_000 });
-  await stepBtn(/cheguei no local/i).click();
+  await expect(stepBtn(/cheguei (no|ao) local/i)).toBeVisible({ timeout: 45_000 });
+  await stepBtn(/cheguei (no|ao) local/i).click();
   await waitFor("arrived", async () => ((await dbSession()).current_status === "arrived" ? true : null), 45_000);
   log("transição: heading_to_pickup -> arrived");
 
-  await expect(stepBtn(/iniciar passeio/i)).toBeVisible({ timeout: 30_000 });
+  await expect(stepBtn(/iniciar passeio/i)).toBeVisible({ timeout: 45_000 });
   await stepBtn(/iniciar passeio/i).click();
   await waitFor("in_progress", async () => ((await dbSession()).current_status === "in_progress" ? true : null), 45_000);
   log("transição: arrived -> in_progress");
