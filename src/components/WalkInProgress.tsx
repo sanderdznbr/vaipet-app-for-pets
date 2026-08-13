@@ -1284,6 +1284,10 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
           drawStopPins();
         }
       }
+      // Sinaliza que o mapa está pronto: o efeito do marcador reaplica
+      // imediatamente a última coordenada conhecida (se houver), mesmo que
+      // `livePosition` não mude de referência nesse instante.
+      setMapReadyTick((n) => n + 1);
     });
     createdHere = true;
 
