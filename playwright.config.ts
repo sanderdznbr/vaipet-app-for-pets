@@ -20,13 +20,12 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
+        launchOptions: {
+          // Allows pinning a pre-installed Chromium in sandboxed/CI environments.
+          executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
+          args: ["--use-gl=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+        },
       },
     },
-    },
   ],
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:8080',
-    reuseExistingServer: true,
-  },
 });

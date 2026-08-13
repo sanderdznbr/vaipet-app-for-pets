@@ -8,9 +8,7 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "test:routes": "playwright test tests/verify_routes.test.ts",
-    "test:camera-ai": "playwright test tests/camera_ai_neutral.test.ts"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",
@@ -113,7 +111,6 @@
     "lovable-tagger": "^1.1.7",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.11",
-    "tsx": "^4.23.12",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.1",
