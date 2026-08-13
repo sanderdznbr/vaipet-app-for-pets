@@ -160,25 +160,28 @@ async function snapshotState() {
     .from("walker_tracking")
     .select("id", { count: "exact", head: true })
     .eq("walk_session_id", sessionId);
-  return JSON.stringify({
-    current_status: s.current_status,
-    walker_id: s.walker_id,
-    end_time: s.end_time,
-    total_price_cents: s.total_price_cents,
-    price_per_minute_cents: s.price_per_minute_cents,
-    pricing_surcharge_cents: s.pricing_surcharge_cents,
-    actual_duration_minutes: s.actual_duration_minutes,
-    distance_km: s.distance_km,
+  return {
+    // Campos protegidos: nenhuma tentativa negada pode alterá-los.
+    guarded: JSON.stringify({
+      current_status: s.current_status,
+      walker_id: s.walker_id,
+      end_time: s.end_time,
+      total_price_cents: s.total_price_cents,
+      price_per_minute_cents: s.price_per_minute_cents,
+      pricing_surcharge_cents: s.pricing_surcharge_cents,
+      actual_duration_minutes: s.actual_duration_minutes,
+      distance_km: s.distance_km,
+      offers,
+      walker: {
+        availability_status: w.availability_status,
+        current_walk_id: w.current_walk_id,
+        completed_walks: w.completed_walks,
+      },
+    }),
+    // O rastro do walker legítimo pode crescer pelo GPS real: só nunca encolhe.
     trail: (s.route_coordinates || []).length,
-    last_tracking_at: s.last_tracking_at,
-    offers,
-    walker: {
-      availability_status: w.availability_status,
-      current_walk_id: w.current_walk_id,
-      completed_walks: w.completed_walks,
-    },
-    trackCount,
-  });
+    trackCount: trackCount ?? 0,
+  };
 }
 
 /** Cria um usuário real extra (limpo no teardown) e devolve o access_token. */
