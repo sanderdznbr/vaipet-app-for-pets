@@ -319,16 +319,23 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
       try {
         const lastPoint = trail[trail.length - 1];
         if (lastPoint) {
-          await supabase.rpc('append_walk_tracking_point', {
+          const { data, error } = await supabase.rpc('append_walk_tracking_point', {
             _session_id: sessionId,
             _point: lastPoint
           });
+          if (error) {
+            // Erro real (rede/permissão): registra e mantém o ponto pendente.
+            console.error('Falha ao gravar ponto de rastreamento:', error);
+            return;
+          }
+          // data === false => rejeição normal de frequência: NÃO marcar como salvo.
+          if (data !== true) return;
         }
         lastSavedTrailLenRef.current = lenSnapshot;
       } catch (e) {
-        // Non-fatal; we'll retry on the next tick.
+        console.error('Erro inesperado no rastreamento:', e);
       }
-    }, 4000);
+    }, 6000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
