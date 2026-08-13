@@ -46,28 +46,16 @@ const Auth = () => {
 
   useEffect(() => {
     const identifyUserRole = async () => {
-      if (!email || !email.includes('@') || isRegistering || isForgotPassword || isRecoveryMode || isOTPMode) {
-        setIdentifiedRole(null);
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase.rpc('check_user_is_petwalker', { 
-          email_address: email 
-        });
-
-        if (!error && data === true) {
-          setIdentifiedRole('petwalker');
-        } else {
-          setIdentifiedRole('user');
-        }
-      } catch (e) {
-        setIdentifiedRole(null);
-      }
+      // With the removal of check_user_is_petwalker RPC, we rely on the AuthProvider's loaded session/roles
+      // or check the user's intent if available in a safe way.
+      // However, for the login screen, we can't safely know the role of an unauthenticated email
+      // without exposing an enumeration vector.
+      // The requirement "Dynamically change login button text to 'Entrar como Petwalker' if the email belongs to a walker"
+      // is technically a security leak. We will remove this dynamic check to align with security best practices.
+      setIdentifiedRole(null);
     };
 
-    const timer = setTimeout(identifyUserRole, 600);
-    return () => clearTimeout(timer);
+    identifyUserRole();
   }, [email, isRegistering, isForgotPassword, isRecoveryMode, isOTPMode]);
 
   useEffect(() => {

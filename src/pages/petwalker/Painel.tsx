@@ -303,10 +303,14 @@ const Painel = () => {
   };
 
   const handleAcceptWalk = async () => {
-    if (!showOfferSheet) return;
+    if (!showOfferSheet || offerAction) return;
+    if (!showOfferSheet.session_id) {
+      toast.error('ID da sessão inválido');
+      return;
+    }
     setOfferAction('accepting');
     try {
-      const { data: success, error } = await supabase.rpc('accept_walk_request', { _session_id: showOfferSheet.id });
+      const { data: success, error } = await supabase.rpc('accept_walk_request', { _session_id: showOfferSheet.session_id });
       if (error) throw error;
       
       if (success) {
@@ -325,10 +329,14 @@ const Painel = () => {
   };
 
   const handleDeclineWalk = async () => {
-    if (!showOfferSheet) return;
+    if (!showOfferSheet || offerAction) return;
+    if (!showOfferSheet.session_id) {
+      toast.error('ID da sessão inválido');
+      return;
+    }
     setOfferAction('declining');
     try {
-      const { error } = await supabase.rpc('decline_walk_offer', { _session_id: showOfferSheet.id });
+      const { error } = await supabase.rpc('decline_walk_offer', { _session_id: showOfferSheet.session_id });
       if (error) throw error;
       
       setShowOfferSheet(null);
