@@ -348,6 +348,14 @@ test.afterAll(async () => {
       }
       if (walkerId) await admin.from("walk_offers").delete().eq("walker_id", walkerId);
       if (petId) await admin.from("pets").delete().eq("id", petId);
+      for (const id of extraUserIds) {
+        await admin.from("walker_tracking").delete().eq("walker_id", id);
+        await admin.from("walk_offers").delete().eq("walker_id", id);
+        await admin.from("petwalker_profiles").delete().eq("user_id", id);
+        await admin.from("user_roles").delete().eq("user_id", id);
+        await admin.from("profiles").delete().eq("id", id);
+        await admin.auth.admin.deleteUser(id).catch(() => {});
+      }
       if (walkerId) {
         await admin.from("petwalker_profiles").delete().eq("user_id", walkerId);
         await admin.from("user_roles").delete().eq("user_id", walkerId);
