@@ -315,9 +315,7 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
             <button 
               onClick={async () => {
                 const { error } = await supabase.rpc('petwalker_complete_walk', { 
-                  _session_id: walk.id,
-                  _final_trail: [],
-                  _final_distance_km: 0
+                  _session_id: walk.id
                 });
                 if (!error) navigate('/petwalker/painel');
               }}

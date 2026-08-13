@@ -1570,11 +1570,7 @@ export type Database = {
         Returns: boolean
       }
       petwalker_complete_walk: {
-        Args: {
-          _final_distance_km: number
-          _final_trail: Json
-          _session_id: string
-        }
+        Args: { _session_id: string }
         Returns: boolean
       }
       petwalker_start_heading: {
