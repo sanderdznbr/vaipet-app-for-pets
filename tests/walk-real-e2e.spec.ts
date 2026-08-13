@@ -647,8 +647,13 @@ test("rastreamento real com throttle de 5s no servidor", async () => {
   await liveMarker.waitFor({ state: "attached", timeout: 45_000 });
   const markerTransform = () =>
     ownerCtx.page.evaluate(() => {
-      const el = document.querySelector('[data-testid="active-walker-marker"]');
-      return (el?.parentElement as HTMLElement | null)?.style.transform ?? null;
+      const el = document.querySelector('[data-testid="active-walker-marker"]') as HTMLElement | null;
+      if (!el) return null;
+      // O Mapbox posiciona o PRÓPRIO elemento do marcador; alguns temas
+      // envolvem em um wrapper. Aceita o primeiro transform não vazio.
+      const own = el.style.transform;
+      const parent = (el.parentElement as HTMLElement | null)?.style.transform ?? "";
+      return own || parent || null;
     });
   // 3. Primeira coordenada confirmada no marcador.
   await expect.poll(markerTransform, { timeout: 30_000 }).not.toBeNull();
