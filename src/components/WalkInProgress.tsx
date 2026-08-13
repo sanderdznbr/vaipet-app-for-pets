@@ -2165,15 +2165,9 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
 
     try {
       setConcluding(true);
-      const trail = persistedTrailRef.current;
-      let meters = 0;
-      for (let i = 1; i < trail.length; i++) meters += haversine(trail[i - 1], trail[i]);
-      const finalDistKm = Number((meters / 1000).toFixed(3));
-
+      // RPC simplified: server calculates distance and duration based on persisted trail
       const { data, error } = await supabase.rpc('petwalker_complete_walk', { 
-        _session_id: sessionId,
-        _final_trail: trail,
-        _final_distance_km: finalDistKm
+        _session_id: sessionId
       });
       
       if (error) {
@@ -2201,30 +2195,9 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
   const remaining = Math.max(0, totalSec - elapsedTime);
   const progress = Math.min(100, (elapsedTime / totalSec) * 100);
 
-  // Safety net: when the planned duration runs out and the walker hasn't
-  // already started the return phase, auto-trigger the return so the
-  // simulated PetWalker Beta passeio cannot drift into 14h+ runtime. This
-  // mirrors what would happen if the human walker tapped "Voltar para casa"
-  // at the end of the scheduled time.
-  const autoReturnFiredRef = useRef(false);
-  useEffect(() => {
-    if (autoReturnFiredRef.current) return;
-    if (isReturning || isCancelling) return;
-    if (elapsedTime < totalSec) return;
-    autoReturnFiredRef.current = true;
-    onAuthorizeReturn?.();
-  }, [elapsedTime, totalSec, isReturning, isCancelling, onAuthorizeReturn]);
-
-  // Hard stop: if for some reason the return phase also overruns (no
-  // arrival confirmation), force-finalize 5 min after the planned end.
-  const autoFinalizeFiredRef = useRef(false);
-  useEffect(() => {
-    if (autoFinalizeFiredRef.current) return;
-    if (elapsedTime < totalSec + 5 * 60) return;
-    autoFinalizeFiredRef.current = true;
-    handleRequestReturn();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [elapsedTime, totalSec]);
+  // Auto-transition based on time removed.
+  // The UI will now only show "Tempo previsto excedido" via ActiveWalkBanner
+  // and the walk must be explicitly concluded by the PetWalker.
 
   // When the user confirms a cancellation, we reuse the existing "return home"
   // animation. The moment the pet reaches home (remainingMeters/eta both zero
