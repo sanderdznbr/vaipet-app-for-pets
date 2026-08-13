@@ -1273,6 +1273,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
         }
       }
     });
+    createdHere = true;
 
     // Detect manual user interaction — only user-initiated events have
     // an originalEvent (programmatic easeTo/flyTo don't). Once set, we
@@ -1288,11 +1289,19 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
     map.current.on('pitchstart', markOverride as never);
 
     return () => {
+      if (!createdHere) return;
       if (animRef.current) cancelAnimationFrame(animRef.current);
       stopDashPulse();
       stopMarkersRef.current.forEach(mk => mk.remove());
       stopMarkersRef.current = [];
       map.current?.remove();
+      map.current = null;
+      // The live marker belongs to this map instance — drop the reference
+      // so a future instance can recreate it instead of updating a marker
+      // that is no longer in the DOM.
+      if (liveAnimRef.current) cancelAnimationFrame(liveAnimRef.current);
+      liveMarkerRef.current = null;
+      setMapReadyTick((n) => n + 1);
     };
   // Intentionally exclude isDarkMode — the theme toggle swaps the style
   // in place (see effect below) WITHOUT remounting the map. Remounting
