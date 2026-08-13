@@ -1266,31 +1266,18 @@ export type Database = {
         Returns: undefined
       }
       cancel_walk_session: { Args: { _session_id: string }; Returns: undefined }
-      create_walk_request:
-        | {
-            Args: {
-              _duration_minutes: number
-              _meeting_point_address: string
-              _meeting_point_lat: number
-              _meeting_point_lng: number
-              _pet_id: string
-              _request_mode: Database["public"]["Enums"]["walk_request_mode"]
-              _scheduled_for: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              _duration_minutes: number
-              _meeting_point_address: string
-              _meeting_point_lat: number
-              _meeting_point_lng: number
-              _pet_id: string
-              _request_mode: Database["public"]["Enums"]["walk_request_mode"]
-              _scheduled_for: string
-            }
-            Returns: string
-          }
+      create_walk_request: {
+        Args: {
+          _duration_minutes: number
+          _meeting_point_address: string
+          _meeting_point_lat: number
+          _meeting_point_lng: number
+          _pet_id: string
+          _request_mode: Database["public"]["Enums"]["walk_request_mode"]
+          _scheduled_for: string
+        }
+        Returns: string
+      }
       customer_cancel_search: {
         Args: { _session_id: string }
         Returns: boolean
@@ -1532,32 +1519,20 @@ export type Database = {
           rating_average: number
         }[]
       }
-      get_walk_quote:
-        | {
-            Args: { _duration_minutes: number; _request_mode?: string }
-            Returns: {
-              duration_minutes: number
-              price_per_minute_cents: number
-              pricing_version: number
-              request_mode: string
-              request_surcharge_cents: number
-              total_price_cents: number
-            }[]
-          }
-        | {
-            Args: {
-              _duration_minutes: number
-              _request_mode: Database["public"]["Enums"]["walk_request_mode"]
-            }
-            Returns: {
-              duration_minutes: number
-              price_per_minute_cents: number
-              pricing_version: number
-              request_mode: Database["public"]["Enums"]["walk_request_mode"]
-              request_surcharge_cents: number
-              total_price_cents: number
-            }[]
-          }
+      get_walk_quote: {
+        Args: {
+          _duration_minutes: number
+          _request_mode: Database["public"]["Enums"]["walk_request_mode"]
+        }
+        Returns: {
+          duration_minutes: number
+          price_per_minute_cents: number
+          pricing_version: number
+          request_mode: Database["public"]["Enums"]["walk_request_mode"]
+          request_surcharge_cents: number
+          total_price_cents: number
+        }[]
+      }
       gettransactionid: { Args: never; Returns: unknown }
       has_role: {
         Args: {
