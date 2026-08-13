@@ -9,7 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:routes": "tsx tests/verify_routes.ts",
+    "test:routes": "playwright test tests/verify_routes.test.ts",
     "test:camera-ai": "playwright test tests/camera_ai_neutral.test.ts"
   },
   "dependencies": {

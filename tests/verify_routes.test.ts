@@ -1,4 +1,4 @@
-import { chromium } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 const DEPLOY_URL = process.env.DEPLOY_URL || 'https://tieck.com.br';
 
@@ -9,41 +9,24 @@ const routes = [
   '/inicio'
 ];
 
-async function verifyRoutes() {
-  console.log(`Iniciando verificação de rotas em: ${DEPLOY_URL}`);
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
-  let hasError = false;
-
+test.describe('Route Verification', () => {
   for (const route of routes) {
-    const url = `${DEPLOY_URL}${route}`;
-    try {
-      const response = await page.goto(url, { waitUntil: 'networkidle' });
+    test(`Verify route ${route}`, async ({ page }) => {
+      const url = `${DEPLOY_URL}${route}`;
+      console.log(`Testando: ${url}`);
+      
+      const response = await page.goto(url, { waitUntil: 'domcontentloaded' });
       const status = response?.status();
       
-      console.log(`Rota ${route}: Status ${status}`);
-
-      if (status === 404 || (status && status >= 500)) {
-        console.error(`ERRO: Rota ${route} retornou status ${status}`);
-        hasError = true;
+      expect(status).not.toBe(404);
+      if (status) {
+        expect(status).toBeLessThan(500);
       }
 
-      // Se for rota privada e redirecionar para login, está correto
+      // Se redirecionar de /inicio para /login, está correto
       if (route === '/inicio' && page.url().includes('/login')) {
-        console.log(`Rota ${route} redirecionada corretamente para login.`);
+        console.log(`Rota ${route} redirecionada para login.`);
       }
-
-    } catch (error) {
-      console.error(`ERRO ao acessar ${url}:`, error);
-      hasError = true;
-    }
+    });
   }
-
-  await browser.close();
-  
-  if (hasError) {
-    process.exit(1);
-  }
-}
-
-verifyRoutes();
+});
