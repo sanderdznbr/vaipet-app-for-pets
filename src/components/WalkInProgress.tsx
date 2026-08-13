@@ -2469,6 +2469,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
                 return (
                   <div
                     key="pickup"
+                    data-testid="walk-accepted-state"
                     className="pointer-events-auto flex items-center gap-3.5 backdrop-blur-md rounded-full pl-2 pr-3 py-2 animate-pill-content-in transition-all duration-500 ease-out min-w-[260px]"
                     style={{ background: chrome.bg, border: chrome.border, boxShadow: chrome.shadow }}
                   >
@@ -2479,7 +2480,8 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
                     </div>
                     <div className="flex flex-col leading-tight pr-2 flex-1">
                       <span className="text-[12px] font-semibold" style={{ color: chrome.muted }}>A caminho {transport?.emoji ?? '🚗'}</span>
-                      <span className="text-[15px] font-extrabold tabular-nums whitespace-nowrap" style={{ color: chrome.text }}>{fmtEta(etaSec)}</span>
+                      <span className="text-[15px] font-extrabold whitespace-nowrap" style={{ color: chrome.text }} data-testid="walk-walker-name">{walkerName}</span>
+                      <span className="text-[12px] font-semibold tabular-nums whitespace-nowrap" style={{ color: chrome.muted }}>{fmtEta(etaSec)}</span>
                     </div>
                     <button
                       onClick={onOpenChat}

@@ -1039,6 +1039,38 @@ const SearchWalk = () => {
   useEffect(() => {
     if (!currentSessionId) return;
 
+    let cancelled = false;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let reqSeq = 0;
+    let lastAppliedSeq = 0;
+
+    const applyStatus = (data: any, seq: number) => {
+      // Descarta respostas antigas que chegarem depois de uma mais recente.
+      if (cancelled || !data || seq < lastAppliedSeq) return;
+      lastAppliedSeq = seq;
+      const status = data.current_status;
+      if (data.matching_expires_at) setMatchingExpiresAt(data.matching_expires_at);
+      if (status === 'accepted' && searchStatusRef.current !== 'walking') {
+        handleAccepted(data);
+      } else if (status === 'expired' || status === 'cancelled') {
+        handleTimeout();
+      }
+      if (status && status !== 'searching' && pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    };
+
+    const fetchStatus = async () => {
+      const seq = ++reqSeq;
+      const { data } = await supabase
+        .from('walk_sessions')
+        .select('*')
+        .eq('id', currentSessionId)
+        .maybeSingle();
+      applyStatus(data, seq);
+    };
+
     const channel = supabase
       .channel(`walk-session-${currentSessionId}`)
       .on(
@@ -1050,29 +1082,26 @@ const SearchWalk = () => {
           filter: `id=eq.${currentSessionId}`
         },
         (payload: any) => {
-          const newStatus = payload.new.current_status;
-          if (newStatus === 'accepted' && searchStatusRef.current !== 'walking') {
-            handleAccepted(payload.new);
-          } else if (newStatus === 'expired' || newStatus === 'cancelled') {
-            handleTimeout();
-          } else if (payload.new.matching_expires_at) {
-            setMatchingExpiresAt(payload.new.matching_expires_at);
-          }
+          applyStatus(payload.new, ++reqSeq);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') fetchStatus();
+      });
 
-    // Check immediate state if already accepted
-    const checkStatus = async () => {
-       const { data } = await supabase.from('walk_sessions').select('*').eq('id', currentSessionId).single();
-       if (data?.matching_expires_at) setMatchingExpiresAt(data.matching_expires_at);
-       if (data?.current_status === 'accepted' && searchStatusRef.current !== 'walking') {
-          handleAccepted(data);
-       }
-    };
-    checkStatus();
+    // Consulta imediata + polling de recuperação limitado enquanto busca.
+    fetchStatus();
+    pollTimer = setInterval(() => {
+      if (searchStatusRef.current === 'walking') {
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        return;
+      }
+      fetchStatus();
+    }, 5000);
 
     return () => {
+      cancelled = true;
+      if (pollTimer) clearInterval(pollTimer);
       supabase.removeChannel(channel);
     };
   }, [currentSessionId]);
