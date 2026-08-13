@@ -35,7 +35,7 @@ export const PetHistory = () => {
         .from('walk_sessions')
         .select('*')
         .eq('pet_id', found.id)
-        .in('status', ['completed', 'returning', 'finished'])
+        .eq('current_status', 'completed')
         .order('created_at', { ascending: false });
 
       setWalkHistory((walkData || []).map(s => ({
