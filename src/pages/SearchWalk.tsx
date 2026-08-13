@@ -291,7 +291,7 @@ const SearchWalk = () => {
           return;
         }
         // If the walk is already finished, drop back to the normal flow.
-        if (session.status !== 'active' && session.status !== 'returning') {
+        if (session.current_status !== 'in_progress' && session.current_status !== 'returning') {
           setIsResuming(false);
           setSearchParams({}, { replace: true });
           return;
@@ -334,7 +334,7 @@ const SearchWalk = () => {
         // setWalker(null); // Explicitly null while searching
         setCurrentSessionId(session.id);
         setWalkStartTime(new Date(session.start_time).getTime());
-        if (session.status === 'returning') setIsReturning(true);
+        if (session.current_status === 'returning') setIsReturning(true);
         setSearchStatus('walking');
       } catch (e) {
         console.error('Resume walk failed:', e);

@@ -5,11 +5,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { BETA_WALKER_AVATAR, BETA_WALKER_NAME } from '@/lib/walkerProfile';
 
+import { WalkStatus } from '@/types/walk';
+
 interface ActiveWalk {
   id: string;
   pet_id: string;
   walker_name: string;
-  status: string;
+  current_status: WalkStatus;
   start_time: string;
   planned_duration_minutes: number;
   pet_name?: string;
@@ -27,9 +29,9 @@ export const ActiveWalkBanner: React.FC = () => {
     const fetchActiveWalk = async () => {
       const { data } = await supabase
         .from('walk_sessions')
-        .select('id, pet_id, walker_name, status, start_time, planned_duration_minutes')
+        .select('id, pet_id, walker_name, current_status, start_time, planned_duration_minutes')
         .eq('customer_id', user.id)
-        .in('status', ['active', 'returning'])
+        .in('current_status', ['in_progress', 'returning'])
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -48,7 +50,7 @@ export const ActiveWalkBanner: React.FC = () => {
           await supabase
             .from('walk_sessions')
             .update({
-              status: 'completed',
+              current_status: 'completed',
               end_time: new Date(startedAt + plannedMin * 60000).toISOString(),
               actual_duration_minutes: plannedMin,
             })

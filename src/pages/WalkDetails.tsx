@@ -272,7 +272,7 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
             <span className="text-sm text-foreground font-medium">Status</span>
           </div>
           <span className="text-xs font-extrabold px-3 py-1 rounded-full bg-accent/10 text-accent capitalize">
-            {walk.status}
+            {walk.current_status}
           </span>
         </div>
       </div>

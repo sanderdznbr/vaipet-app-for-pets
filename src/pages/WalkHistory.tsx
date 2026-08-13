@@ -48,7 +48,7 @@ const WalkHistory: React.FC = () => {
         .from('walk_sessions')
         .select('id, walker_name, start_time, created_at, actual_duration_minutes, planned_duration_minutes, distance_km, rating, pets:pet_id(name, avatar_url)')
         .eq('customer_id', user.id)
-        .eq('status', 'completed')
+        .eq('current_status', 'completed')
         .order('created_at', { ascending: false });
       if (cancelled) return;
       setWalks(((data || []) as any[]).map(r => ({ ...r, pet: r.pets })));

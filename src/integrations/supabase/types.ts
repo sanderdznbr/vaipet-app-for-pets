@@ -898,7 +898,7 @@ export type Database = {
           actual_duration_minutes: number | null
           created_at: string
           current_radius_meters: number | null
-          current_status: Database["public"]["Enums"]["walk_status"] | null
+          current_status: Database["public"]["Enums"]["walk_status"]
           customer_id: string
           distance_km: number | null
           end_time: string | null
@@ -935,7 +935,7 @@ export type Database = {
           actual_duration_minutes?: number | null
           created_at?: string
           current_radius_meters?: number | null
-          current_status?: Database["public"]["Enums"]["walk_status"] | null
+          current_status?: Database["public"]["Enums"]["walk_status"]
           customer_id: string
           distance_km?: number | null
           end_time?: string | null
@@ -972,7 +972,7 @@ export type Database = {
           actual_duration_minutes?: number | null
           created_at?: string
           current_radius_meters?: number | null
-          current_status?: Database["public"]["Enums"]["walk_status"] | null
+          current_status?: Database["public"]["Enums"]["walk_status"]
           customer_id?: string
           distance_km?: number | null
           end_time?: string | null
@@ -1259,18 +1259,31 @@ export type Database = {
         Returns: undefined
       }
       cancel_walk_session: { Args: { _session_id: string }; Returns: undefined }
-      create_walk_request: {
-        Args: {
-          _duration_minutes: number
-          _meeting_point_address: string
-          _meeting_point_lat: number
-          _meeting_point_lng: number
-          _pet_id: string
-          _request_mode: Database["public"]["Enums"]["walk_request_mode"]
-          _scheduled_for: string
-        }
-        Returns: string
-      }
+      create_walk_request:
+        | {
+            Args: {
+              _duration_minutes: number
+              _meeting_point_address: string
+              _meeting_point_lat: number
+              _meeting_point_lng: number
+              _pet_id: string
+              _request_mode: Database["public"]["Enums"]["walk_request_mode"]
+              _scheduled_for: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _duration_minutes: number
+              _meeting_point_address: string
+              _meeting_point_lat: number
+              _meeting_point_lng: number
+              _pet_id: string
+              _request_mode: Database["public"]["Enums"]["walk_request_mode"]
+              _scheduled_for: string
+            }
+            Returns: string
+          }
       customer_cancel_search: {
         Args: { _session_id: string }
         Returns: boolean

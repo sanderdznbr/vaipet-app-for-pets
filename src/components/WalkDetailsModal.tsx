@@ -118,11 +118,11 @@ export const WalkDetailsModal: React.FC<WalkDetailsModalProps> = ({ walk, isOpen
                 <p className="font-medium text-gray-900">Status</p>
                 <div className="flex items-center gap-2">
                   <span className={`inline-block w-2 h-2 rounded-full ${
-                    walk.status === 'completed' ? 'bg-green-500' : 
-                    walk.status === 'returning' ? 'bg-yellow-500' : 
+                    walk.current_status === 'completed' ? 'bg-green-500' : 
+                    walk.current_status === 'returning' ? 'bg-yellow-500' : 
                     'bg-blue-500'
                   }`} />
-                  <p className="text-sm text-gray-600 capitalize">{walk.status}</p>
+                  <p className="text-sm text-gray-600 capitalize">{walk.current_status}</p>
                 </div>
               </div>
             </div>

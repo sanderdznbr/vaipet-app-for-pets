@@ -160,7 +160,7 @@ export const HomePasseio: React.FC = () => {
             'id, start_time, actual_duration_minutes, planned_duration_minutes, distance_km, walker_name, pets:pet_id(name, avatar_url)'
           )
           .eq('customer_id', user.id)
-          .eq('status', 'completed')
+          .eq('current_status', 'completed')
           .order('start_time', { ascending: false })
           .limit(20),
         supabase

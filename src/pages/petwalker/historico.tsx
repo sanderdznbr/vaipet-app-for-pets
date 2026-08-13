@@ -20,7 +20,7 @@ const PetwalkerHistorico = () => {
         .from('walk_sessions')
         .select('*')
         .eq('walker_id', user.id)
-        .order('created_at', { ascending: false });
+        .eq('current_status', 'completed')
 
       if (data && !error) {
         setWalks(data);
@@ -58,15 +58,15 @@ const PetwalkerHistorico = () => {
                       </span>
                     </div>
                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      walk.status === 'completed' ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-500'
+                      walk.current_status === 'completed' ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-500'
                     }`}>
-                      {walk.status === 'completed' ? 'Concluído' : walk.status}
+                      {walk.current_status === 'completed' ? 'Concluído' : walk.current_status}
                     </span>
                   </div>
                   <div className="flex justify-between items-end">
                     <div>
                       <p className="text-xs text-gray-400">Status</p>
-                      <p className="font-bold">{walk.status}</p>
+                      <p className="font-bold">{walk.current_status}</p>
                     </div>
                     <p className="font-bold text-primary">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(walk.distance_km) || 0)}

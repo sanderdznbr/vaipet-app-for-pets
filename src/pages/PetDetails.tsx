@@ -101,7 +101,7 @@ export const PetDetails = () => {
       .from('walk_sessions')
       .select('*')
       .eq('pet_id', pet.id)
-      .in('status', ['completed', 'returning', 'finished'])
+      .eq('current_status', 'completed')
       .order('created_at', { ascending: false })
       .limit(5);
 
