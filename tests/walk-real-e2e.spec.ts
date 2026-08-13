@@ -659,39 +659,168 @@ test("rastreamento real com throttle de 5s no servidor", async () => {
   expect.soft(JSON.stringify(after), "marcador do walker deve mudar de posição na tela do dono").not.toBe(JSON.stringify(before));
 });
 
-test("casos negativos", async () => {
-  // dono aceitando a própria solicitação
-  const selfAccept = await rpcAsUser(ownerCtx, "accept_walk_request", { _session_id: sessionId });
-  log(`auto-aceite: http=${selfAccept.status}`);
-  expect(selfAccept.ok).toBe(false);
+test("casos negativos: identidade, autorização e validação de dados", async () => {
+  test.setTimeout(240_000);
+  const before = await snapshotState();
 
-  // usuário comum chamando append_walk_tracking_point
-  const ownerTrack = await rpcAsUser(ownerCtx, "append_walk_tracking_point", {
-    _session_id: sessionId,
-    _point: [OWNER_POINT.lng, OWNER_POINT.lat],
-  });
-  log(`dono gravando ponto: http=${ownerTrack.status}`);
-  expect(ownerTrack.ok).toBe(false);
+  // ---- 1. Dono (usuário comum) não opera o passeio ----
+  expectDenied(
+    "dono grava ponto de GPS",
+    await rpcAsUser(ownerCtx, "append_walk_tracking_point", {
+      _session_id: sessionId,
+      _point: [OWNER_POINT.lng, OWNER_POINT.lat],
+    }),
+  );
+  for (const fn of [
+    "petwalker_start_heading",
+    "petwalker_arrive_pickup",
+    "petwalker_start_walk",
+    "petwalker_complete_walk",
+  ]) {
+    expectDenied(`dono chamando ${fn}`, await rpcAsUser(ownerCtx, fn, { _session_id: sessionId }));
+  }
 
-  // coordenada em string
-  const strCoord = await rpcAsUser(walkerCtx, "append_walk_tracking_point", {
-    _session_id: sessionId,
-    _point: ["-46.7", "-23.6"],
-  });
-  expect(strCoord.ok).toBe(false);
+  // ---- 2. Auto-aceite proibido (sessão do próprio dono) ----
+  expectDenied(
+    "auto-aceite do dono na sessão em andamento",
+    await rpcAsUser(ownerCtx, "accept_walk_request", { _session_id: sessionId }),
+  );
+  // Sessão realmente em 'searching' criada só para provar a regra de auto-aceite.
+  const probe = await admin
+    .from("walk_sessions")
+    .insert({
+      customer_id: ownerId,
+      pet_id: petId,
+      start_time: new Date().toISOString(),
+      status: "searching",
+      current_status: "searching",
+      walk_type: "livre",
+      planned_duration_minutes: 15,
+      request_mode: "now",
+      matching_expires_at: new Date(Date.now() + 10 * 60_000).toISOString(),
+    })
+    .select("id")
+    .maybeSingle();
+  if (probe.error) {
+    log(`aviso: não foi possível criar sessão de sondagem (${probe.error.message.slice(0, 120)})`);
+  } else {
+    const probeId = (probe.data as any).id as string;
+    const self = await rpcAsUser(ownerCtx, "accept_walk_request", { _session_id: probeId });
+    expectDenied("auto-aceite em sessão searching do próprio dono", self);
+    const probeAfter = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", probeId).single();
+    expect(probeAfter.data!.walker_id, "auto-aceite não pode atribuir walker").toBeNull();
+    expect(probeAfter.data!.current_status).toBe("searching");
+    // Walker ocupado também não pode aceitar outra sessão.
+    expectDenied(
+      "walker ocupado aceitando outra sessão",
+      await rpcAsUser(walkerCtx, "accept_walk_request", { _session_id: probeId }),
+    );
+    const probeAfter2 = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", probeId).single();
+    expect(probeAfter2.data!.walker_id).toBeNull();
+    await admin.from("walk_offers").delete().eq("session_id", probeId);
+    await admin.from("walk_sessions").delete().eq("id", probeId);
+    log("sessão de sondagem removida");
+  }
 
-  // fora dos limites
-  const oob = await rpcAsUser(walkerCtx, "append_walk_tracking_point", {
-    _session_id: sessionId,
-    _point: [999, 999],
-  });
-  expect(oob.ok).toBe(false);
+  // ---- 3. Terceiros (petwalker externo e usuário comum externo) ----
+  const stranger = await createExtraUser("petwalker");
+  const outsider = await createExtraUser("common");
+  log(`usuários externos criados walker=${short(stranger.id)} comum=${short(outsider.id)}`);
 
-  // walker mexendo em sessão de outro profissional
-  const fake = "00000000-0000-0000-0000-000000000000";
-  const foreign = await rpcAsUser(walkerCtx, "petwalker_start_walk", { _session_id: fake });
-  log(`sessão de terceiro: http=${foreign.status} retorno=${JSON.stringify(foreign.body)}`);
-  expect(foreign.body === false || foreign.ok === false).toBe(true);
+  for (const fn of [
+    "petwalker_start_heading",
+    "petwalker_arrive_pickup",
+    "petwalker_start_walk",
+    "petwalker_complete_walk",
+  ]) {
+    expectDenied(`petwalker externo chamando ${fn}`, await rpcAsToken(fn, { _session_id: sessionId }, stranger.token));
+  }
+  expectDenied(
+    "petwalker externo gravando ponto",
+    await rpcAsToken(
+      "append_walk_tracking_point",
+      { _session_id: sessionId, _point: [-46.7, -23.6] },
+      stranger.token,
+    ),
+  );
+  expectDenied(
+    "petwalker externo aceitando sessão já atribuída",
+    await rpcAsToken("accept_walk_request", { _session_id: sessionId }, stranger.token),
+  );
+
+  // Localização ao vivo é privada: só dono e walker da sessão.
+  const strangerLoc = await rpcAsToken("get_active_walker_location", { _session_id: sessionId }, stranger.token);
+  log(`localização por walker externo: http=${strangerLoc.status} body=${JSON.stringify(strangerLoc.body).slice(0, 120)}`);
+  expect(
+    strangerLoc.ok === false || strangerLoc.body === null || (Array.isArray(strangerLoc.body) && strangerLoc.body.length === 0),
+    "walker externo não pode ler a localização da sessão",
+  ).toBe(true);
+
+  const outsiderLoc = await rpcAsToken("get_active_walker_location", { _session_id: sessionId }, outsider.token);
+  expect(
+    outsiderLoc.ok === false || outsiderLoc.body === null || (Array.isArray(outsiderLoc.body) && outsiderLoc.body.length === 0),
+    "usuário comum externo não pode ler a localização",
+  ).toBe(true);
+
+  const anonLoc = await rpcAsToken("get_active_walker_location", { _session_id: sessionId }, null);
+  log(`localização anônima: http=${anonLoc.status}`);
+  expect(
+    anonLoc.ok === false || anonLoc.body === null || (Array.isArray(anonLoc.body) && anonLoc.body.length === 0),
+    "anônimo não pode ler a localização",
+  ).toBe(true);
+
+  // Leitura direta anônima nas tabelas sensíveis é bloqueada pela RLS.
+  for (const table of ["walk_sessions", "walker_tracking", "walk_offers"]) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=id&limit=1`, {
+      headers: { apikey: ANON_KEY },
+    });
+    const rows = res.ok ? await res.json() : null;
+    log(`leitura anônima ${table}: http=${res.status} rows=${Array.isArray(rows) ? rows.length : "n/a"}`);
+    expect(res.ok === false || (Array.isArray(rows) && rows.length === 0), `${table} não pode ser lida anonimamente`).toBe(true);
+  }
+
+  // ---- 4. Dados inválidos no ponto de GPS (walker legítimo) ----
+  const invalidPoints: Array<[string, unknown]> = [
+    ["strings numéricas", ["-46.7", "-23.6"]],
+    ["fora dos limites", [999, 999]],
+    ["latitude 91", [-46.7, 91]],
+    ["longitude -181", [-181, -23.6]],
+    ["array incompleto", [-46.7]],
+    ["array com 3 itens", [-46.7, -23.6, 10]],
+    ["objeto em vez de array", { lng: -46.7, lat: -23.6 }],
+    ["nulo", null],
+    ["booleanos", [true, false]],
+    ["nulos internos", [null, null]],
+    ["string NaN", ["NaN", "NaN"]],
+  ];
+  for (const [label, point] of invalidPoints) {
+    expectDenied(
+      `ponto inválido (${label})`,
+      await rpcAsUser(walkerCtx, "append_walk_tracking_point", { _session_id: sessionId, _point: point }),
+    );
+  }
+
+  // Sessão inexistente e id malformado.
+  expectDenied(
+    "sessão inexistente no start_walk",
+    await rpcAsUser(walkerCtx, "petwalker_start_walk", {
+      _session_id: "00000000-0000-0000-0000-000000000000",
+    }),
+  );
+  const badUuid = await rpcAsUser(walkerCtx, "petwalker_start_walk", { _session_id: "nao-e-uuid" });
+  expectDenied("uuid malformado", badUuid);
+
+  // ---- 5. Transições fora de ordem pelo walker legítimo (sessão in_progress) ----
+  for (const fn of ["petwalker_start_heading", "petwalker_arrive_pickup", "petwalker_start_walk"]) {
+    expectDenied(`transição fora de ordem (${fn}) em in_progress`, await rpcAsUser(walkerCtx, fn, { _session_id: sessionId }));
+  }
+
+  // ---- 6. Integridade: nada mudou no banco após todas as tentativas ----
+  const after = await snapshotState();
+  log(`integridade pós-negativas: inalterado=${before === after}`);
+  if (before !== after) log(`antes=${before}\ndepois=${after}`);
+  expect(after, "nenhuma tentativa negada pode alterar o estado do passeio").toBe(before);
+  expect((await dbSession()).current_status).toBe("in_progress");
 });
 
 test("encerramento explícito e histórico", async () => {
