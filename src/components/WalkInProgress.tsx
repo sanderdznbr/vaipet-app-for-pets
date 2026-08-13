@@ -35,6 +35,12 @@ interface WalkInProgressProps {
   walkerAvatar?: string;
   walkerLocation: [number, number] | null;
   petLocation?: [number, number] | null;
+  /**
+   * Posição atual REAL do PetWalker, vinda exclusivamente da RPC segura
+   * `get_active_walker_location`. Fonte canônica da posição corrente —
+   * `route_coordinates` serve apenas para o rastro histórico.
+   */
+  livePosition?: { lng: number; lat: number; ts: number } | null;
   pickupRoute?: [number, number][];
   isComing?: boolean;
   onPickupComplete?: () => void;
@@ -76,6 +82,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
   onBack, onRequestReturn, onOpenChat, onRequestPhotos, onConfirmArrival,
   onAuthorizeReturn, onCancelWalk, onCancelComplete, isCancelling = false,
   petName, petId, petAvatar, walkerName, walkerAvatar, walkerLocation, petLocation,
+  livePosition = null,
   petNames, petIds, petAvatars,
   pickupRoute, isComing = false, onPickupComplete,
   walkDurationMinutes, walkStartTime, sessionId, isDarkMode = false, isReturning = false,
@@ -1285,6 +1292,108 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
   // caused a visible flick, camera reframe and route re-animation.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walkerLocation, petLocation]);
+
+  // ────────────────────────────────────────────────────────────────
+  // Marcador da posição ATUAL do PetWalker (fonte canônica: RPC
+  // `get_active_walker_location`, entregue pelo pai em `livePosition`).
+  // É um marcador dedicado, sempre visível enquanto o passeio estiver
+  // ativo, independente da animação/rastro. Nunca usa coordenada fictícia:
+  // sem `livePosition` ele simplesmente não existe.
+  // ────────────────────────────────────────────────────────────────
+  const liveMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const liveAnimRef = useRef<number | null>(null);
+  const liveLastRef = useRef<{ lng: number; lat: number; ts: number } | null>(null);
+
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !livePosition) return;
+    // Protege contra resposta fora de ordem: só avança no tempo.
+    if (liveLastRef.current && livePosition.ts < liveLastRef.current.ts) return;
+
+    const from: [number, number] | null = liveLastRef.current
+      ? [liveLastRef.current.lng, liveLastRef.current.lat]
+      : null;
+    const to: [number, number] = [livePosition.lng, livePosition.lat];
+    liveLastRef.current = livePosition;
+
+    if (!liveMarkerRef.current) {
+      const el = document.createElement('div');
+      el.setAttribute('data-testid', 'active-walker-marker');
+      el.style.width = '26px';
+      el.style.height = '26px';
+      el.innerHTML = `
+        <div style="position:relative;width:26px;height:26px;">
+          <div style="position:absolute;inset:-6px;border-radius:50%;background:hsl(159 100% 33% / 0.25);"></div>
+          <div style="width:26px;height:26px;border-radius:50%;background:hsl(159,100%,33%);border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.25);"></div>
+        </div>`;
+      liveMarkerRef.current = new mapboxgl.Marker({ element: el, anchor: 'center' })
+        .setLngLat(to)
+        .addTo(m);
+      return;
+    }
+
+    // Transição suave entre a posição anterior e a nova.
+    if (liveAnimRef.current) cancelAnimationFrame(liveAnimRef.current);
+    if (!from) {
+      liveMarkerRef.current.setLngLat(to);
+      return;
+    }
+    const start = performance.now();
+    const step = (now: number) => {
+      const t = Math.min((now - start) / 600, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      liveMarkerRef.current?.setLngLat([
+        from[0] + (to[0] - from[0]) * eased,
+        from[1] + (to[1] - from[1]) * eased,
+      ]);
+      if (t < 1) liveAnimRef.current = requestAnimationFrame(step);
+    };
+    liveAnimRef.current = requestAnimationFrame(step);
+  }, [livePosition]);
+
+  // Limpeza: timer/animação e marcador saem juntos com o componente.
+  useEffect(() => () => {
+    if (liveAnimRef.current) cancelAnimationFrame(liveAnimRef.current);
+    liveMarkerRef.current?.remove();
+    liveMarkerRef.current = null;
+  }, []);
+
+  // Rastro histórico: re-hidrata `route_coordinates` (pontos realmente
+  // persistidos pelo servidor) enquanto há posição ao vivo, mantendo o
+  // formato [lng, lat] sem transformação.
+  useEffect(() => {
+    if (!sessionId || !livePosition) return;
+    let active = true;
+    const syncTrail = async () => {
+      const { data } = await supabase
+        .from('walk_sessions')
+        .select('route_coordinates')
+        .eq('id', sessionId)
+        .maybeSingle();
+      if (!active) return;
+      const raw = (data?.route_coordinates as [number, number][] | null) || [];
+      const clean = raw.filter(
+        (p) => Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1])
+      ) as [number, number][];
+      if (clean.length <= persistedTrailRef.current.length) return;
+      persistedTrailRef.current = clean;
+      lastSavedTrailLenRef.current = clean.length;
+      lastTrailAppendRef.current = clean[clean.length - 1] || null;
+      const src = map.current?.getSource('walk-trail') as mapboxgl.GeoJSONSource | undefined;
+      src?.setData({
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'LineString', coordinates: clean },
+      });
+    };
+    syncTrail();
+    const id = setInterval(syncTrail, 5000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, !!livePosition]);
 
   // Swap map style in place when the theme toggles. Preserve camera,
   // sources, layers and the 3D dog so nothing visually moves or replays.
