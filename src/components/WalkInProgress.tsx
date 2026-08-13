@@ -2625,6 +2625,22 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
         )}
 
         {/* Always-mounted return dialog (the floating right-rail button toggles it during the walk) */}
+        {arrivedAtOrigin && (
+          <div className="absolute left-4 right-4 bottom-6 z-50">
+            <div className="rounded-[24px] bg-card shadow-2xl p-4 text-center space-y-3">
+              <p className="text-base font-extrabold text-foreground">Você chegou ao destino</p>
+              <button
+                onClick={() => setShowReturnDialog(true)}
+                disabled={concluding}
+                className="w-full min-h-[44px] rounded-xl text-white font-bold disabled:opacity-60"
+                style={{ background: 'hsl(159 100% 33%)' }}
+              >
+                {concluding ? 'Finalizando…' : 'Finalizar passeio'}
+              </button>
+            </div>
+          </div>
+        )}
+
         <AlertDialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
           <AlertDialogContent className="rounded-[24px] max-w-[340px]">
             <AlertDialogHeader>
@@ -2636,11 +2652,12 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
             <AlertDialogFooter className="flex-row gap-2">
               <AlertDialogCancel className="flex-1 rounded-xl m-0">Cancelar</AlertDialogCancel>
               <AlertDialogAction
-                onClick={handleRequestReturn}
+                onClick={(e) => { e.preventDefault(); if (!concluding) handleRequestReturn(); }}
+                disabled={concluding}
                 className="flex-1 rounded-xl m-0 text-white"
                 style={{ background: 'hsl(159 100% 33%)' }}
               >
-                Encerrar agora
+                {concluding ? 'Encerrando…' : 'Encerrar agora'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
