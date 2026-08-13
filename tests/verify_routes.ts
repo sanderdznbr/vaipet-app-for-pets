@@ -11,7 +11,9 @@ const routes = [
 
 async function verifyRoutes() {
   console.log(`Iniciando verificação de rotas em: ${DEPLOY_URL}`);
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({
+    executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined
+  });
   const page = await browser.newPage();
   let hasError = false;
 
