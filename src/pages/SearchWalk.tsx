@@ -654,7 +654,7 @@ const SearchWalk = () => {
           },
         });
         if (error) throw error;
-        type PlaceResult = { id: string; address: string; name: string; center: [number, number] };
+        type PlaceResult = { id: string; address: string; name: string; lng: number; lat: number };
         const feats = ((data?.results || []) as PlaceResult[]).map((r) => ({
           id: r.id,
           place_name: r.address,
@@ -1862,7 +1862,7 @@ const SearchWalk = () => {
                 const types: Array<{
                   id: 'livre' | 'local';
                   label: string;
-                  Icon: React.ComponentType<{ className?: string }>;
+                  Icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
                   desc: string;
                 }> = [
                   { id: 'livre', label: isCollective ? 'Coletivo' : 'Livre', Icon: Sparkles, desc: isCollective ? 'Passeio com múltiplos pets selecionados.' : 'O petwalker decide tudo sobre o passeio.' },
