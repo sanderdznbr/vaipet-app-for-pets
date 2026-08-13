@@ -329,7 +329,7 @@ const SearchWalk = () => {
         // Hydrate stops + home location
         const stops = Array.isArray(session.local_stops) ? session.local_stops : [];
         setLocalStops(
-          stops.map((s: any, i: number) => ({
+          (stops as Array<{ label?: string; address?: string; lng: number; lat: number }>).map((s, i) => ({
             id: `${sessionId}-${i}`,
             label: s.label ?? `Parada ${i + 1}`,
             address: s.address ?? '',
@@ -654,15 +654,16 @@ const SearchWalk = () => {
           },
         });
         if (error) throw error;
-        const feats = (data?.results || []).map((r: any) => ({
+        type PlaceResult = { id: string; address: string; name: string; center: [number, number] };
+        const feats = ((data?.results || []) as PlaceResult[]).map((r) => ({
           id: r.id,
           place_name: r.address,
           text: r.name,
           center: [r.lng, r.lat] as [number, number],
         }));
         setAddrSuggestions(feats);
-      } catch (e: any) {
-        if (e?.name !== 'AbortError') setAddrSuggestions([]);
+      } catch (e: unknown) {
+        if ((e as { name?: string })?.name !== 'AbortError') setAddrSuggestions([]);
       } finally {
         setAddrLoading(false);
       }
@@ -1861,7 +1862,7 @@ const SearchWalk = () => {
                 const types: Array<{
                   id: 'livre' | 'local';
                   label: string;
-                  Icon: any;
+                  Icon: React.ComponentType<{ className?: string }>;
                   desc: string;
                 }> = [
                   { id: 'livre', label: isCollective ? 'Coletivo' : 'Livre', Icon: Sparkles, desc: isCollective ? 'Passeio com múltiplos pets selecionados.' : 'O petwalker decide tudo sobre o passeio.' },
