@@ -898,7 +898,7 @@ export type Database = {
           actual_duration_minutes: number | null
           created_at: string
           current_radius_meters: number | null
-          current_status: Database["public"]["Enums"]["walk_status"] | null
+          current_status: Database["public"]["Enums"]["walk_status"]
           customer_id: string
           distance_km: number | null
           end_time: string | null
@@ -935,7 +935,7 @@ export type Database = {
           actual_duration_minutes?: number | null
           created_at?: string
           current_radius_meters?: number | null
-          current_status?: Database["public"]["Enums"]["walk_status"] | null
+          current_status?: Database["public"]["Enums"]["walk_status"]
           customer_id: string
           distance_km?: number | null
           end_time?: string | null
@@ -972,7 +972,7 @@ export type Database = {
           actual_duration_minutes?: number | null
           created_at?: string
           current_radius_meters?: number | null
-          current_status?: Database["public"]["Enums"]["walk_status"] | null
+          current_status?: Database["public"]["Enums"]["walk_status"]
           customer_id?: string
           distance_km?: number | null
           end_time?: string | null
