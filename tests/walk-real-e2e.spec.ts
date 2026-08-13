@@ -118,6 +118,106 @@ const dbSession = async () => {
   if (error) throw error;
   return data as Record<string, any>;
 };
+
+/** Chama uma RPC real com um token arbitrário (usuário externo) ou anônimo. */
+async function rpcAsToken(fn: string, args: Record<string, unknown>, token?: string | null) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: ANON_KEY,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(args),
+  });
+  let body: unknown = null;
+  try {
+    body = await res.json();
+  } catch {
+    body = null;
+  }
+  return { status: res.status, ok: res.ok, body };
+}
+
+type RpcResult = { status: number; ok: boolean; body: unknown };
+
+/** Negado = erro HTTP OU retorno de negócio false. Nunca "silenciosamente aceito". */
+function expectDenied(label: string, r: RpcResult) {
+  log(`negado? ${label}: http=${r.status} body=${JSON.stringify(r.body).slice(0, 160)}`);
+  expect(r.ok === false || r.body === false, `${label} deveria ser negado`).toBe(true);
+}
+
+/** Snapshot íntegro do estado sensível, para provar que nada mudou após negativas. */
+async function snapshotState() {
+  const s = await dbSession();
+  const { data: offers } = await admin
+    .from("walk_offers")
+    .select("id, walker_id, offer_status")
+    .eq("session_id", sessionId)
+    .order("id");
+  const w = await dbWalker();
+  const { count: trackCount } = await admin
+    .from("walker_tracking")
+    .select("id", { count: "exact", head: true })
+    .eq("walk_session_id", sessionId);
+  return JSON.stringify({
+    current_status: s.current_status,
+    walker_id: s.walker_id,
+    end_time: s.end_time,
+    total_price_cents: s.total_price_cents,
+    price_per_minute_cents: s.price_per_minute_cents,
+    pricing_surcharge_cents: s.pricing_surcharge_cents,
+    actual_duration_minutes: s.actual_duration_minutes,
+    distance_km: s.distance_km,
+    trail: (s.route_coordinates || []).length,
+    last_tracking_at: s.last_tracking_at,
+    offers,
+    walker: {
+      availability_status: w.availability_status,
+      current_walk_id: w.current_walk_id,
+      completed_walks: w.completed_walks,
+    },
+    trackCount,
+  });
+}
+
+/** Cria um usuário real extra (limpo no teardown) e devolve o access_token. */
+const extraUserIds: string[] = [];
+async function createExtraUser(kind: "common" | "petwalker") {
+  const email = `e2e.extra.${rand()}@e2e.vaipet.invalid`;
+  const password = `Ex${rand()}!Aa1`;
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: `E2E Extra ${kind}` },
+  });
+  if (error) throw error;
+  const id = data.user!.id;
+  extraUserIds.push(id);
+  if (kind === "petwalker") {
+    await admin.from("user_roles").upsert({ user_id: id, role: "petwalker" }, { onConflict: "user_id,role" });
+    await admin.from("petwalker_profiles").upsert(
+      {
+        user_id: id,
+        approval_status: "approved",
+        profile_completed: true,
+        availability_status: "available",
+        is_accepting_requests: true,
+        public_bio: "E2E extra",
+        experience_years: 1,
+        service_radius_km: 5,
+        price_30_minutes: 4500,
+        completed_walks: 0,
+      },
+      { onConflict: "user_id" },
+    );
+  }
+  const c = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+  const signed = await c.auth.signInWithPassword({ email, password });
+  if (signed.error) throw signed.error;
+  return { id, token: signed.data.session!.access_token };
+}
 const dbWalker = async () => {
   const { data, error } = await admin
     .from("petwalker_profiles")
