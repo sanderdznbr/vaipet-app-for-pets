@@ -1013,6 +1013,18 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
     };
   }, [phase, isReturning]);
 
+  // ────────────────────────────────────────────────────────────────
+  // Estado/refs do marcador de posição AO VIVO. Declarados ANTES do
+  // efeito do mapa porque a limpeza do mapa precisa soltá-los, e o
+  // marcador precisa ser (re)criado assim que o mapa emitir `load`.
+  // ────────────────────────────────────────────────────────────────
+  const liveMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const liveAnimRef = useRef<number | null>(null);
+  const liveLastRef = useRef<{ lng: number; lat: number; ts: number } | null>(null);
+  // Última coordenada conhecida, guardada mesmo antes de o mapa carregar.
+  const pendingLiveRef = useRef<{ lng: number; lat: number; ts: number } | null>(null);
+  const [mapReadyTick, setMapReadyTick] = useState(0);
+
   useEffect(() => {
     if (!mapContainer.current || !walkerLocation) return;
     // Guard: this effect must initialize the map exactly ONCE. The
