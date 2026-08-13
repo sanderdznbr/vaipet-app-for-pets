@@ -821,6 +821,7 @@ export type Database = {
           id: string
           offer_status: Database["public"]["Enums"]["walk_offer_status"] | null
           session_id: string
+          updated_at: string
           walker_id: string
         }
         Insert: {
@@ -828,6 +829,7 @@ export type Database = {
           id?: string
           offer_status?: Database["public"]["Enums"]["walk_offer_status"] | null
           session_id: string
+          updated_at?: string
           walker_id: string
         }
         Update: {
@@ -835,6 +837,7 @@ export type Database = {
           id?: string
           offer_status?: Database["public"]["Enums"]["walk_offer_status"] | null
           session_id?: string
+          updated_at?: string
           walker_id?: string
         }
         Relationships: [
@@ -928,6 +931,7 @@ export type Database = {
           start_time: string
           status: string
           total_price_cents: number | null
+          updated_at: string
           walk_type: string
           walker_id: string | null
           walker_name: string | null
@@ -966,6 +970,7 @@ export type Database = {
           start_time: string
           status: string
           total_price_cents?: number | null
+          updated_at?: string
           walk_type: string
           walker_id?: string | null
           walker_name?: string | null
@@ -1004,6 +1009,7 @@ export type Database = {
           start_time?: string
           status?: string
           total_price_cents?: number | null
+          updated_at?: string
           walk_type?: string
           walker_id?: string | null
           walker_name?: string | null

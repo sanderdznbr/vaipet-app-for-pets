@@ -968,6 +968,16 @@ const SearchWalk = () => {
     const startTime = sessionData.start_time ? new Date(sessionData.start_time).getTime() : Date.now();
     setWalkStartTime(startTime);
     
+    const fallbackName = sessionData.walker_name || 'Pet Walker';
+    setWalker((prev) => prev ?? {
+      name: fallbackName,
+      firstName: String(fallbackName).split(' ')[0],
+      avatar: '',
+      rating: 0,
+      walks: 0,
+      code: ''
+    });
+
     if (sessionData.walker_id) {
       const { data: walkerProfile, error: profileError } = await supabase
         .rpc('get_session_walker_profile', { _session_id: sessionData.id });
@@ -2056,7 +2066,7 @@ const SearchWalk = () => {
             <div key={searchStatus} className="flex items-center gap-3.5 animate-pill-content-in">
               {searchStatus === 'found' ? (
                 <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#31d880]">
-                  <img src={walker.avatar} alt={walker.firstName} className="w-full h-full object-cover" />
+                  <img src={walker?.avatar} alt={walker?.firstName} className="w-full h-full object-cover" />
                 </div>
               ) : (
                 <div className="relative w-12 h-12 flex items-center justify-center">
@@ -2070,7 +2080,7 @@ const SearchWalk = () => {
                   {searchStatus === 'found' ? 'Encontrado' : 'Buscando'}
                 </span>
                 <span className="text-[15px] font-extrabold whitespace-nowrap" style={{ color: ui.text }}>
-                  {searchStatus === 'found' ? walker.firstName : 'Procurando passeador…'}
+                  {searchStatus === 'found' ? (walker?.firstName ?? 'Pet Walker') : 'Procurando passeador…'}
                 </span>
               </div>
             </div>
@@ -2119,8 +2129,8 @@ const SearchWalk = () => {
           petId={selectedPets[0]?.id || ''}
           petName={selectedPets.length === 1 ? selectedPets[0].name : `${selectedPets.length} pets`}
           petAvatar={selectedPets[0]?.avatar_url}
-          walkerName={walker.firstName}
-          walkerAvatar={walker.avatar}
+          walkerName={walker?.firstName ?? 'Pet Walker'}
+          walkerAvatar={walker?.avatar}
           walkerLocation={walkerLocation}
           petLocation={userLocation}
           pickupRoute={pickupRoute}
@@ -2132,7 +2142,7 @@ const SearchWalk = () => {
           isReturning={isReturning}
           onAuthorizeReturn={handleAuthorizeReturn}
           transport={transport ?? undefined}
-          walkerCode={walker.code}
+          walkerCode={walker?.code ?? ''}
           walkType={walkType}
           localStops={localStops.map(s => ({ lng: s.lng, lat: s.lat, label: s.label }))}
         />
@@ -2140,7 +2150,7 @@ const SearchWalk = () => {
 
       {/* Review */}
       {searchStatus === 'reviewing' && (
-        <ReviewWalk onBack={() => setSearchStatus('walking')} onComplete={handleReviewComplete} petName={selectedPets.length === 1 ? selectedPets[0].name : `${selectedPets.length} pets`} walkerName={walker.firstName} walkDuration={walkDuration} isDarkMode={!isDayMode} sessionId={currentSessionId || undefined} />
+        <ReviewWalk onBack={() => setSearchStatus('walking')} onComplete={handleReviewComplete} petName={selectedPets.length === 1 ? selectedPets[0].name : `${selectedPets.length} pets`} walkerName={walker?.firstName ?? 'Pet Walker'} walkDuration={walkDuration} isDarkMode={!isDayMode} sessionId={currentSessionId || undefined} />
       )}
 
       {/* Cancel Dialog */}

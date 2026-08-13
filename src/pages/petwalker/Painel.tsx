@@ -45,6 +45,15 @@ const Painel = () => {
   const lastUpdateRef = useRef<number>(0);
   const UPDATE_INTERVAL = 10000; // 10s frequency control
 
+  // Offer polling / stale-response protection
+  const offerRequestIdRef = useRef(0);
+  const latestAppliedRequestIdRef = useRef(0);
+  const pollIntervalRef = useRef<number | null>(null);
+  const isOnlineRef = useRef(false);
+  const activeRequestRef = useRef<WalkSession | null>(null);
+  const hasOfferRef = useRef(false);
+  const OFFER_POLL_INTERVAL = 5000;
+
   // --- Data Fetching ---
 
   const refreshActiveRequest = useCallback(async () => {
@@ -63,20 +72,40 @@ const Painel = () => {
     setActiveRequest(data as unknown as WalkSession);
   }, [user]);
 
+  // Reads offers exclusively through the secure RPC. Guarded by a monotonic
+  // request id so a slower/older empty response can never erase a newer offer.
   const refreshAvailableOffer = useCallback(async () => {
-    // Priority check: user profile, online status, and NO active request
-    if (!user || !isOnline || activeRequest) {
+    if (!user || !isOnlineRef.current || activeRequestRef.current) {
+      offerRequestIdRef.current += 1;
+      latestAppliedRequestIdRef.current = offerRequestIdRef.current;
+      hasOfferRef.current = false;
       setShowOfferSheet(null);
       return;
     }
 
+    const requestId = ++offerRequestIdRef.current;
     const { data, error } = await supabase.rpc('get_available_walk_offers');
+
+    // Ignore stale responses
+    if (requestId < latestAppliedRequestIdRef.current) return;
+
     if (error) {
-      console.error('Error fetching offers:', error);
+      // Temporary failure: keep retrying via polling, never fake an offer and
+      // never latch into a permanently empty state.
+      console.error('Error fetching offers:', error.message);
       return;
     }
-    setShowOfferSheet(data?.[0] ?? null);
-  }, [user, isOnline, activeRequest]);
+
+    latestAppliedRequestIdRef.current = requestId;
+    const next = data?.[0] ?? null;
+    hasOfferRef.current = !!next;
+    setShowOfferSheet(next);
+  }, [user]);
+
+  // Keep refs in sync for the polling loop / realtime callbacks
+  useEffect(() => { isOnlineRef.current = isOnline; }, [isOnline]);
+  useEffect(() => { activeRequestRef.current = activeRequest; }, [activeRequest]);
+  useEffect(() => { hasOfferRef.current = !!showOfferSheet; }, [showOfferSheet]);
 
   // --- Map & GPS ---
 
@@ -238,7 +267,9 @@ const Painel = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'walk_offers' }, () => {
         refreshAvailableOffer();
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') refreshAvailableOffer();
+      });
 
     const sessionsChannel = supabase
       .channel('petwalker-sessions')
@@ -263,12 +294,45 @@ const Painel = () => {
     };
   }, [user, refreshActiveRequest, refreshAvailableOffer, startTracking, stopTracking]);
 
-  // Handle offer search dependency
+  // Immediate fetch when panel is ready, walker goes online, active walk ends
   useEffect(() => {
-    if (isOnline && !activeRequest && !loading) {
+    if (loading) return;
+    if (isOnline && !activeRequest) {
       refreshAvailableOffer();
+    } else {
+      setShowOfferSheet(null);
     }
   }, [isOnline, activeRequest, loading, refreshAvailableOffer]);
+
+  // Immediate fetch when GPS gets synced (walker location becomes usable)
+  useEffect(() => {
+    if (gpsStatus === 'synced' && isOnline && !activeRequest) {
+      refreshAvailableOffer();
+    }
+  }, [gpsStatus, isOnline, activeRequest, refreshAvailableOffer]);
+
+  // Recovery polling: only while online, without an active walk and with no
+  // offer already on screen. Cleared on unmount and on state change.
+  useEffect(() => {
+    const clear = () => {
+      if (pollIntervalRef.current !== null) {
+        window.clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+
+    if (loading || !isOnline || activeRequest || showOfferSheet) {
+      clear();
+      return clear;
+    }
+
+    pollIntervalRef.current = window.setInterval(() => {
+      if (!isOnlineRef.current || activeRequestRef.current || hasOfferRef.current) return;
+      refreshAvailableOffer();
+    }, OFFER_POLL_INTERVAL);
+
+    return clear;
+  }, [loading, isOnline, activeRequest, showOfferSheet, refreshAvailableOffer]);
 
   // Route drawing logic
   useEffect(() => {
@@ -313,13 +377,16 @@ const Painel = () => {
       const { data: success, error } = await supabase.rpc('accept_walk_request', { _session_id: showOfferSheet.session_id });
       if (error) throw error;
       
-      if (success) {
+      if (success === true) {
         toast.success('Passeio confirmado!');
         await refreshActiveRequest();
+        hasOfferRef.current = false;
         setShowOfferSheet(null);
       } else {
-        toast.error('Esta solicitação já foi aceita ou expirou');
-        refreshAvailableOffer();
+        toast.error('Esta solicitação não está mais disponível');
+        hasOfferRef.current = false;
+        setShowOfferSheet(null);
+        await refreshAvailableOffer();
       }
     } catch (e) {
       toast.error('Erro ao aceitar passeio');
@@ -339,8 +406,9 @@ const Painel = () => {
       const { error } = await supabase.rpc('decline_walk_offer', { _session_id: showOfferSheet.session_id });
       if (error) throw error;
       
+      hasOfferRef.current = false;
       setShowOfferSheet(null);
-      refreshAvailableOffer();
+      await refreshAvailableOffer();
     } catch (e) {
       toast.error('Erro ao recusar passeio');
     } finally {
