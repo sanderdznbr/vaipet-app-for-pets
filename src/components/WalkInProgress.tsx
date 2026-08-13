@@ -377,7 +377,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
       const res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/walking/${a[0]},${a[1]};${b[0]},${b[1]}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`);
       const json = await res.json();
       if (json.routes?.[0]?.geometry?.coordinates) return json.routes[0].geometry.coordinates as [number, number][];
-    } catch {}
+    } catch { /* ignorado */ }
     return [];
   };
 
@@ -398,13 +398,13 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
         const res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/walking/${coords}?geometries=geojson&overview=full&radiuses=${radiuses}&access_token=${MAPBOX_TOKEN}`);
         const json = await res.json();
         if (json.routes?.[0]?.geometry?.coordinates) return json.routes[0].geometry.coordinates as [number, number][];
-      } catch {}
+      } catch { /* ignorado */ }
     }
     try {
       const res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/walking/${coords}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`);
       const json = await res.json();
       if (json.routes?.[0]?.geometry?.coordinates) return json.routes[0].geometry.coordinates as [number, number][];
-    } catch {}
+    } catch { /* ignorado */ }
     return [];
   };
 
@@ -777,7 +777,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
           const lead = Math.max(0.001, PERIOD - phase);
           m.setPaintProperty('return-route-dash', 'line-dasharray', [lead, DOT, GAP, DOT, GAP, DOT, GAP, DOT, GAP]);
         }
-      } catch {}
+      } catch { /* ignorado */ }
       dashAnimRef.current = requestAnimationFrame(step);
     };
     dashAnimRef.current = requestAnimationFrame(step);
@@ -823,14 +823,14 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
       // uma troca de tema (que recriava a camada do zero). Recriar aqui
       // garante render imediato em ambos os temas, e é barato porque o
       // GLB já está em cache (preloadCheckpointAsset).
-      try { if (map.current.getLayer('vp-checkpoint-3d')) map.current.removeLayer('vp-checkpoint-3d'); } catch {}
+      try { if (map.current.getLayer('vp-checkpoint-3d')) map.current.removeLayer('vp-checkpoint-3d'); } catch { /* ignorado */ }
       const cp = createCheckpoint3DLayer('vp-checkpoint-3d', home, { color: '#31D880', targetSizeMeters: 8, groundOffsetMeters: 0.25 });
       checkpointRef.current = cp;
       map.current.addLayer(cp);
       cp.setPosition(home);
       cp.setVisible(true);
-      try { map.current.moveLayer('vp-checkpoint-3d'); } catch {}
-      try { map.current.triggerRepaint(); } catch {}
+      try { map.current.moveLayer('vp-checkpoint-3d'); } catch { /* ignorado */ }
+      try { map.current.triggerRepaint(); } catch { /* ignorado */ }
     };
     // Run synchronously when possible AND defer once via rAF so a
     // freshly-added custom 3D layer gets its first render in the same
@@ -838,7 +838,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
     // frame for layers added inside a click handler).
     if (m.isStyleLoaded()) {
       ensure();
-      requestAnimationFrame(() => { try { ensure(); } catch {} });
+      requestAnimationFrame(() => { try { ensure(); } catch { /* ignorado */ } });
     } else {
       m.once('style.load', ensure);
       m.once('idle', ensure);
@@ -921,7 +921,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
           .setLngLat([s.lng, s.lat])
           .addTo(m);
         stopMarkersRef.current.push(marker);
-      } catch {
+      } catch { /* ignorado */
         // Silencioso: se o mapa for desmontado entre o guard e o addTo
         // (race em hot-reload), apenas ignora — o próximo ciclo redesenha.
       }
@@ -1452,7 +1452,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
       trailData = (ts as any)?._data ?? null;
       const us = m.getSource('upcoming-route') as mapboxgl.GeoJSONSource | undefined;
       upcomingData = (us as any)?._data ?? null;
-    } catch {}
+    } catch { /* ignorado */ }
     const dogPos = lastLocRef.current || currentPetLocation || petLocation || walkerLocation || null;
     const dogVisible = !isComing || phase === 'walking';
 
@@ -1552,7 +1552,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
         }
         if (checkpointPosRef.current) drawHomeCheckpoint(checkpointPosRef.current);
         if (isReturning && returnRouteRef.current.length >= 2) drawReturnRoute(returnRouteRef.current);
-      } catch {}
+      } catch { /* ignorado */ }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDarkMode]);
@@ -2183,7 +2183,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
       if (!m) return;
       if (m.isStyleLoaded()) { fn(); return; }
       let done = false;
-      const run = () => { if (done) return; done = true; try { fn(); } catch {} };
+      const run = () => { if (done) return; done = true; try { fn(); } catch { /* ignorado */ } };
       m.once('style.load', run);
       m.once('idle', run);
       // Hard fallback: if neither event fires within 1.2s (rare race during
@@ -2217,8 +2217,8 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
       // Force a repaint so the custom WebGL layer renders its first frame
       // immediately — otherwise Mapbox sometimes waits for the next style
       // event (which is why the pin only appeared after toggling theme).
-      try { m.triggerRepaint(); } catch {}
-      try { m.moveLayer('vp-checkpoint-3d'); } catch {}
+      try { m.triggerRepaint(); } catch { /* ignorado */ }
+      try { m.moveLayer('vp-checkpoint-3d'); } catch { /* ignorado */ }
     });
     walkerMarkerRef.current?.getElement().style.setProperty('display', 'none');
     petMarkerRef.current?.getElement().style.setProperty('display', 'none');
@@ -2239,9 +2239,9 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
         m.addLayer(cp);
         cp.setPosition(pos);
         cp.setVisible(true);
-        try { m.moveLayer('vp-checkpoint-3d'); } catch {}
-        try { m.triggerRepaint(); } catch {}
-      } catch {}
+        try { m.moveLayer('vp-checkpoint-3d'); } catch { /* ignorado */ }
+        try { m.triggerRepaint(); } catch { /* ignorado */ }
+      } catch { /* ignorado */ }
     }, 600);
     if (walkType === 'local' && resolvedStops.length > 0) {
       const stopCoords = resolvedStops.map(s => [s.lng, s.lat] as [number, number]);

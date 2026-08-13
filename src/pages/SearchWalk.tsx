@@ -4,6 +4,7 @@ import { hideMapLabels, enrichMap, tintMapInk } from '@/lib/mapStyle';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { ArrowLeft, Plus, Minus, Navigation, Sun, Moon, ChevronDown, MapPin, Clock, DollarSign, PawPrint, X, Sparkles, Map as MapIcon, Compass, Search, Trash2, Loader2, GripVertical, Cloud, CloudRain, CloudSnow, CloudFog, CloudLightning, CloudSun } from 'lucide-react';
 import { Calendar as CalendarIcon, Zap } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useHomeTheme } from '@/hooks/useHomeTheme';
@@ -19,6 +20,19 @@ import { preloadDog3DAsset } from '@/lib/dog3dLayer';
 import { preloadCheckpointAsset } from '@/lib/checkpoint3dLayer';
 import { SlideToConfirm } from '../components/SlideToConfirm';
 import { toast } from 'sonner';
+import type { WalkStatus } from '@/types/walk';
+
+/** Estados em que a sessão é rastreável (posição do walker disponível). */
+export const TRACKABLE_WALK_STATUSES = [
+  'accepted',
+  'heading_to_pickup',
+  'arrived',
+  'in_progress',
+  'returning',
+] as const;
+export type TrackableWalkStatus = typeof TRACKABLE_WALK_STATUSES[number];
+const isTrackableStatus = (s: string | null | undefined): s is TrackableWalkStatus =>
+  !!s && (TRACKABLE_WALK_STATUSES as readonly string[]).includes(s);
 
 interface Pet {
   id: string;
@@ -238,6 +252,13 @@ const SearchWalk = () => {
   const [plannedRouteInfo, setPlannedRouteInfo] = useState<{ distance: number; duration: number } | null>(null);
   const stopMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  // ────────────────────────────────────────────────────────────────
+  // Estado OPERACIONAL (domínio): vem exclusivamente do banco
+  // (`walk_sessions.current_status`). É a única fonte de verdade para
+  // rastreamento/polling. `searchStatus` continua sendo apenas estado
+  // de APRESENTAÇÃO (animações e qual componente aparece).
+  // ────────────────────────────────────────────────────────────────
+  const [sessionStatus, setSessionStatus] = useState<WalkStatus | null>(null);
   const [sheetExpanded, setSheetExpanded] = useState(true);
   const [walker, setWalker] = useState<WalkerProfile | null>(null);
   const [pickupRoute, setPickupRoute] = useState<[number, number][]>([]);
@@ -309,7 +330,7 @@ const SearchWalk = () => {
         // Hydrate stops + home location
         const stops = Array.isArray(session.local_stops) ? session.local_stops : [];
         setLocalStops(
-          stops.map((s: any, i: number) => ({
+          (stops as Array<{ label?: string; address?: string; lng: number; lat: number }>).map((s, i) => ({
             id: `${sessionId}-${i}`,
             label: s.label ?? `Parada ${i + 1}`,
             address: s.address ?? '',
@@ -335,6 +356,7 @@ const SearchWalk = () => {
 
         // setWalker(null); // Explicitly null while searching
         setCurrentSessionId(session.id);
+        setSessionStatus(session.current_status as WalkStatus);
         setWalkStartTime(new Date(session.start_time).getTime());
         if (session.current_status === 'returning') setIsReturning(true);
         setSearchStatus('walking');
@@ -633,15 +655,16 @@ const SearchWalk = () => {
           },
         });
         if (error) throw error;
-        const feats = (data?.results || []).map((r: any) => ({
+        type PlaceResult = { id: string; address: string; name: string; lng: number; lat: number };
+        const feats = ((data?.results || []) as PlaceResult[]).map((r) => ({
           id: r.id,
           place_name: r.address,
           text: r.name,
           center: [r.lng, r.lat] as [number, number],
         }));
         setAddrSuggestions(feats);
-      } catch (e: any) {
-        if (e?.name !== 'AbortError') setAddrSuggestions([]);
+      } catch (e: unknown) {
+        if ((e as { name?: string })?.name !== 'AbortError') setAddrSuggestions([]);
       } finally {
         setAddrLoading(false);
       }
@@ -860,6 +883,8 @@ const SearchWalk = () => {
     if (map.current?.getSource('route-glow')) { map.current.removeLayer('route-glow'); map.current.removeSource('route-glow'); }
     currentRouteCoords.current = null;
     setRouteInfo(null); setWalkerLocation(null);
+    setSessionStatus(null);
+    setLiveWalkerPosition(null);
   };
 
   const handleSearch = async () => {
@@ -875,6 +900,7 @@ const SearchWalk = () => {
 
     if (existingSession) {
       setCurrentSessionId(existingSession.id);
+      setSessionStatus(existingSession.current_status as WalkStatus);
       if (existingSession.current_status === 'searching') {
         setSearchStatus('waiting');
       } else {
@@ -951,7 +977,15 @@ const SearchWalk = () => {
     }
   };
 
-  const handleAccepted = useCallback(async (sessionData: any) => {
+  type SessionRow = {
+    id?: string;
+    start_time?: string | null;
+    walker_id?: string | null;
+    walker_name?: string | null;
+  } & Record<string, unknown>;
+
+  const handleAccepted = useCallback(async (raw: Record<string, unknown>) => {
+    const sessionData = raw as SessionRow;
     if (searchStatusRef.current === 'walking' || !user) return;
 
     preloadDog3DAsset().catch(() => {});
@@ -982,7 +1016,7 @@ const SearchWalk = () => {
 
     if (sessionData.walker_id) {
       const { data: walkerProfile, error: profileError } = await supabase
-        .rpc('get_session_walker_profile', { _session_id: sessionData.id });
+        .rpc('get_session_walker_profile', { _session_id: sessionData.id as string });
       
       if (!profileError && walkerProfile && walkerProfile.length > 0) {
         const profile = walkerProfile[0];
@@ -1046,37 +1080,44 @@ const SearchWalk = () => {
     let reqSeq = 0;
     let lastAppliedSeq = 0;
 
-    const applyStatus = (data: any, seq: number) => {
+    const applyStatus = (data: { current_status?: string | null; matching_expires_at?: string | null } & Record<string, unknown>, seq: number, origin: 'initial' | 'realtime' | 'recovery') => {
       // Descarta respostas antigas que chegarem depois de uma mais recente.
       if (cancelled || !data || seq < lastAppliedSeq) return;
       lastAppliedSeq = seq;
-      const status = data.current_status;
+      const status = (data.current_status ?? null) as WalkStatus | null;
       if (data.matching_expires_at) setMatchingExpiresAt(data.matching_expires_at);
-      // O banco é a autoridade: qualquer estado rastreável entrega a tela
-      // operacional. Antes só 'accepted' fazia o handoff — se o walker já
-      // tivesse iniciado o passeio (ou o evento 'accepted' chegasse depois
-      // de 'in_progress'), o dono nunca entrava em 'walking' e o
-      // rastreamento jamais começava.
-      const TRACKABLE = ['accepted', 'heading_to_pickup', 'arrived', 'in_progress', 'returning'];
-      if (TRACKABLE.includes(status) && searchStatusRef.current !== 'walking') {
+      // O banco é a autoridade: `sessionStatus` dirige o rastreamento;
+      // `searchStatus` apenas troca a apresentação.
+      setSessionStatus(status);
+      console.info('[walk-status]', {
+        origin,
+        seq,
+        sessionId: currentSessionId,
+        current_status: status,
+        searchStatus: searchStatusRef.current,
+        trackable: isTrackableStatus(status),
+      });
+      if (isTrackableStatus(status) && searchStatusRef.current !== 'walking') {
         handleAccepted(data);
       } else if (status === 'expired' || status === 'cancelled') {
         handleTimeout();
       }
-      if (status && status !== 'searching' && pollTimer) {
+      // A recuperação periódica só para em estados terminais — enquanto a
+      // sessão estiver rastreável mantemos a sincronia leve com o banco.
+      if ((status === 'completed' || status === 'cancelled' || status === 'expired') && pollTimer) {
         clearInterval(pollTimer);
         pollTimer = null;
       }
     };
 
-    const fetchStatus = async () => {
+    const fetchStatus = async (origin: 'initial' | 'realtime' | 'recovery') => {
       const seq = ++reqSeq;
       const { data } = await supabase
         .from('walk_sessions')
         .select('*')
         .eq('id', currentSessionId)
         .maybeSingle();
-      applyStatus(data, seq);
+      if (data) applyStatus(data, seq, origin);
     };
 
     const channel = supabase
@@ -1089,30 +1130,49 @@ const SearchWalk = () => {
           table: 'walk_sessions',
           filter: `id=eq.${currentSessionId}`
         },
-        (payload: any) => {
-          applyStatus(payload.new, ++reqSeq);
+        (payload) => {
+          applyStatus(payload.new as Record<string, unknown>, ++reqSeq, 'realtime');
         }
       )
       .subscribe((status) => {
-        if (status === 'SUBSCRIBED') fetchStatus();
+        if (status === 'SUBSCRIBED') fetchStatus('initial');
       });
 
-    // Consulta imediata + polling de recuperação limitado enquanto busca.
-    fetchStatus();
-    pollTimer = setInterval(() => {
-      if (searchStatusRef.current === 'walking') {
-        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-        return;
-      }
-      fetchStatus();
-    }, 5000);
+    // Consulta imediata + recuperação periódica (independente de Realtime
+    // e de qualquer estado de apresentação).
+    fetchStatus('initial');
+    pollTimer = setInterval(() => { fetchStatus('recovery'); }, 5000);
+
+    // Ao voltar o foco/visibilidade, ressincroniza imediatamente.
+    const onFocus = () => { fetchStatus('recovery'); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
 
     return () => {
       cancelled = true;
       if (pollTimer) clearInterval(pollTimer);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
       supabase.removeChannel(channel);
     };
-  }, [currentSessionId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSessionId, handleAccepted]);
+
+  /** Rastreamento derivado do domínio, NUNCA da apresentação. */
+  const isTrackableSession = useMemo(
+    () => !!currentSessionId && isTrackableStatus(sessionStatus),
+    [currentSessionId, sessionStatus]
+  );
+
+  // Sincroniza a APRESENTAÇÃO com o domínio: se a sessão está rastreável
+  // mas a UI ficou atrás (evento perdido, guarda antiga, animação), promove
+  // a tela operacional. O rastreamento já roda independentemente disto.
+  useEffect(() => {
+    if (!isTrackableSession) return;
+    if (searchStatus !== 'walking' && searchStatus !== 'reviewing') {
+      setSearchStatus('walking');
+    }
+  }, [isTrackableSession, searchStatus]);
   
   // ────────────────────────────────────────────────────────────────
   // Posição atual do PetWalker: fonte canônica ÚNICA é a RPC segura
@@ -1123,10 +1183,19 @@ const SearchWalk = () => {
   // última posição válida em erro de rede.
   // ────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!currentSessionId || searchStatus !== 'walking') return;
+    if (!currentSessionId || !isTrackableSession) {
+      console.info('[walk-tracking] polling NOT started', {
+        sessionId: currentSessionId,
+        sessionStatus,
+        searchStatus: searchStatusRef.current,
+        reason: !currentSessionId ? 'sem sessão' : 'status não rastreável',
+      });
+      return;
+    }
 
     let active = true;
     let lastTs = 0;
+    console.info('[walk-tracking] polling STARTED', { sessionId: currentSessionId, sessionStatus });
 
     const readLocation = async () => {
       const { data, error } = await supabase.rpc('get_active_walker_location', {
@@ -1138,6 +1207,7 @@ const SearchWalk = () => {
       const ts = loc.updated_at ? new Date(loc.updated_at).getTime() : Date.now();
       if (ts < lastTs) return; // resposta antiga não sobrescreve a mais recente
       lastTs = ts;
+      console.info('[walk-tracking] position', { lng: loc.lng, lat: loc.lat, ts });
       setLiveWalkerPosition({ lng: loc.lng, lat: loc.lat, ts });
       // Semeia a posição inicial do mapa uma única vez (sem remontá-lo depois).
       setWalkerLocation((prev) => prev ?? [loc.lng as number, loc.lat as number]);
@@ -1150,7 +1220,8 @@ const SearchWalk = () => {
       active = false;
       clearInterval(pollInterval);
     };
-  }, [currentSessionId, searchStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSessionId, isTrackableSession]);
   const handleOpenChat = () => {
     // Chat implementation will use the session state
   };
@@ -1792,7 +1863,7 @@ const SearchWalk = () => {
                 const types: Array<{
                   id: 'livre' | 'local';
                   label: string;
-                  Icon: any;
+                  Icon: LucideIcon;
                   desc: string;
                 }> = [
                   { id: 'livre', label: isCollective ? 'Coletivo' : 'Livre', Icon: Sparkles, desc: isCollective ? 'Passeio com múltiplos pets selecionados.' : 'O petwalker decide tudo sobre o passeio.' },
