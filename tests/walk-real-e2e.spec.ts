@@ -864,21 +864,63 @@ test("encerramento explícito e histórico", async () => {
   // Segundo clique não duplica conclusão.
   const second = await rpcAsUser(walkerCtx, "petwalker_complete_walk", { _session_id: sessionId });
   log(`segunda conclusão: http=${second.status}`);
-  expect(second.ok).toBe(false);
+  expectDenied("segunda conclusão da mesma sessão", second);
   expect((await dbWalker()).completed_walks).toBe(1);
+  const afterSecond = await dbSession();
+  expect(afterSecond.end_time).toBe(done.end_time);
+  expect(afterSecond.actual_duration_minutes).toBe(done.actual_duration_minutes);
+  expect(Number(afterSecond.distance_km)).toBe(Number(done.distance_km));
+
+  // Valores financeiros permanecem imutáveis após a conclusão.
+  expect(afterSecond.total_price_cents).toBe(2250);
+  expect(afterSecond.price_per_minute_cents).toBe(150);
 
   // Ponto após conclusão é rejeitado.
   const late = await rpcAsUser(walkerCtx, "append_walk_tracking_point", {
     _session_id: sessionId,
     _point: [-46.7008, -23.6006],
   });
-  expect(late.ok).toBe(false);
+  expectDenied("ponto de GPS após conclusão", late);
+  expect((await dbSession()).route_coordinates.length).toBe((done.route_coordinates || []).length);
+
+  // Transições operacionais após conclusão também são negadas.
+  for (const fn of ["petwalker_start_heading", "petwalker_arrive_pickup", "petwalker_start_walk"]) {
+    expectDenied(`${fn} após conclusão`, await rpcAsUser(walkerCtx, fn, { _session_id: sessionId }));
+  }
+  expect((await dbSession()).current_status).toBe("completed");
+
+  // ---- Privacidade após a conclusão: sem localização ao vivo para ninguém ----
+  for (const [label, ctx] of [["dono", ownerCtx], ["walker", walkerCtx]] as const) {
+    const loc = await rpcAsUser(ctx, "get_active_walker_location", { _session_id: sessionId });
+    log(`localização pós-conclusão (${label}): http=${loc.status} body=${JSON.stringify(loc.body).slice(0, 120)}`);
+    const empty =
+      loc.ok === false ||
+      loc.body === null ||
+      (Array.isArray(loc.body) && loc.body.length === 0);
+    expect(empty, `localização ao vivo não pode ser exposta ao ${label} após a conclusão`).toBe(true);
+  }
 
   // Histórico dos dois lados.
   await ownerCtx.page.goto("/historico", { waitUntil: "domcontentloaded" });
   await ownerCtx.page.waitForTimeout(3_000);
+  const ownerHistory = await ownerCtx.page.locator("body").innerText();
+  log(`histórico do dono contém "conclu"=${/conclu/i.test(ownerHistory)}`);
+  expect(ownerHistory.toLowerCase()).not.toContain(sessionId.toLowerCase());
+  expect.soft(ownerHistory, "histórico do dono deve mostrar o passeio concluído").toMatch(/conclu/i);
   await shot(ownerCtx, "13-historico-dono");
+
   await walkerCtx.page.goto("/petwalker/historico", { waitUntil: "domcontentloaded" });
   await walkerCtx.page.waitForTimeout(3_000);
+  const walkerHistory = await walkerCtx.page.locator("body").innerText();
+  log(`histórico do walker contém "conclu"=${/conclu/i.test(walkerHistory)}`);
+  expect(walkerHistory.toLowerCase()).not.toContain(ownerEmail.toLowerCase());
+  expect.soft(walkerHistory, "histórico do walker deve mostrar o passeio concluído").toMatch(/conclu/i);
   await shot(walkerCtx, "14-historico-walker");
+
+  // A tela do dono não deve mais exibir marcador de posição ao vivo.
+  await ownerCtx.page.goto("/inicio", { waitUntil: "domcontentloaded" });
+  await ownerCtx.page.waitForTimeout(3_000);
+  expect(await ownerCtx.page.locator('[data-testid="active-walker-marker"]').count()).toBe(0);
+  await shot(ownerCtx, "15-dono-pos-conclusao");
+  flushLog();
 });
