@@ -2161,26 +2161,23 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
   const handleRequestReturn = async () => {
     setShowReturnDialog(false);
     if (sessionId) {
-      const actualMin = Math.max(1, Math.round(elapsedTime / 60));
-      // Final flush of the persisted breadcrumb so the completed walk
-      // record holds the FULL trail and a precise distance.
       const trail = persistedTrailRef.current;
       let meters = 0;
       for (let i = 1; i < trail.length; i++) meters += haversine(trail[i - 1], trail[i]);
+      
       try {
-        await supabase.rpc('petwalker_complete_walk', { _session_id: sessionId });
-        // Final flush of path/distance metadata (not part of the state RPC)
-        await supabase
-          .from('walk_sessions')
-          .update({
-            actual_duration_minutes: actualMin,
-            ...(trail.length > 0
-              ? { route_coordinates: trail, distance_km: Number((meters / 1000).toFixed(3)) }
-              : {}),
-          })
-          .eq('id', sessionId);
+        // A RPC petwalker_complete_walk agora aceita metadados finais (distância e rota)
+        // e realiza a atualização atômica no banco, garantindo integridade Zero-Trust.
+        const { error } = await supabase.rpc('petwalker_complete_walk', { 
+          _session_id: sessionId,
+          _final_trail: trail,
+          _final_distance_km: Number((meters / 1000).toFixed(3))
+        });
+        
+        if (error) throw error;
       } catch (e) {
         console.error('Falha ao encerrar passeio:', e);
+        // Em um sistema real, aqui poderíamos alertar o usuário, mas seguimos o fluxo de UI
       }
     }
     onRequestReturn();
