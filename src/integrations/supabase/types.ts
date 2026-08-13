@@ -1259,10 +1259,6 @@ export type Database = {
         Returns: undefined
       }
       cancel_walk_session: { Args: { _session_id: string }; Returns: undefined }
-      confirm_and_promote_user_by_email: {
-        Args: { target_email: string; target_role: string }
-        Returns: Json
-      }
       create_walk_request: {
         Args: {
           _duration_minutes: number

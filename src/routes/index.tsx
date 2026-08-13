@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export const RedirectIndex = () => {
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   
   useEffect(() => {
     if (!user) {
@@ -12,7 +12,6 @@ export const RedirectIndex = () => {
       return;
     }
     
-    // Simplest possible routing to avoid loops during reconciliation
     navigate('/inicio', { replace: true });
   }, [user, navigate]);
 
