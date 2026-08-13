@@ -1,5 +1,5 @@
--- Migration 20260813193441_a33cf183-54a8-44a6-ad58-76b4a28f141a.sql
--- Estabilização Fase 3.1: Unificação de status (current_status)
+-- Migration 20260813193441: Unificação de status (current_status)
+-- Somente backfill e trigger de espelhamento.
 
 DO $$
 BEGIN
