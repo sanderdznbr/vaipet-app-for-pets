@@ -319,15 +319,17 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
       let meters = 0;
       for (let i = 1; i < trail.length; i++) meters += haversine(trail[i - 1], trail[i]);
       try {
-        await supabase
-          .from('walk_sessions')
-          .update({
-            route_coordinates: trail,
-            distance_km: Number((meters / 1000).toFixed(3)),
-          })
-          .eq('id', sessionId);
+        const lastPoint = trail[trail.length - 1];
+        if (lastPoint) {
+          await supabase.rpc('append_walk_tracking_point', {
+            _session_id: sessionId,
+            _point: lastPoint
+          });
+        }
         lastSavedTrailLenRef.current = lenSnapshot;
       } catch (e) {
+        // Non-fatal; we'll retry on the next tick.
+      }
         // Non-fatal; we'll retry on the next tick.
       }
     }, 4000);
