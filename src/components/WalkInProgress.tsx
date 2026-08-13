@@ -2168,11 +2168,11 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
       let meters = 0;
       for (let i = 1; i < trail.length; i++) meters += haversine(trail[i - 1], trail[i]);
       try {
+        await supabase.rpc('petwalker_complete_walk', { _session_id: sessionId });
+        // Final flush of path/distance metadata (not part of the state RPC)
         await supabase
           .from('walk_sessions')
           .update({
-            status: 'completed',
-            end_time: new Date().toISOString(),
             actual_duration_minutes: actualMin,
             ...(trail.length > 0
               ? { route_coordinates: trail, distance_km: Number((meters / 1000).toFixed(3)) }
