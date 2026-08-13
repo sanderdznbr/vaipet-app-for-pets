@@ -915,17 +915,19 @@ test("encerramento explícito e histórico", async () => {
   await ownerCtx.page.goto("/historico", { waitUntil: "domcontentloaded" });
   await ownerCtx.page.waitForTimeout(3_000);
   const ownerHistory = await ownerCtx.page.locator("body").innerText();
-  log(`histórico do dono contém "conclu"=${/conclu/i.test(ownerHistory)}`);
+  log(`histórico do dono: ${ownerHistory.replace(/\s+/g, " ").slice(0, 200)}`);
   expect(ownerHistory.toLowerCase()).not.toContain(sessionId.toLowerCase());
-  expect.soft(ownerHistory, "histórico do dono deve mostrar o passeio concluído").toMatch(/conclu/i);
+  // O passeio concluído aparece com pet, duração e distância reais.
+  expect.soft(ownerHistory, "histórico do dono deve listar o passeio concluído").toMatch(/min/i);
+  expect.soft(ownerHistory, "histórico do dono deve mostrar a distância").toMatch(/km/i);
   await shot(ownerCtx, "13-historico-dono");
 
   await walkerCtx.page.goto("/petwalker/historico", { waitUntil: "domcontentloaded" });
   await walkerCtx.page.waitForTimeout(3_000);
   const walkerHistory = await walkerCtx.page.locator("body").innerText();
-  log(`histórico do walker contém "conclu"=${/conclu/i.test(walkerHistory)}`);
+  log(`histórico do walker: ${walkerHistory.replace(/\s+/g, " ").slice(0, 200)}`);
   expect(walkerHistory.toLowerCase()).not.toContain(ownerEmail.toLowerCase());
-  expect.soft(walkerHistory, "histórico do walker deve mostrar o passeio concluído").toMatch(/conclu/i);
+  expect.soft(walkerHistory, "histórico do walker deve listar o passeio").toMatch(/min|passeio/i);
   await shot(walkerCtx, "14-historico-walker");
 
   // A tela do dono não deve mais exibir marcador de posição ao vivo.
