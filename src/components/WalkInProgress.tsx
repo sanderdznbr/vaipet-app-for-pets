@@ -1023,6 +1023,13 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
     // exactly the "screen flashes, route resets, goes back to 'a
     // caminho'" bug the user reported.
     if (map.current) return;
+    // Only the run that ACTUALLY created the map is allowed to tear it
+    // down. Without this flag every `walkerLocation`/`petLocation` update
+    // (e.g. the parent seeding the first live coordinate) ran the cleanup
+    // of the previous run and destroyed the map — while the creation guard
+    // above prevented it from ever being rebuilt. Result: blank map and a
+    // live marker detached from the DOM.
+    let createdHere = false;
     mapboxgl.accessToken = 'pk.eyJ1Ijoic2FuZGVyY29sb21iZXMiLCJhIjoiY21kNDBuaHZ4MGF3bjJtb2dwNHdsMWR1aCJ9.D_kYvjRu2iigL2uziaEomQ';
     // When the walker is coming to pick up, start the camera around the
     // PET (where the user was looking in the search map) and then smoothly
