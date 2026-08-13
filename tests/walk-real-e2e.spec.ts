@@ -73,6 +73,8 @@ async function newAuthedContext(browser: any, name: string, sessionJson: string,
   const page = await context.newPage();
   page.on("console", (m) => {
     if (m.type() === "error") log(`[${name}] console.error: ${m.text().slice(0, 240)}`);
+    else if (/\[walk-(status|tracking)\]/.test(m.text()))
+      log(`[${name}] ${m.text().slice(0, 300)}`);
   });
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await page.evaluate(
@@ -609,6 +611,13 @@ test("rastreamento real com throttle de 5s no servidor", async () => {
 
   for (const [i, c] of WALK_TRACK.entries()) {
     await walkerCtx.context.setGeolocation({ longitude: c.lng, latitude: c.lat });
+    // Posição canônica do walker (mesma RPC que o app usa no GPS real).
+    const loc = await rpcAsUser(walkerCtx, "update_walker_location", {
+      _lat: c.lat,
+      _lng: c.lng,
+      _accuracy: 8,
+    });
+    expect(loc.body).toBe(true);
     const r = await rpcAsUser(walkerCtx, "append_walk_tracking_point", {
       _session_id: sessionId,
       _point: [c.lng, c.lat],
@@ -644,6 +653,14 @@ test("rastreamento real com throttle de 5s no servidor", async () => {
   expect((await dbSession()).current_status).toBe("in_progress");
   // 2. Tela do dono no estado operacional (mapa montado + marcador ao vivo).
   const liveMarker = ownerCtx.page.locator('[data-testid="active-walker-marker"]').first();
+  // Diagnóstico obrigatório antes de esperar o marcador.
+  const diag = await ownerCtx.page.evaluate(() => ({
+    url: location.href,
+    hasMapCanvas: !!document.querySelector(".mapboxgl-canvas"),
+    markers: document.querySelectorAll(".mapboxgl-marker").length,
+    liveMarker: !!document.querySelector('[data-testid="active-walker-marker"]'),
+  }));
+  log(`diagnóstico dono: ${JSON.stringify(diag)}`);
   await liveMarker.waitFor({ state: "attached", timeout: 45_000 });
   const markerTransform = () =>
     ownerCtx.page.evaluate(() => {
@@ -667,6 +684,12 @@ test("rastreamento real com throttle de 5s no servidor", async () => {
     _point: [-46.712_000, -23.612_000],
   });
   expect(moved.body).toBe(true);
+  const movedLoc = await rpcAsUser(walkerCtx, "update_walker_location", {
+    _lat: -23.612_000,
+    _lng: -46.712_000,
+    _accuracy: 8,
+  });
+  expect(movedLoc.body).toBe(true);
   await expect
     .poll(markerTransform, { timeout: 45_000, intervals: [1_000] })
     .not.toBe(firstTransform);
