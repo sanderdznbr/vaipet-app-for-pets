@@ -47,9 +47,11 @@ export const ActiveWalkBanner: React.FC = () => {
         const elapsedMin = (Date.now() - startedAt) / 60000;
         const GRACE_MIN = 15;
         if (elapsedMin > plannedMin + GRACE_MIN) {
-          // Instead of updating directly, we just hide it from the banner.
-          setActiveWalk(null);
-          return;
+          // Note: While the walk has exceeded its planned duration, 
+          // we DO NOT hide it if it's still marked as in_progress or returning.
+          // This ensures visibility for abandoned or delayed sessions.
+          // The label or status should reflect the delay.
+          // We only return here if we wanted to hide it, but the user requested persistence.
         }
 
         // Fetch pet info
