@@ -2218,24 +2218,11 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
     return () => window.clearTimeout(t);
   }, [isCancelling, isReturning, remainingMeters, etaSec, onCancelComplete]);
 
-  // AUTO-ENCERRAMENTO: quando o pet chega de volta ao local de origem
-  // ao final do passeio (isReturning, sem cancelamento), encerra
-  // automaticamente o passeio e vai direto para a tela de avaliação.
-  // Sem necessidade de tap manual em "Confirmar chegada".
-  const autoArrivedFiredRef = useRef(false);
-  useEffect(() => {
-    if (autoArrivedFiredRef.current) return;
-    if (!isReturning || isCancelling) return;
-    if (phase !== 'walking') return;
-    if (remainingMeters > 8 || etaSec > 0) return;
-    const t = window.setTimeout(() => {
-      if (autoArrivedFiredRef.current) return;
-      autoArrivedFiredRef.current = true;
-      handleRequestReturn();
-    }, 1200);
-    return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReturning, isCancelling, phase, remainingMeters, etaSec]);
+  // SEM AUTO-ENCERRAMENTO: a chegada ao ponto de origem apenas altera a
+  // interface. A conclusão do passeio exige clique explícito e confirmado
+  // do PetWalker (nenhum useEffect chama handleRequestReturn).
+  const arrivedAtOrigin =
+    isReturning && !isCancelling && phase === 'walking' && remainingMeters <= 8 && etaSec <= 0;
 
   const recenter = () => {
     if (!map.current) return;
