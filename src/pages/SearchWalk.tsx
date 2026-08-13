@@ -194,6 +194,8 @@ const SearchWalk = () => {
   const [routeInfo, setRouteInfo] = useState<{ duration: number; distance: number } | null>(null);
   const [isDrawingRoute, setIsDrawingRoute] = useState(false);
   const [walkerLocation, setWalkerLocation] = useState<[number, number] | null>(null);
+  // Posição atual real do PetWalker (RPC get_active_walker_location).
+  const [liveWalkerPosition, setLiveWalkerPosition] = useState<{ lng: number; lat: number; ts: number } | null>(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   // Tema da tela segue a decisão global.
   // O mapa segue o clima real (dia/noite) por padrão.
@@ -1106,34 +1108,40 @@ const SearchWalk = () => {
     };
   }, [currentSessionId]);
   
-  // Continuous walker tracking for the customer
+  // ────────────────────────────────────────────────────────────────
+  // Posição atual do PetWalker: fonte canônica ÚNICA é a RPC segura
+  // `get_active_walker_location` (autorizada pelo servidor apenas para
+  // os participantes da sessão). `route_coordinates` é usado só para o
+  // rastro histórico. Consulta imediata + atualização periódica,
+  // com proteção contra respostas fora de ordem e sem descartar a
+  // última posição válida em erro de rede.
+  // ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!currentSessionId || searchStatus !== 'walking') return;
-    
-    let isSubscribed = true;
-    const pollInterval = setInterval(async () => {
+
+    let active = true;
+    let lastTs = 0;
+
+    const readLocation = async () => {
       const { data, error } = await supabase.rpc('get_active_walker_location', {
-        _session_id: currentSessionId
+        _session_id: currentSessionId,
       });
-      
-      if (!isSubscribed) return;
-      
-      if (!error && data && data.length > 0) {
-        const loc = data[0];
-        if (loc.lng && loc.lat) {
-          const newPos: [number, number] = [loc.lng, loc.lat];
-          // Update walker location only if it significantly moved
-          setWalkerLocation(prev => {
-            if (!prev) return newPos;
-            const dist = distanceMeters(prev, newPos);
-            return dist > 5 ? newPos : prev;
-          });
-        }
-      }
-    }, 5000); // 5s poll for tracking
+      if (!active || error || !Array.isArray(data) || data.length === 0) return;
+      const loc = data[0] as { lat: number | null; lng: number | null; accuracy: number | null; updated_at: string | null };
+      if (typeof loc.lng !== 'number' || typeof loc.lat !== 'number') return;
+      const ts = loc.updated_at ? new Date(loc.updated_at).getTime() : Date.now();
+      if (ts < lastTs) return; // resposta antiga não sobrescreve a mais recente
+      lastTs = ts;
+      setLiveWalkerPosition({ lng: loc.lng, lat: loc.lat, ts });
+      // Semeia a posição inicial do mapa uma única vez (sem remontá-lo depois).
+      setWalkerLocation((prev) => prev ?? [loc.lng as number, loc.lat as number]);
+    };
+
+    readLocation();
+    const pollInterval = setInterval(readLocation, 3000);
 
     return () => {
-      isSubscribed = false;
+      active = false;
       clearInterval(pollInterval);
     };
   }, [currentSessionId, searchStatus]);
@@ -2161,6 +2169,7 @@ const SearchWalk = () => {
           walkerName={walker?.firstName ?? 'Pet Walker'}
           walkerAvatar={walker?.avatar}
           walkerLocation={walkerLocation}
+          livePosition={liveWalkerPosition}
           petLocation={userLocation}
           pickupRoute={pickupRoute}
           isComing={!isResuming}

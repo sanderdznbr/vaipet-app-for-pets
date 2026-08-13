@@ -528,7 +528,24 @@ test("rastreamento real com throttle de 5s no servidor", async () => {
   expect(retry.body).toBe(true);
   expect((await dbSession()).route_coordinates.length).toBe(lenAfterReject + 1);
 
+  // O mapa do dono monta de forma assíncrona (estilo + fontes). Espera o
+  // marcador canônico de posição ao vivo aparecer antes de comparar.
+  await ownerCtx.page
+    .locator('[data-testid="active-walker-marker"]')
+    .first()
+    .waitFor({ state: "attached", timeout: 30_000 });
+  await ownerCtx.page.waitForTimeout(4_000);
   const after = await ownerMarkers();
+  const liveMarker = await ownerCtx.page.evaluate(() => {
+    const el = document.querySelector('[data-testid="active-walker-marker"]') as HTMLElement | null;
+    return {
+      exists: !!el,
+      transform: el?.parentElement?.style.transform ?? null,
+      url: location.pathname,
+      body: document.body.innerText.slice(0, 200),
+    };
+  });
+  log(`marcador ao vivo: ${JSON.stringify(liveMarker)}`);
   log(`marcadores do dono antes=${before.length} depois=${after.length} mudou=${JSON.stringify(before) !== JSON.stringify(after)}`);
   await shot(ownerCtx, "11-dono-rastreando");
   expect.soft(JSON.stringify(after), "marcador do walker deve mudar de posição na tela do dono").not.toBe(JSON.stringify(before));
