@@ -641,6 +641,17 @@ test("rastreamento real com throttle de 5s no servidor", async () => {
 
   // O mapa do dono monta de forma assíncrona (estilo + fontes). Espera o
   // marcador canônico de posição ao vivo aparecer antes de comparar.
+  // A tela do dono pode estar na animação de chegada; ela tem um atalho de teste.
+  const skipAnim = ownerCtx.page.getByRole("button", { name: /pular anima/i }).first();
+  for (let i = 0; i < 6; i++) {
+    if (await skipAnim.count()) {
+      await skipAnim.click().catch(() => {});
+      log("animação de chegada pulada na tela do dono");
+      await ownerCtx.page.waitForTimeout(1_500);
+    }
+    if (await ownerCtx.page.locator('[data-testid="active-walker-marker"]').count()) break;
+    await ownerCtx.page.waitForTimeout(2_000);
+  }
   await ownerCtx.page
     .locator('[data-testid="active-walker-marker"]')
     .first()
