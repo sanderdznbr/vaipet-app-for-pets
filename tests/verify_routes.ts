@@ -1,4 +1,4 @@
-import { chromium } from 'playwright';
+import { chromium } from '@playwright/test';
 
 const DEPLOY_URL = process.env.DEPLOY_URL || 'https://tieck.com.br';
 
@@ -11,9 +11,7 @@ const routes = [
 
 async function verifyRoutes() {
   console.log(`Iniciando verificação de rotas em: ${DEPLOY_URL}`);
-  const browser = await chromium.launch({
-    executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined
-  });
+  const browser = await chromium.launch();
   const page = await browser.newPage();
   let hasError = false;
 
