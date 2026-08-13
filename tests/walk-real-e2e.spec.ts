@@ -820,9 +820,12 @@ test("casos negativos: identidade, autorização e validação de dados", async 
 
   // ---- 6. Integridade: nada mudou no banco após todas as tentativas ----
   const after = await snapshotState();
-  log(`integridade pós-negativas: inalterado=${before === after}`);
-  if (before !== after) log(`antes=${before}\ndepois=${after}`);
-  expect(after, "nenhuma tentativa negada pode alterar o estado do passeio").toBe(before);
+  log(
+    `integridade pós-negativas: guarded_inalterado=${before.guarded === after.guarded} rastro ${before.trail}->${after.trail}`,
+  );
+  if (before.guarded !== after.guarded) log(`antes=${before.guarded}\ndepois=${after.guarded}`);
+  expect(after.guarded, "nenhuma tentativa negada pode alterar o estado do passeio").toBe(before.guarded);
+  expect(after.trail, "rastro nunca pode encolher").toBeGreaterThanOrEqual(before.trail);
   expect((await dbSession()).current_status).toBe("in_progress");
 });
 
