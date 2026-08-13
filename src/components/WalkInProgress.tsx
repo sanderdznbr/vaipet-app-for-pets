@@ -101,9 +101,15 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
         try {
           const { data } = await supabase
             .from('walk_sessions')
-            .select('local_stops, home_location')
+            .select('local_stops, home_location, current_status')
             .eq('id', sessionId)
             .maybeSingle();
+          
+          if (data?.current_status === 'completed') {
+            onConfirmArrival();
+            return;
+          }
+
           const raw = (data?.local_stops as Array<{ lng: number; lat: number; label?: string; order?: number }> | null) ?? [];
           if (raw.length) setResolvedStops(orderStops(raw));
           const hl = data?.home_location as { lng: number; lat: number } | null;

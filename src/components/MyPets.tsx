@@ -18,7 +18,7 @@ interface WalkSession {
   planned_duration_minutes: number;
   actual_duration_minutes: number | null;
   distance_km: number | null;
-  status: string;
+  current_status: string;
   walker_name: string | null;
   pets: { name: string; avatar_url: string | null } | null;
 }
@@ -61,9 +61,9 @@ export const MyPets = ({ activeCategory = 'Passeios' }: MyPetsProps = {}) => {
     try {
       const { data, error } = await supabase
         .from('walk_sessions')
-        .select('id, start_time, planned_duration_minutes, actual_duration_minutes, distance_km, status, walker_name, pets(name, avatar_url)')
+        .select('id, start_time, planned_duration_minutes, actual_duration_minutes, distance_km, current_status, walker_name, pets(name, avatar_url)')
         .eq('customer_id', user?.id)
-        .in('status', ['completed', 'finished'])
+        .eq('current_status', 'completed')
         .order('start_time', { ascending: false })
         .limit(10);
       

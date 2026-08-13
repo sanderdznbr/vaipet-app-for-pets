@@ -3,12 +3,14 @@ import { Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
+import { WalkStatus } from '@/types/walk';
+
 interface WalkSession {
   id: string;
   start_time: string;
   planned_duration_minutes: number;
   actual_duration_minutes: number | null;
-  status: string;
+  current_status: WalkStatus;
   walker_name: string | null;
   pets: { name: string; avatar_url: string | null } | null;
 }
@@ -26,9 +28,9 @@ export const History = () => {
     try {
       const { data, error } = await supabase
         .from('walk_sessions')
-        .select(`id, start_time, planned_duration_minutes, actual_duration_minutes, status, walker_name, pets(name, avatar_url)`)
+        .select(`id, start_time, planned_duration_minutes, actual_duration_minutes, current_status, walker_name, pets(name, avatar_url)`)
         .eq('customer_id', user.id)
-        .in('status', ['completed', 'finished'])
+        .eq('current_status', 'completed')
         .order('start_time', { ascending: false })
         .limit(5);
       if (!error && data) setWalkSessions(data);
