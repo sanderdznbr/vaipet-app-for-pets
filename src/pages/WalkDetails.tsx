@@ -314,7 +314,11 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
           {walk.current_status === 'in_progress' && (
             <button 
               onClick={async () => {
-                const { error } = await supabase.rpc('petwalker_complete_walk', { _session_id: walk.id });
+                const { error } = await supabase.rpc('petwalker_complete_walk', { 
+                  _session_id: walk.id,
+                  _final_trail: [],
+                  _final_distance_km: 0
+                });
                 if (!error) navigate('/petwalker/painel');
               }}
               className="w-full bg-purple-600 text-white font-extrabold py-4 rounded-2xl shadow-xl active:scale-95 transition-transform"
