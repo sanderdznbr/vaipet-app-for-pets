@@ -9,7 +9,8 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:routes": "tsx tests/verify_routes.ts"
+    "test:routes": "tsx tests/verify_routes.ts",
+    "test:camera-ai": "playwright test tests/camera_ai_neutral.test.ts"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",
