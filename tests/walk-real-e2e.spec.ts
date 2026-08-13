@@ -309,7 +309,10 @@ test("dono cria solicitação real de 15 min pela interface", async () => {
   await expect(minus).toBeVisible({ timeout: 15_000 });
   await minus.click();
   await expect(p.getByText(/^15$/)).toBeVisible();
-  const priceText = (await p.locator("text=/R\\$ ?\\d+/").first().innerText()).trim();
+  const priceLine = p.locator("p", { hasText: /R\$/ }).first();
+  await expect(priceLine).toBeVisible({ timeout: 20_000 });
+  await expect(priceLine).not.toHaveText(/Calculando/, { timeout: 20_000 });
+  const priceText = (await priceLine.innerText()).trim();
   log(`preço exibido na etapa de duração: "${priceText}"`);
   await shot(ownerCtx, "02-duracao-15min");
   // O orçamento canônico é R$ 22,50 (R$ 1,50/min).
