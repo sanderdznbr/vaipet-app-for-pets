@@ -1702,10 +1702,16 @@ const SearchWalk = () => {
                   </div>
 
                   <p className="text-center text-sm font-extrabold mb-4" style={{ color: '#31d880' }}>
-                    R$ {selectedMinutes},00
-                    <span className="ml-1.5 text-[11px] font-semibold" style={{ color: ui.muted }}>
-                      (R$ 1,00/min)
-                    </span>
+                    {quoteLoading
+                      ? 'Calculando…'
+                      : quote
+                        ? Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.total_price_cents / 100)
+                        : (quoteError ?? '—')}
+                    {quote && (
+                      <span className="ml-1.5 text-[11px] font-semibold" style={{ color: ui.muted }}>
+                        ({Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.price_per_minute_cents / 100)}/min)
+                      </span>
+                    )}
                   </p>
 
                   <div className="flex items-center gap-2">
@@ -2006,7 +2012,7 @@ const SearchWalk = () => {
                         ) : quote ? (
                           Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.total_price_cents / 100)
                         ) : (
-                          `R$ ${selectedMinutes},00`
+                          '—'
                         )}
                       </span>
                     </div>
