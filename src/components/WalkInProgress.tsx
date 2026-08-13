@@ -192,6 +192,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
   const [remainingMeters, setRemainingMeters] = useState<number>(0);
   const [codeInput, setCodeInput] = useState<string>('');
   const [codeError, setCodeError] = useState(false);
+  const [concluding, setConcluding] = useState(false);
   const animRef = useRef<number | null>(null);
   const lastLocRef = useRef<[number, number] | null>(null);
   const stopMarkersRef = useRef<mapboxgl.Marker[]>([]);
@@ -315,9 +316,6 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
       if (now - lastTrailSaveAtRef.current < 3500) return;
       lastTrailSaveAtRef.current = now;
       const lenSnapshot = trail.length;
-      // Distance in km from the actual breadcrumb, not a coarse estimate.
-      let meters = 0;
-      for (let i = 1; i < trail.length; i++) meters += haversine(trail[i - 1], trail[i]);
       try {
         const lastPoint = trail[trail.length - 1];
         if (lastPoint) {
@@ -328,8 +326,6 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
         }
         lastSavedTrailLenRef.current = lenSnapshot;
       } catch (e) {
-        // Non-fatal; we'll retry on the next tick.
-      }
         // Non-fatal; we'll retry on the next tick.
       }
     }, 4000);
@@ -2162,27 +2158,42 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
   // o componente pai apenas troca a tela para a avaliação.
   const handleRequestReturn = async () => {
     setShowReturnDialog(false);
-    if (sessionId) {
+    if (!sessionId) {
+      onRequestReturn();
+      return;
+    }
+
+    try {
+      setConcluding(true);
       const trail = persistedTrailRef.current;
       let meters = 0;
       for (let i = 1; i < trail.length; i++) meters += haversine(trail[i - 1], trail[i]);
+      const finalDistKm = Number((meters / 1000).toFixed(3));
+
+      const { data, error } = await supabase.rpc('petwalker_complete_walk', { 
+        _session_id: sessionId,
+        _final_trail: trail,
+        _final_distance_km: finalDistKm
+      });
       
-      try {
-        // A RPC petwalker_complete_walk agora aceita metadados finais (distância e rota)
-        // e realiza a atualização atômica no banco, garantindo integridade Zero-Trust.
-        const { error } = await supabase.rpc('petwalker_complete_walk', { 
-          _session_id: sessionId,
-          _final_trail: trail,
-          _final_distance_km: Number((meters / 1000).toFixed(3))
-        });
-        
-        if (error) throw error;
-      } catch (e) {
-        console.error('Falha ao encerrar passeio:', e);
-        // Em um sistema real, aqui poderíamos alertar o usuário, mas seguimos o fluxo de UI
+      if (error) {
+        console.error('Error concluding walk:', error);
+        alert(`Erro ao concluir passeio: ${error.message}. Tente novamente.`);
+        setConcluding(false);
+        return;
       }
+
+      if (data === true) {
+        onRequestReturn();
+      } else {
+        alert('Falha ao concluir passeio no servidor. Verifique sua conexão e tente novamente.');
+        setConcluding(false);
+      }
+    } catch (e) {
+      console.error('Unexpected error during walk conclusion:', e);
+      alert('Ocorreu um erro inesperado. Tente novamente.');
+      setConcluding(false);
     }
-    onRequestReturn();
   };
 
   const fmt = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
