@@ -906,6 +906,7 @@ export type Database = {
           home_location: Json | null
           id: string
           last_expansion_at: string | null
+          last_tracking_at: string | null
           local_stops: Json | null
           matching_expires_at: string | null
           meeting_point_address: string | null
@@ -943,6 +944,7 @@ export type Database = {
           home_location?: Json | null
           id?: string
           last_expansion_at?: string | null
+          last_tracking_at?: string | null
           local_stops?: Json | null
           matching_expires_at?: string | null
           meeting_point_address?: string | null
@@ -980,6 +982,7 @@ export type Database = {
           home_location?: Json | null
           id?: string
           last_expansion_at?: string | null
+          last_tracking_at?: string | null
           local_stops?: Json | null
           matching_expires_at?: string | null
           meeting_point_address?: string | null

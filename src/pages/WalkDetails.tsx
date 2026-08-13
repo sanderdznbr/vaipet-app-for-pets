@@ -33,6 +33,33 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
   const isDarkMode = theme === 'dark';
   const [walk, setWalk] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [concluding, setConcluding] = useState(false);
+  const [concludeError, setConcludeError] = useState<string | null>(null);
+
+  const handleCompleteWalk = async () => {
+    if (concluding || !walk?.id) return;
+    setConcluding(true);
+    setConcludeError(null);
+    try {
+      const { data, error } = await supabase.rpc('petwalker_complete_walk', {
+        _session_id: walk.id
+      });
+      if (error) {
+        setConcludeError(error.message);
+        setConcluding(false);
+        return;
+      }
+      if (data === true) {
+        navigate('/petwalker/painel');
+        return;
+      }
+      setConcludeError('Não foi possível concluir o passeio. Tente novamente.');
+      setConcluding(false);
+    } catch (e) {
+      setConcludeError('Erro inesperado ao concluir o passeio. Tente novamente.');
+      setConcluding(false);
+    }
+  };
 
   useEffect(() => {
     if (!id || !user) return;
@@ -312,17 +339,20 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
             </button>
           )}
           {walk.current_status === 'in_progress' && (
-            <button 
-              onClick={async () => {
-                const { error } = await supabase.rpc('petwalker_complete_walk', { 
-                  _session_id: walk.id
-                });
-                if (!error) navigate('/petwalker/painel');
-              }}
-              className="w-full bg-purple-600 text-white font-extrabold py-4 rounded-2xl shadow-xl active:scale-95 transition-transform"
-            >
-              Finalizar Passeio
-            </button>
+            <>
+              {concludeError && (
+                <div className="w-full rounded-2xl bg-destructive/10 text-destructive text-sm font-semibold px-4 py-3">
+                  {concludeError}
+                </div>
+              )}
+              <button
+                onClick={handleCompleteWalk}
+                disabled={concluding}
+                className="w-full bg-purple-600 text-white font-extrabold py-4 rounded-2xl shadow-xl active:scale-95 transition-transform disabled:opacity-60"
+              >
+                {concluding ? 'Finalizando…' : concludeError ? 'Tentar novamente' : 'Finalizar Passeio'}
+              </button>
+            </>
           )}
           <button 
             onClick={() => navigate('/petwalker/painel')}

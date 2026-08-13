@@ -319,16 +319,23 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
       try {
         const lastPoint = trail[trail.length - 1];
         if (lastPoint) {
-          await supabase.rpc('append_walk_tracking_point', {
+          const { data, error } = await supabase.rpc('append_walk_tracking_point', {
             _session_id: sessionId,
             _point: lastPoint
           });
+          if (error) {
+            // Erro real (rede/permissão): registra e mantém o ponto pendente.
+            console.error('Falha ao gravar ponto de rastreamento:', error);
+            return;
+          }
+          // data === false => rejeição normal de frequência: NÃO marcar como salvo.
+          if (data !== true) return;
         }
         lastSavedTrailLenRef.current = lenSnapshot;
       } catch (e) {
-        // Non-fatal; we'll retry on the next tick.
+        console.error('Erro inesperado no rastreamento:', e);
       }
-    }, 4000);
+    }, 6000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
@@ -2218,24 +2225,11 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
     return () => window.clearTimeout(t);
   }, [isCancelling, isReturning, remainingMeters, etaSec, onCancelComplete]);
 
-  // AUTO-ENCERRAMENTO: quando o pet chega de volta ao local de origem
-  // ao final do passeio (isReturning, sem cancelamento), encerra
-  // automaticamente o passeio e vai direto para a tela de avaliação.
-  // Sem necessidade de tap manual em "Confirmar chegada".
-  const autoArrivedFiredRef = useRef(false);
-  useEffect(() => {
-    if (autoArrivedFiredRef.current) return;
-    if (!isReturning || isCancelling) return;
-    if (phase !== 'walking') return;
-    if (remainingMeters > 8 || etaSec > 0) return;
-    const t = window.setTimeout(() => {
-      if (autoArrivedFiredRef.current) return;
-      autoArrivedFiredRef.current = true;
-      handleRequestReturn();
-    }, 1200);
-    return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReturning, isCancelling, phase, remainingMeters, etaSec]);
+  // SEM AUTO-ENCERRAMENTO: a chegada ao ponto de origem apenas altera a
+  // interface. A conclusão do passeio exige clique explícito e confirmado
+  // do PetWalker (nenhum useEffect chama handleRequestReturn).
+  const arrivedAtOrigin =
+    isReturning && !isCancelling && phase === 'walking' && remainingMeters <= 8 && etaSec <= 0;
 
   const recenter = () => {
     if (!map.current) return;
@@ -2638,6 +2632,22 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
         )}
 
         {/* Always-mounted return dialog (the floating right-rail button toggles it during the walk) */}
+        {arrivedAtOrigin && (
+          <div className="absolute left-4 right-4 bottom-6 z-50">
+            <div className="rounded-[24px] bg-card shadow-2xl p-4 text-center space-y-3">
+              <p className="text-base font-extrabold text-foreground">Você chegou ao destino</p>
+              <button
+                onClick={() => setShowReturnDialog(true)}
+                disabled={concluding}
+                className="w-full min-h-[44px] rounded-xl text-white font-bold disabled:opacity-60"
+                style={{ background: 'hsl(159 100% 33%)' }}
+              >
+                {concluding ? 'Finalizando…' : 'Finalizar passeio'}
+              </button>
+            </div>
+          </div>
+        )}
+
         <AlertDialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
           <AlertDialogContent className="rounded-[24px] max-w-[340px]">
             <AlertDialogHeader>
@@ -2649,11 +2659,12 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
             <AlertDialogFooter className="flex-row gap-2">
               <AlertDialogCancel className="flex-1 rounded-xl m-0">Cancelar</AlertDialogCancel>
               <AlertDialogAction
-                onClick={handleRequestReturn}
+                onClick={(e) => { e.preventDefault(); if (!concluding) handleRequestReturn(); }}
+                disabled={concluding}
                 className="flex-1 rounded-xl m-0 text-white"
                 style={{ background: 'hsl(159 100% 33%)' }}
               >
-                Encerrar agora
+                {concluding ? 'Encerrando…' : 'Encerrar agora'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
