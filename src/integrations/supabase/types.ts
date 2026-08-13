@@ -1254,6 +1254,10 @@ export type Database = {
             }
             Returns: string
           }
+      append_walk_tracking_point: {
+        Args: { _point: Json; _session_id: string }
+        Returns: boolean
+      }
       approve_petwalker_application: {
         Args: { application_id: string }
         Returns: undefined
@@ -1566,7 +1570,11 @@ export type Database = {
         Returns: boolean
       }
       petwalker_complete_walk: {
-        Args: { _session_id: string }
+        Args: {
+          _final_distance_km: number
+          _final_trail: Json
+          _session_id: string
+        }
         Returns: boolean
       }
       petwalker_start_heading: {

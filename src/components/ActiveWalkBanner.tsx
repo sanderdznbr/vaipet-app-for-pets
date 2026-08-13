@@ -134,7 +134,9 @@ export const ActiveWalkBanner: React.FC = () => {
         {/* Info */}
         <div className="flex-1 text-left min-w-0">
           <p className="text-sm font-extrabold text-foreground">
-            Passeio em andamento
+            {activeWalk.current_status === 'in_progress' && elapsed > activeWalk.planned_duration_minutes * 60 
+              ? 'Tempo previsto excedido' 
+              : 'Passeio em andamento'}
           </p>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-xs text-muted-foreground font-medium">
