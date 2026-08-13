@@ -1,18 +1,18 @@
-# Tieck App - Camera AI Baseline
+# Tieck App
 
-Este repositório contém a baseline neutra para o sistema Camera AI.
+## Infraestrutura
+- **Backend:** Supabase (projeto `txqfdscdlltohpkkznwa`).
+- **Deploy:** Vercel.
+- **Gerenciador de Pacotes:** `npm` (mantenha `package-lock.json` como único lockfile).
+- **Ambiente:** Node 22+.
 
-## Estado Atual: Baseline Neutra
-- **Upload Fotográfico:** Funcional e neutro.
-- **Endpoint de IA:** O endpoint `/api/camera-ai/verify` está em modo neutro e previsível.
-- **Implementação OpenAI:** Ainda não iniciada (Fase 1 pendente).
-- **Modo de Operação:** `CAMERA_AI_MODE` deve permanecer como `disabled`.
-
-## Arquitetura
-- O upload de evidências é puramente fotográfico.
-- Motores legados de IA foram arquivados em `archive/camera-ai-legacy/`.
-- A próxima fase integrará a OpenAI Responses API com o modelo `gpt-4o-mini`.
+## Camera AI
+- **Estado:** Baseline neutra e desativada.
+- **Endpoint:** `/api/camera-ai/verify`.
+- **Comportamento:** Retorna 503 quando desativado, 501 quando não implementado.
 
 ## Desenvolvimento
-- **NPM:** Use exclusivamente `npm` (não use `bun`).
-- **Testes:** `npm run test:routes` verifica a neutralidade do endpoint.
+- **Instalação:** `npm ci`
+- **Build:** `npm run build`
+- **Testes de Rotas:** `npm run test:routes`
+- **Testes Camera AI:** `npm run test:camera-ai`

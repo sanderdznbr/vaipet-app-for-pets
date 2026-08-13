@@ -1,0 +1,33 @@
+name: E2E Validation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test Routes
+        run: npm run test:routes
+        env:
+          DEPLOY_URL: ${{ vars.DEPLOY_URL || 'https://tieck.com.br' }}
+
+      - name: Camera AI Neutral Test
+        run: npm run test:camera-ai
