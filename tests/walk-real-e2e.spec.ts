@@ -427,7 +427,24 @@ test("dono sincroniza por Realtime sem reload", async () => {
   const p = ownerCtx.page;
   await expect(p.getByText(/aguardando/i)).toBeHidden({ timeout: 90_000 });
   await shot(ownerCtx, "08-dono-sincronizado");
-  await expect(p.getByText(/E2E Walker|Walker/i).first()).toBeVisible({ timeout: 30_000 });
+
+  // Sinal semântico e estável de aceite (sem reload).
+  await expect(p.getByTestId("walk-accepted-state")).toBeVisible({ timeout: 60_000 });
+  const shownName = await p.getByTestId("walk-walker-name").innerText();
+  log(`dono reconheceu aceite; nome exibido="${shownName}"`);
+  expect(shownName.trim().length).toBeGreaterThan(0);
+
+  const dbg = await dbSession();
+  log(
+    `diagnóstico dono: current_status=${dbg.current_status} walker=${short(dbg.walker_id)} updated_at=${dbg.updated_at}`,
+  );
+  expect(dbg.walker_id).toBe(walkerId);
+  fs.writeFileSync(
+    path.join(ART, "owner-accepted.html"),
+    await p.content(),
+    "utf8",
+  );
+
   for (let i = 0; i < 4; i++) {
     await p.waitForTimeout(2_000);
     const s = await dbSession();
