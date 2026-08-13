@@ -1013,6 +1013,18 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
     };
   }, [phase, isReturning]);
 
+  // ────────────────────────────────────────────────────────────────
+  // Estado/refs do marcador de posição AO VIVO. Declarados ANTES do
+  // efeito do mapa porque a limpeza do mapa precisa soltá-los, e o
+  // marcador precisa ser (re)criado assim que o mapa emitir `load`.
+  // ────────────────────────────────────────────────────────────────
+  const liveMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const liveAnimRef = useRef<number | null>(null);
+  const liveLastRef = useRef<{ lng: number; lat: number; ts: number } | null>(null);
+  // Última coordenada conhecida, guardada mesmo antes de o mapa carregar.
+  const pendingLiveRef = useRef<{ lng: number; lat: number; ts: number } | null>(null);
+  const [mapReadyTick, setMapReadyTick] = useState(0);
+
   useEffect(() => {
     if (!mapContainer.current || !walkerLocation) return;
     // Guard: this effect must initialize the map exactly ONCE. The
@@ -1023,6 +1035,13 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
     // exactly the "screen flashes, route resets, goes back to 'a
     // caminho'" bug the user reported.
     if (map.current) return;
+    // Only the run that ACTUALLY created the map is allowed to tear it
+    // down. Without this flag every `walkerLocation`/`petLocation` update
+    // (e.g. the parent seeding the first live coordinate) ran the cleanup
+    // of the previous run and destroyed the map — while the creation guard
+    // above prevented it from ever being rebuilt. Result: blank map and a
+    // live marker detached from the DOM.
+    let createdHere = false;
     mapboxgl.accessToken = 'pk.eyJ1Ijoic2FuZGVyY29sb21iZXMiLCJhIjoiY21kNDBuaHZ4MGF3bjJtb2dwNHdsMWR1aCJ9.D_kYvjRu2iigL2uziaEomQ';
     // When the walker is coming to pick up, start the camera around the
     // PET (where the user was looking in the search map) and then smoothly
@@ -1265,7 +1284,12 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
           drawStopPins();
         }
       }
+      // Sinaliza que o mapa está pronto: o efeito do marcador reaplica
+      // imediatamente a última coordenada conhecida (se houver), mesmo que
+      // `livePosition` não mude de referência nesse instante.
+      setMapReadyTick((n) => n + 1);
     });
+    createdHere = true;
 
     // Detect manual user interaction — only user-initiated events have
     // an originalEvent (programmatic easeTo/flyTo don't). Once set, we
@@ -1281,11 +1305,19 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
     map.current.on('pitchstart', markOverride as never);
 
     return () => {
+      if (!createdHere) return;
       if (animRef.current) cancelAnimationFrame(animRef.current);
       stopDashPulse();
       stopMarkersRef.current.forEach(mk => mk.remove());
       stopMarkersRef.current = [];
       map.current?.remove();
+      map.current = null;
+      // The live marker belongs to this map instance — drop the reference
+      // so a future instance can recreate it instead of updating a marker
+      // that is no longer in the DOM.
+      if (liveAnimRef.current) cancelAnimationFrame(liveAnimRef.current);
+      liveMarkerRef.current = null;
+      setMapReadyTick((n) => n + 1);
     };
   // Intentionally exclude isDarkMode — the theme toggle swaps the style
   // in place (see effect below) WITHOUT remounting the map. Remounting
@@ -1300,21 +1332,24 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
   // ativo, independente da animação/rastro. Nunca usa coordenada fictícia:
   // sem `livePosition` ele simplesmente não existe.
   // ────────────────────────────────────────────────────────────────
-  const liveMarkerRef = useRef<mapboxgl.Marker | null>(null);
-  const liveAnimRef = useRef<number | null>(null);
-  const liveLastRef = useRef<{ lng: number; lat: number; ts: number } | null>(null);
-
   useEffect(() => {
+    // Guarda SEMPRE a coordenada mais recente, mesmo sem mapa pronto.
+    if (livePosition) {
+      const prev = pendingLiveRef.current;
+      if (!prev || livePosition.ts >= prev.ts) pendingLiveRef.current = livePosition;
+    }
+    const pending = pendingLiveRef.current;
     const m = map.current;
-    if (!m || !livePosition) return;
-    // Protege contra resposta fora de ordem: só avança no tempo.
-    if (liveLastRef.current && livePosition.ts < liveLastRef.current.ts) return;
+    if (!m || !pending) return;
+    // Protege contra resposta fora de ordem: só avança no tempo. O marcador
+    // pode não existir ainda (mapa recriado) — nesse caso reaplicamos.
+    if (liveMarkerRef.current && liveLastRef.current && pending.ts < liveLastRef.current.ts) return;
 
-    const from: [number, number] | null = liveLastRef.current
+    const from: [number, number] | null = liveMarkerRef.current && liveLastRef.current
       ? [liveLastRef.current.lng, liveLastRef.current.lat]
       : null;
-    const to: [number, number] = [livePosition.lng, livePosition.lat];
-    liveLastRef.current = livePosition;
+    const to: [number, number] = [pending.lng, pending.lat];
+    liveLastRef.current = pending;
 
     if (!liveMarkerRef.current) {
       const el = document.createElement('div');
@@ -1349,7 +1384,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
       if (t < 1) liveAnimRef.current = requestAnimationFrame(step);
     };
     liveAnimRef.current = requestAnimationFrame(step);
-  }, [livePosition]);
+  }, [livePosition, mapReadyTick]);
 
   // Limpeza: timer/animação e marcador saem juntos com o componente.
   useEffect(() => () => {

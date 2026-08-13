@@ -639,38 +639,40 @@ test("rastreamento real com throttle de 5s no servidor", async () => {
   expect(retry.body).toBe(true);
   expect((await dbSession()).route_coordinates.length).toBe(lenAfterReject + 1);
 
-  // O mapa do dono monta de forma assíncrona (estilo + fontes). Espera o
-  // marcador canônico de posição ao vivo aparecer antes de comparar.
-  // A tela do dono pode estar na animação de chegada; ela tem um atalho de teste.
-  const skipAnim = ownerCtx.page.getByRole("button", { name: /pular anima/i }).first();
-  for (let i = 0; i < 6; i++) {
-    if (await skipAnim.count()) {
-      await skipAnim.click().catch(() => {});
-      log("animação de chegada pulada na tela do dono");
-      await ownerCtx.page.waitForTimeout(1_500);
-    }
-    if (await ownerCtx.page.locator('[data-testid="active-walker-marker"]').count()) break;
-    await ownerCtx.page.waitForTimeout(2_000);
-  }
-  await ownerCtx.page
-    .locator('[data-testid="active-walker-marker"]')
-    .first()
-    .waitFor({ state: "attached", timeout: 30_000 });
-  await ownerCtx.page.waitForTimeout(4_000);
-  const after = await ownerMarkers();
-  const liveMarker = await ownerCtx.page.evaluate(() => {
-    const el = document.querySelector('[data-testid="active-walker-marker"]') as HTMLElement | null;
-    return {
-      exists: !!el,
-      transform: el?.parentElement?.style.transform ?? null,
-      url: location.pathname,
-      body: document.body.innerText.slice(0, 200),
-    };
+  // ── Condições REAIS (sem pular animação, sem reload, sem retry) ──
+  // 1. Banco em estado rastreável.
+  expect((await dbSession()).current_status).toBe("in_progress");
+  // 2. Tela do dono no estado operacional (mapa montado + marcador ao vivo).
+  const liveMarker = ownerCtx.page.locator('[data-testid="active-walker-marker"]').first();
+  await liveMarker.waitFor({ state: "attached", timeout: 45_000 });
+  const markerTransform = () =>
+    ownerCtx.page.evaluate(() => {
+      const el = document.querySelector('[data-testid="active-walker-marker"]') as HTMLElement | null;
+      if (!el) return null;
+      // O Mapbox posiciona o PRÓPRIO elemento do marcador; alguns temas
+      // envolvem em um wrapper. Aceita o primeiro transform não vazio.
+      const own = el.style.transform;
+      const parent = (el.parentElement as HTMLElement | null)?.style.transform ?? "";
+      return own || parent || null;
+    });
+  // 3. Primeira coordenada confirmada no marcador.
+  await expect.poll(markerTransform, { timeout: 30_000 }).not.toBeNull();
+  const firstTransform = await markerTransform();
+  log(`marcador ao vivo inicial: ${firstTransform}`);
+
+  // 4. Nova coordenada após o throttle e marcador em posição diferente.
+  await walkerCtx.page.waitForTimeout(6_000);
+  const moved = await rpcAsUser(walkerCtx, "append_walk_tracking_point", {
+    _session_id: sessionId,
+    _point: [-46.712_000, -23.612_000],
   });
-  log(`marcador ao vivo: ${JSON.stringify(liveMarker)}`);
-  log(`marcadores do dono antes=${before.length} depois=${after.length} mudou=${JSON.stringify(before) !== JSON.stringify(after)}`);
+  expect(moved.body).toBe(true);
+  await expect
+    .poll(markerTransform, { timeout: 45_000, intervals: [1_000] })
+    .not.toBe(firstTransform);
+  const after = await ownerMarkers();
+  log(`marcadores do dono antes=${before.length} depois=${after.length}`);
   await shot(ownerCtx, "11-dono-rastreando");
-  expect.soft(JSON.stringify(after), "marcador do walker deve mudar de posição na tela do dono").not.toBe(JSON.stringify(before));
 });
 
 test("casos negativos: identidade, autorização e validação de dados", async () => {

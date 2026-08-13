@@ -1052,7 +1052,13 @@ const SearchWalk = () => {
       lastAppliedSeq = seq;
       const status = data.current_status;
       if (data.matching_expires_at) setMatchingExpiresAt(data.matching_expires_at);
-      if (status === 'accepted' && searchStatusRef.current !== 'walking') {
+      // O banco é a autoridade: qualquer estado rastreável entrega a tela
+      // operacional. Antes só 'accepted' fazia o handoff — se o walker já
+      // tivesse iniciado o passeio (ou o evento 'accepted' chegasse depois
+      // de 'in_progress'), o dono nunca entrava em 'walking' e o
+      // rastreamento jamais começava.
+      const TRACKABLE = ['accepted', 'heading_to_pickup', 'arrived', 'in_progress', 'returning'];
+      if (TRACKABLE.includes(status) && searchStatusRef.current !== 'walking') {
         handleAccepted(data);
       } else if (status === 'expired' || status === 'cancelled') {
         handleTimeout();
