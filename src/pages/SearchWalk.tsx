@@ -1862,7 +1862,7 @@ const SearchWalk = () => {
                 const types: Array<{
                   id: 'livre' | 'local';
                   label: string;
-                  Icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+                  Icon: LucideIcon;
                   desc: string;
                 }> = [
                   { id: 'livre', label: isCollective ? 'Coletivo' : 'Livre', Icon: Sparkles, desc: isCollective ? 'Passeio com múltiplos pets selecionados.' : 'O petwalker decide tudo sobre o passeio.' },
