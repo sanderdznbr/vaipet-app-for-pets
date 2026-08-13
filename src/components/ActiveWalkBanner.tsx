@@ -39,22 +39,15 @@ export const ActiveWalkBanner: React.FC = () => {
       if (data) {
         // Safety net: a walk should never run forever. If the elapsed time
         // since `start_time` exceeds the planned duration by more than the
-        // grace window (15 min), the session was clearly abandoned (closed
-        // tab, lost connection, app killed). Auto-finalize it here instead
-        // of showing "880 min" on the home banner.
+        // grace window (15 min), the session was clearly abandoned.
+        // We do NOT auto-finalize here via direct update. Abandoned sessions
+        // should be handled by a secure administrative routine or the walker.
         const startedAt = new Date(data.start_time).getTime();
         const plannedMin = data.planned_duration_minutes || 30;
         const elapsedMin = (Date.now() - startedAt) / 60000;
         const GRACE_MIN = 15;
         if (elapsedMin > plannedMin + GRACE_MIN) {
-          await supabase
-            .from('walk_sessions')
-            .update({
-              current_status: 'completed',
-              end_time: new Date(startedAt + plannedMin * 60000).toISOString(),
-              actual_duration_minutes: plannedMin,
-            })
-            .eq('id', data.id);
+          // Instead of updating directly, we just hide it from the banner.
           setActiveWalk(null);
           return;
         }
