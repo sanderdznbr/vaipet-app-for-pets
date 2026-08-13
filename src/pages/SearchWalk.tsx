@@ -4,6 +4,7 @@ import { hideMapLabels, enrichMap, tintMapInk } from '@/lib/mapStyle';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { ArrowLeft, Plus, Minus, Navigation, Sun, Moon, ChevronDown, MapPin, Clock, DollarSign, PawPrint, X, Sparkles, Map as MapIcon, Compass, Search, Trash2, Loader2, GripVertical, Cloud, CloudRain, CloudSnow, CloudFog, CloudLightning, CloudSun } from 'lucide-react';
 import { Calendar as CalendarIcon, Zap } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useHomeTheme } from '@/hooks/useHomeTheme';
