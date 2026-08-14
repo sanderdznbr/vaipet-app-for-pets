@@ -514,7 +514,7 @@ test("matching: dono cria solicitação real de 15 min pela interface", async ()
   await shot(ownerCtx, "04-buscando");
 });
 
-test("petwalker fica online, recebe oferta real via matching e aceita", async () => {
+test("matching: petwalker fica online, recebe oferta real via matching e aceita", async () => {
   test.setTimeout(300_000);
   const p = walkerCtx.page;
   await p.goto("/petwalker", { waitUntil: "domcontentloaded" });
