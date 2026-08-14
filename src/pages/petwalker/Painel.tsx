@@ -120,7 +120,7 @@ const Painel = () => {
       const data = json.routes[0];
       const route = data.geometry.coordinates;
       
-      const geojson: mapboxgl.Feature<mapboxgl.LineString> = {
+      const geojson: GeoJSON.Feature<GeoJSON.LineString> = {
         type: 'Feature',
         properties: {},
         geometry: {
