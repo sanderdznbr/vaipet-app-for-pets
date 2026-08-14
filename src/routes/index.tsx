@@ -20,7 +20,7 @@ export const RedirectIndex = () => {
       <div className="text-center space-y-4 max-w-md">
         <h1 className="text-2xl font-bold">Portal VaiPet</h1>
         <p className="text-muted-foreground">
-          Continue a validação atual até obter o resultado final. Não reinicie nem refaça funcionalidades já aprovadas.
+          A correção funcional foi aceita provisoriamente, mas o relatório ainda não comprova os critérios finais de estabilidade. Não faça novas mudanças de arquitetura agora. Finalize somente a validação e apresente as evidências objetivas.
         </p>
       </div>
     </div>
