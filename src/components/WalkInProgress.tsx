@@ -187,7 +187,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
   const [phase, setPhase] = useState<'pickup' | 'arrived' | 'walking'>(() => {
     if (sessionId) {
       const saved = sessionStorage.getItem(`vaipet_walk_phase_${sessionId}`);
-      if (saved === 'walking' || saved === 'arrived' || saved === 'pickup') return saved as any;
+      if (saved === 'walking' || saved === 'arrived' || saved === 'pickup') return saved as 'pickup' | 'arrived' | 'walking';
     }
     return isComing ? 'pickup' : 'walking';
   });
@@ -663,7 +663,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
               'interpolate', ['linear'], ['line-progress'],
               0, 'rgba(255,255,255,0)',
               1, 'rgba(255,255,255,0)',
-            ] as any,
+            ] as mapboxgl.Expression,
           },
           layout: { 'line-join': 'round', 'line-cap': 'round' },
         }, beforeId);
@@ -706,17 +706,17 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
       };
       // Onda fora do trecho visível: gradiente totalmente transparente.
       if (head <= 0 || head >= 1) {
-        return ['interpolate', ['linear'], ['line-progress'], 0, c(0), 1, c(0)] as any[];
+        return ['interpolate', ['linear'], ['line-progress'], 0, c(0), 1, c(0)] as mapboxgl.Expression;
       }
       const tail = Math.max(0, head - WIDTH);
       const lead = Math.min(1, head + WIDTH);
-      const stops: any[] = ['interpolate', ['linear'], ['line-progress']];
+      const stops: (string | number | mapboxgl.Expression)[] = ['interpolate', ['linear'], ['line-progress']];
       stops.push(0, c(0));
       if (tail > 0) stops.push(tail, c(0));
-        stops.push(head, c(0.55));
+      stops.push(head, c(0.55));
       if (lead < 1) stops.push(lead, c(0));
       stops.push(1, c(0));
-      return stops;
+      return stops as mapboxgl.Expression;
     };
     const step = () => {
       const m = map.current;
@@ -760,7 +760,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
       }
       try {
         if (m.getLayer('planned-outbound-pulse')) {
-          m.setPaintProperty('planned-outbound-pulse', 'line-gradient', buildPulseGradient('#31D880', outboundHead) as any);
+          m.setPaintProperty('planned-outbound-pulse', 'line-gradient', buildPulseGradient('#31D880', outboundHead));
         }
         if (m.getLayer('planned-back-pulse')) {
           // A geometria da rota de volta é [destino → origem]. Como o
@@ -768,7 +768,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
           // diretamente, passamos `backHead` sem inverter. Quando ainda
           // estamos na IDA, escondemos a onda da volta (head<0).
           const h = showBack ? backHead : -WIDTH * 2;
-          m.setPaintProperty('planned-back-pulse', 'line-gradient', buildPulseGradient('#31D880', h) as any);
+          m.setPaintProperty('planned-back-pulse', 'line-gradient', buildPulseGradient('#31D880', h));
         }
         if (m.getLayer('return-route-dash')) {
           // legado: mantém um leve pulsar de dasharray na rota de retorno
@@ -1210,7 +1210,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
             0.35, 'rgba(0, 169, 120, 0.35)',
             0.75, 'rgba(49, 216, 128, 0.80)',
             1,    'rgba(49, 216, 128, 1.00)'
-          ] as any,
+          ] as mapboxgl.Expression,
         },
         layout: { 'line-join': 'round', 'line-cap': 'round' }
       });
@@ -1447,11 +1447,11 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
       const ps = m.getSource('pickup-route') as mapboxgl.GeoJSONSource | undefined;
       // mapbox's GeoJSONSource exposes the data via internal _data; fall
       // back to the pickupRoute prop if not accessible.
-      pickupData = (ps as any)?._data ?? null;
+      pickupData = (ps as unknown as { _data: GeoJSON.Feature })?._data ?? null;
       const ts = m.getSource('walk-trail') as mapboxgl.GeoJSONSource | undefined;
-      trailData = (ts as any)?._data ?? null;
+      trailData = (ts as unknown as { _data: GeoJSON.Feature })?._data ?? null;
       const us = m.getSource('upcoming-route') as mapboxgl.GeoJSONSource | undefined;
-      upcomingData = (us as any)?._data ?? null;
+      upcomingData = (us as unknown as { _data: GeoJSON.Feature })?._data ?? null;
     } catch { /* ignorado */ }
     const dogPos = lastLocRef.current || currentPetLocation || petLocation || walkerLocation || null;
     const dogVisible = !isComing || phase === 'walking';
@@ -1467,16 +1467,16 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
         if (!m.getSource('mapbox-dem')) {
           m.addSource('mapbox-dem', {
             type: 'raster-dem', url: 'mapbox://mapbox.mapbox-terrain-dem-v1', tileSize: 512, maxzoom: 14,
-          } as any);
+          } as mapboxgl.RasterDEMSourceSpecification);
         }
-        m.setTerrain({ source: 'mapbox-dem', exaggeration: 1 } as any);
+        m.setTerrain({ source: 'mapbox-dem', exaggeration: 1 });
 
         // Re-add pickup route
         if (!m.getSource('pickup-route')) {
           m.addSource('pickup-route', {
             type: 'geojson',
             data: pickupData ?? { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: pickupRoute && pickupRoute.length > 1 ? pickupRoute : [] } },
-          } as any);
+          } as mapboxgl.GeoJSONSourceSpecification);
           m.addLayer({
             id: 'pickup-route-line', type: 'line', source: 'pickup-route',
             paint: { 'line-color': '#31d880', 'line-width': 4, 'line-opacity': 0.45, 'line-dasharray': [1.5, 1.5] },
@@ -1497,7 +1497,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
                   coordinates: persistedTrailRef.current.length ? persistedTrailRef.current : [],
                 },
               },
-          } as any);
+          } as mapboxgl.GeoJSONSourceSpecification);
           m.addLayer({
             id: 'walk-trail-glow', type: 'line', source: 'walk-trail',
             paint: { 'line-color': '#31D880', 'line-width': 18, 'line-opacity': 0.22, 'line-blur': 10 },
@@ -1513,7 +1513,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
                 0.35, 'rgba(0, 169, 120, 0.35)',
                 0.75, 'rgba(49, 216, 128, 0.80)',
                 1,    'rgba(49, 216, 128, 1.00)'
-              ] as any,
+              ] as mapboxgl.Expression,
             },
             layout: { 'line-join': 'round', 'line-cap': 'round' },
           });
