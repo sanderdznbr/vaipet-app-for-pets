@@ -97,7 +97,7 @@ const Painel = () => {
     }
 
     latestAppliedRequestIdRef.current = requestId;
-    const next = (data as any[] || []).find((offer) => !activeRequestRef.current || offer.session_id !== activeRequestRef.current.id) ?? null;
+    const next = (data as WalkOffer[] || []).find((offer) => !activeRequestRef.current || offer.session_id !== activeRequestRef.current.id) ?? null;
     hasOfferRef.current = !!next;
     setShowOfferSheet(next);
   }, [user]);
@@ -120,12 +120,12 @@ const Painel = () => {
       const data = json.routes[0];
       const route = data.geometry.coordinates;
       
-      const geojson: any = {
+      const geojson: mapboxgl.Feature<mapboxgl.LineString> = {
         type: 'Feature',
         properties: {},
         geometry: {
           type: 'LineString',
-          coordinates: route
+          coordinates: route as [number, number][]
         }
       };
 
@@ -281,7 +281,8 @@ const Painel = () => {
       }, (payload) => {
         refreshActiveRequest();
         // If session closed/cancelled, we might be available for offers again
-        if (payload.eventType === 'DELETE' || (payload.new && ['completed', 'cancelled'].includes((payload.new as any).current_status))) {
+        const payloadNew = payload.new as WalkSession | null;
+        if (payload.eventType === 'DELETE' || (payloadNew && ['completed', 'cancelled'].includes(payloadNew.current_status))) {
           refreshAvailableOffer();
         }
       })
@@ -337,8 +338,9 @@ const Painel = () => {
   // Route drawing logic
   useEffect(() => {
     if (activeRequest && ['accepted', 'heading_to_pickup', 'arrived'].includes(activeRequest.current_status) && walkerCoords) {
-      const destLat = (activeRequest as any).meeting_point_geom?.coordinates?.[1];
-      const destLng = (activeRequest as any).meeting_point_geom?.coordinates?.[0];
+      const meetingPoint = activeRequest.meeting_point_geom as unknown as { coordinates: [number, number] } | null;
+      const destLat = meetingPoint?.coordinates?.[1];
+      const destLng = meetingPoint?.coordinates?.[0];
       
       if (destLat && destLng) {
         drawRoute(walkerCoords, [destLng, destLat]);
@@ -439,8 +441,8 @@ const Painel = () => {
           walkerCoords={walkerCoords}
           walkerAccuracy={walkerAccuracy}
           meetingCoords={showOfferSheet ? [showOfferSheet.meeting_point_lng, showOfferSheet.meeting_point_lat] : 
-                        (activeRequest && (activeRequest as any).meeting_point_geom?.coordinates) ? 
-                        [(activeRequest as any).meeting_point_geom.coordinates[0], (activeRequest as any).meeting_point_geom.coordinates[1]] : null}
+                        (activeRequest && (activeRequest.meeting_point_geom as unknown as { coordinates: [number, number] })?.coordinates) ? 
+                        [(activeRequest.meeting_point_geom as unknown as { coordinates: [number, number] }).coordinates[0], (activeRequest.meeting_point_geom as unknown as { coordinates: [number, number] }).coordinates[1]] : null}
         />
         
         {/* Layer 2: Floating Header */}
