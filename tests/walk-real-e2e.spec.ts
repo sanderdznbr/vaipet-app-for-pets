@@ -426,7 +426,7 @@ test.afterAll(async () => {
   }
 });
 
-test("isolamento das duas sessões simultâneas", async () => {
+test("setup: isolamento das duas sessões simultâneas", async () => {
   const readKey = (c: Ctx) =>
     c.page.evaluate((k) => {
       const raw = localStorage.getItem(k as string);
@@ -452,7 +452,7 @@ test("isolamento das duas sessões simultâneas", async () => {
   expect(await readKey(ownerCtx)).not.toBe(await readKey(walkerCtx));
 });
 
-test("dono cria solicitação real de 15 min pela interface", async () => {
+test("matching: dono cria solicitação real de 15 min pela interface", async () => {
   const p = ownerCtx.page;
   await p.goto("/inicio", { waitUntil: "domcontentloaded" });
   await shot(ownerCtx, "01-inicio");
@@ -643,7 +643,7 @@ test("dono sincroniza por Realtime sem reload", async () => {
   }
 });
 
-test("ciclo operacional pela interface do petwalker", async () => {
+test("tracking: ciclo operacional pela interface do petwalker", async () => {
   test.setTimeout(180_000);
   const p = walkerCtx.page;
   const stepBtn = (re: RegExp) => p.getByRole("button", { name: re }).first();
@@ -677,7 +677,7 @@ test("ciclo operacional pela interface do petwalker", async () => {
   await shot(walkerCtx, "10-in-progress");
 });
 
-test("rastreamento real com throttle de 5s no servidor", async () => {
+test("tracking: rastreamento real com throttle de 5s no servidor", async () => {
   test.setTimeout(180_000);
   const ownerMarkers = async () =>
     ownerCtx.page.evaluate(() =>
@@ -776,7 +776,7 @@ test("rastreamento real com throttle de 5s no servidor", async () => {
   await shot(ownerCtx, "11-dono-rastreando");
 });
 
-test("casos negativos: identidade, autorização e validação de dados", async () => {
+test("negative: casos negativos: identidade, autorização e validação de dados", async () => {
   test.setTimeout(240_000);
   const before = await snapshotState();
 
@@ -943,7 +943,7 @@ test("casos negativos: identidade, autorização e validação de dados", async 
   expect((await dbSession()).current_status).toBe("in_progress");
 });
 
-test("encerramento explícito e histórico", async () => {
+test("completion: encerramento explícito e histórico", async () => {
   test.setTimeout(180_000);
   const p = walkerCtx.page;
 
