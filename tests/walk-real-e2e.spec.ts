@@ -56,7 +56,7 @@ async function preflightCleanup() {
     const targets = (data.users || []).filter(u => 
       u.email?.endsWith("@e2e.vaipet.invalid") && 
       u.created_at < cutoff &&
-      u.user_metadata?.e2e_test === true
+      (u.user_metadata?.e2e_test === true || u.email?.startsWith("e2e."))
     );
     
     allTargetIds.push(...targets.map(u => u.id));
