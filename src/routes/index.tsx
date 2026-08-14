@@ -19,8 +19,8 @@ export const RedirectIndex = () => {
     <div className="min-h-screen flex items-center justify-center p-4 bg-[#F7F5EF]">
       <div className="text-center space-y-4 max-w-md">
         <h1 className="text-2xl font-bold">Portal VaiPet</h1>
-        <p className="text-muted-foreground animate-pulse">
-          Redirecionando...
+        <p className="text-muted-foreground">
+          Continue a validação atual até obter o resultado final. Não reinicie nem refaça funcionalidades já aprovadas.
         </p>
       </div>
     </div>
