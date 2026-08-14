@@ -97,7 +97,7 @@ const Painel = () => {
     }
 
     latestAppliedRequestIdRef.current = requestId;
-    const next = data?.[0] ?? null;
+    const next = (data as any[] || []).find((offer) => !activeRequestRef.current || offer.session_id !== activeRequestRef.current.id) ?? null;
     hasOfferRef.current = !!next;
     setShowOfferSheet(next);
   }, [user]);

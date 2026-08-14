@@ -505,8 +505,8 @@ test("petwalker fica online, recebe oferta real via matching e aceita", async ()
     120_000,
     3_000,
   );
-  const rpcRow = (rpcOffers.body as any[])[0];
-  expect(rpcRow.session_id, "RPC deve retornar a oferta da sessão do teste").toBe(sessionId);
+  const rpcRow = (rpcOffers.body as any[]).find((offer) => offer.session_id === sessionId);
+  expect(rpcRow, "RPC deve retornar a oferta da sessão do teste").toBeDefined();
   log(`RPC confirmou oferta session=${short(rpcRow.session_id)} pet=${rpcRow.pet_name}`);
 
   // A oferta deve surgir na UI sem reload (Realtime).
