@@ -25,7 +25,9 @@ export const IncomingWalkOfferSheet = ({
   const distance = Math.round(offer.distance_meters || 0);
   
   // Format schedule
-  const isScheduled = offer.request_mode === 'scheduled';
+  // Use property access with fallback to handle potential type divergence before regeneration
+  const requestMode = (offer as any).request_mode;
+  const isScheduled = requestMode === 'scheduled';
   const scheduleText = isScheduled ? "Agendado" : "Agora";
 
   return (
