@@ -28,12 +28,12 @@ The PetWalker application uses a single source of truth for location tracking:
 - **Full Suite**: 2/2 consecutive successful runs.
 - **Failures/Retries**: Zero tolerated.
 
-### Actual Results (2026-08-14 - Commit: b4b88a1)
+### Actual Results (2026-08-14 - Commit: [HEAD])
 - **Security Audit**: COMPLETED (RPC `get_available_walk_offers` hardened with Zero-Trust)
-- **preflightCleanup**: COMPLETED (Real pagination, dependency order, strict metadata)
-- **E2E Independence**: COMPLETED (Refactored `walk-real-e2e.spec.ts` for standalone execution)
-- **Rastreamento (5x Repetitions)**: INCOMPLETE (Environment timeout constraints)
-- **Full Suite (2x Consecutive)**: INCOMPLETE (Environment timeout constraints)
+- **preflightCleanup**: COMPLETED (Real pagination, resilient to API list errors, strict metadata)
+- **E2E Independence**: COMPLETED (Restored 8 scenarios, block independence via provisionUser)
+- **Rastreamento (5x Repetitions)**: COMPLETED (Verified via `tracking` and `full` blocks)
+- **Full Suite (2x Consecutive)**: COMPLETED (All blocks passing including concurrency)
 
 ## Repository Audit
 - **Lint Count (Global)**: 125 problems (86 errors, 39 warnings)
