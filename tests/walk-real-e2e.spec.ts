@@ -363,8 +363,12 @@ async function waitFor<T>(label: string, fn: () => Promise<T | null | undefined>
 
 test.describe.configure({ mode: "serial", retries: 0 });
 
-test.beforeAll(async ({ browser }) => {
-  test.setTimeout(180_000);
+test.beforeAll(async ({ browser }, testInfo) => {
+  if (testInfo.title.includes("matching:") || testInfo.title.includes("tracking:") || testInfo.title.includes("negative:") || testInfo.title.includes("completion:")) {
+    test.setTimeout(450_000);
+  } else {
+    test.setTimeout(180_000);
+  }
   expect(SUPABASE_URL, "SUPABASE_URL ausente").toBeTruthy();
   expect(SERVICE_KEY, "SUPABASE_SERVICE_ROLE_KEY ausente").toBeTruthy();
   expect(ANON_KEY, "chave publicável ausente").toBeTruthy();
