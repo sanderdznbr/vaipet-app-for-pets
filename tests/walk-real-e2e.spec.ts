@@ -43,8 +43,11 @@ async function preflightCleanup() {
   let nextCursor: string | undefined;
 
   // 1. Paginando listUsers para encontrar todos os usuários @e2e.vaipet.invalid
+  let page = 1;
+  const perPage = 50;
+  
   do {
-    const { data, error } = await admin.auth.admin.listUsers();
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
     
     if (error) {
       log(`AVISO: Falha ao listar usuários (tentando continuar sem cleanup de Auth): ${error.message}`);
@@ -53,13 +56,17 @@ async function preflightCleanup() {
 
     const targets = (data.users || []).filter(u => 
       u.email?.endsWith("@e2e.vaipet.invalid") && 
-      u.created_at < cutoff &&
-      (u.user_metadata?.e2e_test === true || u.email?.startsWith("e2e."))
+      u.user_metadata?.e2e_test === true &&
+      u.created_at < cutoff
     );
     
     allTargetIds.push(...targets.map(u => u.id));
-    nextCursor = data.nextPageToken;
-  } while (nextCursor);
+    
+    if (data.users.length < perPage) {
+      break;
+    }
+    page++;
+  } while (true);
 
   if (allTargetIds.length === 0) {
     log("nenhum dado E2E abandonado encontrado (TTL + metadata check).");
@@ -71,7 +78,9 @@ async function preflightCleanup() {
   // 2. Exclusão em ordem de dependência
   const deleteOps = [
     { table: "walker_tracking", col: "walker_id" },
+    { table: "walk_earnings", col: "walker_id" },
     { table: "walk_offers", col: "walker_id" },
+    { table: "walk_sessions", col: "walker_id" },
     { table: "pets", col: "owner_id" },
     { table: "petwalker_profiles", col: "user_id" },
     { table: "user_roles", col: "user_id" },
@@ -82,7 +91,7 @@ async function preflightCleanup() {
     const { error } = await admin.from(op.table).delete().in(op.col, allTargetIds);
     if (error) {
       log(`ERRO FATAL: Falha ao limpar tabela ${op.table}: ${error.message}`);
-      process.exit(1);
+      throw new Error(`Cleanup failed on table ${op.table}`);
     }
   }
 
@@ -113,11 +122,14 @@ async function preflightCleanup() {
   }
 
   // 4. Verificação pós-limpeza
-  const { data: verify } = await admin.auth.admin.listUsers();
+  const { data: verify, error: vError } = await admin.auth.admin.listUsers({ page: 1, perPage: 100 });
+  if (vError) {
+    throw new Error(`Falha ao verificar cleanup: ${vError.message}`);
+  }
   const stillExists = (verify.users || []).filter(u => allTargetIds.includes(u.id));
   if (stillExists.length > 0) {
     log(`ERRO FATAL: Cleanup incompleto. ${stillExists.length} usuários ainda presentes.`);
-    process.exit(1);
+    throw new Error("Cleanup verification failed");
   }
 
   log(`cleanup concluído com sucesso. IDs removidos: ${allTargetIds.map(short).join(", ")}`);
@@ -127,23 +139,20 @@ async function quickCleanup(ids: string[]) {
   if (!ids.length) return;
   const deleteOps = [
     { table: "walker_tracking", col: "walker_id" },
+    { table: "walk_earnings", col: "walker_id" },
     { table: "walk_offers", col: "walker_id" },
+    { table: "walk_sessions", col: "walker_id" },
     { table: "pets", col: "owner_id" },
     { table: "petwalker_profiles", col: "user_id" },
     { table: "user_roles", col: "user_id" },
     { table: "profiles", col: "id" }
   ];
   for (const op of deleteOps) {
-    await admin.from(op.table).delete().in(op.col, ids);
-  }
-  const { data: sessions } = await admin
-    .from("walk_sessions")
-    .select("id")
-    .or(`customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})`);
-  const sIds = (sessions || []).map(s => s.id);
-  if (sIds.length > 0) {
-    await admin.from("walk_offers").delete().in("session_id", sIds);
-    await admin.from("walk_sessions").delete().in("id", sIds);
+    const { error } = await admin.from(op.table).delete().in(op.col, ids);
+    if (error) {
+      log(`ERRO: quickCleanup falhou na tabela ${op.table}: ${error.message}`);
+      throw new Error(`quickCleanup failed on ${op.table}`);
+    }
   }
 }
 
@@ -386,7 +395,7 @@ test.beforeAll(async ({ browser }, testInfo) => {
     email: ownerEmail,
     password: ownerPassword,
     email_confirm: true,
-    user_metadata: { full_name: "E2E Owner", signup_intent: "pet_owner", e2e_test: true },
+    user_metadata: { full_name: "E2E Owner", signup_intent: "pet_owner", e2e_test: true, e2e_run_id: runId },
   });
   if (o.error) throw o.error;
   ownerId = o.data.user!.id;
@@ -395,7 +404,7 @@ test.beforeAll(async ({ browser }, testInfo) => {
     email: walkerEmail,
     password: walkerPassword,
     email_confirm: true,
-    user_metadata: { full_name: "E2E Walker", signup_intent: "petwalker", e2e_test: true },
+    user_metadata: { full_name: "E2E Walker", signup_intent: "petwalker", e2e_test: true, e2e_run_id: runId },
   });
   if (w.error) throw w.error;
   walkerId = w.data.user!.id;
