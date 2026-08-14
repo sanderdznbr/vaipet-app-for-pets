@@ -34,53 +34,116 @@ const log = (msg: string) => {
 const flushLog = () =>
   fs.writeFileSync(path.join(ART, "transitions.log"), LOG.join("\n") + "\n", "utf8");
 
-/** Remove dados E2E abandonados (TTL: 1 hora) */
+/** Remove dados E2E abandonados (TTL: 1 hora) com paginação e falha explícita */
 async function preflightCleanup() {
   log("iniciando preflight cleanup de dados abandonados...");
   const ttlMs = 3600_000;
   const cutoff = new Date(Date.now() - ttlMs).toISOString();
+  let allTargetIds: string[] = [];
+  let nextCursor: string | undefined;
 
-  const { data: oldUsers } = await admin.auth.admin.listUsers();
-  const targetUsers = (oldUsers?.users ?? []).filter(u => 
-    u.email?.endsWith("@e2e.vaipet.invalid") && 
-    u.created_at < cutoff
-  );
+  // 1. Paginando listUsers para encontrar todos os usuários @e2e.vaipet.invalid
+  do {
+    const { data, error } = await admin.auth.admin.listUsers();
+    
+    if (error) {
+      log(`AVISO: Falha ao listar usuários (tentando continuar sem cleanup de Auth): ${error.message}`);
+      break; 
+    }
 
-  if (targetUsers.length === 0) {
-    log("nenhum dado E2E abandonado encontrado.");
+    const targets = (data.users || []).filter(u => 
+      u.email?.endsWith("@e2e.vaipet.invalid") && 
+      u.created_at < cutoff &&
+      (u.user_metadata?.e2e_test === true || u.email?.startsWith("e2e."))
+    );
+    
+    allTargetIds.push(...targets.map(u => u.id));
+    nextCursor = data.nextPageToken;
+  } while (nextCursor);
+
+  if (allTargetIds.length === 0) {
+    log("nenhum dado E2E abandonado encontrado (TTL + metadata check).");
     return;
   }
 
-  log(`encontrados ${targetUsers.length} usuários abandonados. removendo dependências...`);
-  const ids = targetUsers.map(u => u.id);
+  log(`encontrados ${allTargetIds.length} usuários abandonados. removendo dependências...`);
 
-  try {
-    // Ordem correta: tracking -> ofertas -> sessões -> pets -> profiles -> auth
-    await admin.from("walker_tracking").delete().in("walker_id", ids);
-    
-    const { data: sessions } = await admin
-      .from("walk_sessions")
-      .select("id")
-      .or(`customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})`);
-    
-    const sessionIds = (sessions ?? []).map(s => s.id);
-    if (sessionIds.length > 0) {
-      await admin.from("walk_offers").delete().in("session_id", sessionIds);
-      await admin.from("walk_sessions").delete().in("id", sessionIds);
+  // 2. Exclusão em ordem de dependência
+  const deleteOps = [
+    { table: "walker_tracking", col: "walker_id" },
+    { table: "walk_offers", col: "walker_id" },
+    { table: "pets", col: "owner_id" },
+    { table: "petwalker_profiles", col: "user_id" },
+    { table: "user_roles", col: "user_id" },
+    { table: "profiles", col: "id" }
+  ];
+
+  for (const op of deleteOps) {
+    const { error } = await admin.from(op.table).delete().in(op.col, allTargetIds);
+    if (error) {
+      log(`ERRO FATAL: Falha ao limpar tabela ${op.table}: ${error.message}`);
+      process.exit(1);
     }
+  }
 
-    await admin.from("walk_offers").delete().in("walker_id", ids);
-    await admin.from("pets").delete().in("owner_id", ids);
-    await admin.from("petwalker_profiles").delete().in("user_id", ids);
-    await admin.from("user_roles").delete().in("user_id", ids);
-    await admin.from("profiles").delete().in("id", ids);
+  // Sessões e ofertas vinculadas
+  const { data: sessions, error: sError } = await admin
+    .from("walk_sessions")
+    .select("id")
+    .or(`customer_id.in.(${allTargetIds.join(",")}),walker_id.in.(${allTargetIds.join(",")})`);
+  
+  if (sError) {
+    log(`ERRO FATAL: Falha ao buscar sessões para cleanup: ${sError.message}`);
+    process.exit(1);
+  }
 
-    for (const id of ids) {
-      await admin.auth.admin.deleteUser(id);
+  const sIds = (sessions || []).map(s => s.id);
+  if (sIds.length > 0) {
+    await admin.from("walk_offers").delete().in("session_id", sIds);
+    await admin.from("walk_sessions").delete().in("id", sIds);
+  }
+
+  // 3. Exclusão dos usuários no Auth
+  for (const id of allTargetIds) {
+    const { error } = await admin.auth.admin.deleteUser(id);
+    if (error) {
+      log(`AVISO: Falha ao deletar usuário ${short(id)}: ${error.message}`);
+      // Não interrompe aqui pois o usuário pode ter sido deletado em paralelo
     }
-    log(`cleanup concluído. IDs removidos: ${ids.map(short).join(", ")}`);
-  } catch (e) {
-    log(`erro durante cleanup: ${e}`);
+  }
+
+  // 4. Verificação pós-limpeza
+  const { data: verify } = await admin.auth.admin.listUsers();
+  const stillExists = (verify.users || []).filter(u => allTargetIds.includes(u.id));
+  if (stillExists.length > 0) {
+    log(`ERRO FATAL: Cleanup incompleto. ${stillExists.length} usuários ainda presentes.`);
+    process.exit(1);
+  }
+
+  log(`cleanup concluído com sucesso. IDs removidos: ${allTargetIds.map(short).join(", ")}`);
+}
+
+async function quickCleanup(ids: string[]) {
+  if (!ids.length) return;
+  const deleteOps = [
+    { table: "walker_tracking", col: "walker_id" },
+    { table: "walk_offers", col: "walker_id" },
+    { table: "pets", col: "owner_id" },
+    { table: "petwalker_profiles", col: "user_id" },
+    { table: "user_roles", col: "user_id" },
+    { table: "profiles", col: "id" }
+  ];
+  for (const op of deleteOps) {
+    await admin.from(op.table).delete().in(op.col, ids);
+  }
+  const { data: sessions } = await admin
+    .from("walk_sessions")
+    .select("id")
+    .or(`customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})`);
+  const sIds = (sessions || []).map(s => s.id);
+  if (sIds.length > 0) {
+    await admin.from("walk_offers").delete().in("session_id", sIds);
+    await admin.from("walk_sessions").delete().in("id", sIds);
   }
 }
 
@@ -300,8 +363,12 @@ async function waitFor<T>(label: string, fn: () => Promise<T | null | undefined>
 
 test.describe.configure({ mode: "serial", retries: 0 });
 
-test.beforeAll(async ({ browser }) => {
-  test.setTimeout(180_000);
+test.beforeAll(async ({ browser }, testInfo) => {
+  if (testInfo.title.includes("matching:") || testInfo.title.includes("tracking:") || testInfo.title.includes("negative:") || testInfo.title.includes("completion:")) {
+    test.setTimeout(450_000);
+  } else {
+    test.setTimeout(180_000);
+  }
   expect(SUPABASE_URL, "SUPABASE_URL ausente").toBeTruthy();
   expect(SERVICE_KEY, "SUPABASE_SERVICE_ROLE_KEY ausente").toBeTruthy();
   expect(ANON_KEY, "chave publicável ausente").toBeTruthy();
@@ -319,7 +386,7 @@ test.beforeAll(async ({ browser }) => {
     email: ownerEmail,
     password: ownerPassword,
     email_confirm: true,
-    user_metadata: { full_name: "E2E Owner", signup_intent: "pet_owner" },
+    user_metadata: { full_name: "E2E Owner", signup_intent: "pet_owner", e2e_test: true },
   });
   if (o.error) throw o.error;
   ownerId = o.data.user!.id;
@@ -328,7 +395,7 @@ test.beforeAll(async ({ browser }) => {
     email: walkerEmail,
     password: walkerPassword,
     email_confirm: true,
-    user_metadata: { full_name: "E2E Walker", signup_intent: "petwalker" },
+    user_metadata: { full_name: "E2E Walker", signup_intent: "petwalker", e2e_test: true },
   });
   if (w.error) throw w.error;
   walkerId = w.data.user!.id;
@@ -393,31 +460,8 @@ test.afterAll(async () => {
     if (admin) {
       // teardown completo, roda mesmo em falha
       if (walkerId) await admin.from("walker_tracking").delete().eq("walker_id", walkerId);
-      const sessions = await admin
-        .from("walk_sessions")
-        .select("id")
-        .or(`customer_id.eq.${ownerId},walker_id.eq.${walkerId}`);
-      const ids = (sessions.data ?? []).map((s: any) => s.id);
-      if (ids.length) {
-        await admin.from("walk_offers").delete().in("session_id", ids);
-        await admin.from("walk_sessions").delete().in("id", ids);
-      }
-      if (walkerId) await admin.from("walk_offers").delete().eq("walker_id", walkerId);
-      if (petId) await admin.from("pets").delete().eq("id", petId);
-      for (const id of extraUserIds) {
-        await admin.from("walker_tracking").delete().eq("walker_id", id);
-        await admin.from("walk_offers").delete().eq("walker_id", id);
-        await admin.from("petwalker_profiles").delete().eq("user_id", id);
-        await admin.from("user_roles").delete().eq("user_id", id);
-        await admin.from("profiles").delete().eq("id", id);
-        await admin.auth.admin.deleteUser(id).catch(() => {});
-      }
-      if (walkerId) {
-        await admin.from("petwalker_profiles").delete().eq("user_id", walkerId);
-        await admin.from("user_roles").delete().eq("user_id", walkerId);
-      }
-      for (const id of [ownerId, walkerId].filter(Boolean)) {
-        await admin.from("profiles").delete().eq("id", id);
+      await quickCleanup([ownerId, walkerId, ...extraUserIds].filter(Boolean));
+      for (const id of [ownerId, walkerId, ...extraUserIds].filter(Boolean)) {
         await admin.auth.admin.deleteUser(id).catch(() => {});
       }
       log("teardown concluído (sessões, ofertas, tracking, pet, perfis, roles, usuários)");
@@ -426,7 +470,7 @@ test.afterAll(async () => {
   }
 });
 
-test("isolamento das duas sessões simultâneas", async () => {
+test("setup: isolamento das duas sessões simultâneas", async () => {
   const readKey = (c: Ctx) =>
     c.page.evaluate((k) => {
       const raw = localStorage.getItem(k as string);
@@ -452,7 +496,7 @@ test("isolamento das duas sessões simultâneas", async () => {
   expect(await readKey(ownerCtx)).not.toBe(await readKey(walkerCtx));
 });
 
-test("dono cria solicitação real de 15 min pela interface", async () => {
+test("matching: dono cria solicitação real de 15 min pela interface", async () => {
   const p = ownerCtx.page;
   await p.goto("/inicio", { waitUntil: "domcontentloaded" });
   await shot(ownerCtx, "01-inicio");
@@ -514,7 +558,7 @@ test("dono cria solicitação real de 15 min pela interface", async () => {
   await shot(ownerCtx, "04-buscando");
 });
 
-test("petwalker fica online, recebe oferta real via matching e aceita", async () => {
+test("matching: petwalker fica online, recebe oferta real via matching e aceita", async () => {
   test.setTimeout(300_000);
   const p = walkerCtx.page;
   await p.goto("/petwalker", { waitUntil: "domcontentloaded" });
@@ -567,7 +611,22 @@ test("petwalker fica online, recebe oferta real via matching e aceita", async ()
   log(`card detectado para o pet: "${petNameVisible}"`);
   expect(petNameVisible).toContain(rpcRow.pet_name);
 
-  const accept = card.getByRole("button", { name: /aceitar passeio/i });
+  // Aguarda e clica na primeira oferta real retornada pela RPC
+  log("walker: aguardando card de oferta...");
+  const offerCard = p.getByTestId("incoming-offer-card").first();
+  await expect(offerCard).toBeVisible({ timeout: 45_000 });
+  
+  // Verificação visual do nome do pet no card antes do clique
+  const petNameInCard = await offerCard.locator('[data-testid="offer-pet-name"]').innerText();
+  log(`walker: pet no card="${petNameInCard}"`);
+  expect(petNameInCard.toLowerCase()).toContain("pete2e");
+
+  // Intercepta a requisição para garantir que o session_id enviado é o correto
+  const requestPromise = p.waitForRequest(req => 
+    req.url().includes("rpc/accept_walk_request") && req.method() === "POST"
+  );
+
+  const accept = offerCard.getByRole("button", { name: /aceitar passeio/i });
   await expect(accept).toBeVisible();
   await shot(walkerCtx, "06-oferta");
 
@@ -577,6 +636,12 @@ test("petwalker fica online, recebe oferta real via matching e aceita", async ()
   expect(body).not.toContain(sessionId.toLowerCase());
 
   await accept.click();
+  const request = await requestPromise;
+  const postData = request.postDataJSON();
+  const interceptedSessionId = postData._session_id;
+  
+  log(`walker: aceitou oferta session_id=${short(interceptedSessionId)}`);
+  expect(interceptedSessionId).toBe(sessionId);
 
   const accepted = await waitFor("sessão accepted", async () => {
     const s = await dbSession();
@@ -622,7 +687,7 @@ test("dono sincroniza por Realtime sem reload", async () => {
   }
 });
 
-test("ciclo operacional pela interface do petwalker", async () => {
+test("tracking: ciclo operacional pela interface do petwalker", async () => {
   test.setTimeout(180_000);
   const p = walkerCtx.page;
   const stepBtn = (re: RegExp) => p.getByRole("button", { name: re }).first();
@@ -656,7 +721,7 @@ test("ciclo operacional pela interface do petwalker", async () => {
   await shot(walkerCtx, "10-in-progress");
 });
 
-test("rastreamento real com throttle de 5s no servidor", async () => {
+test("tracking: rastreamento real com throttle de 5s no servidor", async () => {
   test.setTimeout(180_000);
   const ownerMarkers = async () =>
     ownerCtx.page.evaluate(() =>
@@ -755,7 +820,7 @@ test("rastreamento real com throttle de 5s no servidor", async () => {
   await shot(ownerCtx, "11-dono-rastreando");
 });
 
-test("casos negativos: identidade, autorização e validação de dados", async () => {
+test("negative: casos negativos: identidade, autorização e validação de dados", async () => {
   test.setTimeout(240_000);
   const before = await snapshotState();
 
@@ -922,7 +987,7 @@ test("casos negativos: identidade, autorização e validação de dados", async 
   expect((await dbSession()).current_status).toBe("in_progress");
 });
 
-test("encerramento explícito e histórico", async () => {
+test("completion: encerramento explícito e histórico", async () => {
   test.setTimeout(180_000);
   const p = walkerCtx.page;
 

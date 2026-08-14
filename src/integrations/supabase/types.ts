@@ -1450,15 +1450,18 @@ export type Database = {
       get_available_walk_offers: {
         Args: never
         Returns: {
-          distance_to_walker_meters: number
+          created_at: string
+          distance_meters: number
+          duration_minutes: number
           id: string
-          meeting_point_lat: number
-          meeting_point_lng: number
+          matching_expires_at: string
+          offer_status: Database["public"]["Enums"]["walk_offer_status"]
           pet_avatar_url: string
+          pet_breed: string
           pet_name: string
-          planned_duration_minutes: number
           session_id: string
           total_price_cents: number
+          walker_id: string
         }[]
       }
       get_petwalker_application_admin: {

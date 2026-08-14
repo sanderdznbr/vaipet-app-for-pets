@@ -22,7 +22,7 @@ export const IncomingWalkOfferSheet = ({
   if (!offer) return null;
 
   const totalValue = (offer.total_price_cents || 0) / 100;
-  const distance = Math.round(offer.distance_to_walker_meters || 0);
+  const distance = Math.round(offer.distance_meters || 0);
   
   // Format schedule
   const isScheduled = !!(offer as any).scheduled_at;
@@ -62,7 +62,7 @@ export const IncomingWalkOfferSheet = ({
             <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                <Clock className="text-[#31D880] mb-2" size={20} />
                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Duração</p>
-               <p className="text-lg font-black text-ink">{offer.planned_duration_minutes} min</p>
+               <p className="text-lg font-black text-ink">{offer.duration_minutes} min</p>
             </div>
             <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                <Target className="text-[#31D880] mb-2" size={20} />
@@ -83,7 +83,7 @@ export const IncomingWalkOfferSheet = ({
                     <p className="text-ink">Encontro com o pet</p>
                     <p className="text-[11px] text-muted-foreground">{distance ? `${distance}m de você` : 'Próximo a você'}</p>
                   </div>
-                  <p className="text-muted-foreground">Passeio de {offer.planned_duration_minutes} min</p>
+                  <p className="text-muted-foreground">Passeio de {offer.duration_minutes} min</p>
                </div>
              </div>
           </div>

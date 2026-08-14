@@ -440,8 +440,7 @@ const Painel = () => {
           onMapLoad={(map) => { mapRef.current = map; }} 
           walkerCoords={walkerCoords}
           walkerAccuracy={walkerAccuracy}
-          meetingCoords={showOfferSheet ? [showOfferSheet.meeting_point_lng, showOfferSheet.meeting_point_lat] : 
-                        (activeRequest && (activeRequest.meeting_point_geom as unknown as { coordinates: [number, number] })?.coordinates) ? 
+          meetingCoords={(activeRequest && (activeRequest.meeting_point_geom as unknown as { coordinates: [number, number] })?.coordinates) ? 
                         [(activeRequest.meeting_point_geom as unknown as { coordinates: [number, number] }).coordinates[0], (activeRequest.meeting_point_geom as unknown as { coordinates: [number, number] }).coordinates[1]] : null}
         />
         
