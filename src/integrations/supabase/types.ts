@@ -1459,6 +1459,8 @@ export type Database = {
           pet_avatar_url: string
           pet_breed: string
           pet_name: string
+          request_mode: string
+          scheduled_for: string
           session_id: string
           total_price_cents: number
           walker_id: string

@@ -25,7 +25,7 @@ export const IncomingWalkOfferSheet = ({
   const distance = Math.round(offer.distance_meters || 0);
   
   // Format schedule
-  const isScheduled = offer.request_mode === 'scheduled';
+  const isScheduled = (offer as any).request_mode === 'scheduled';
   const scheduleText = isScheduled ? "Agendado" : "Agora";
 
   return (
