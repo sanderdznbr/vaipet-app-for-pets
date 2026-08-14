@@ -7,12 +7,11 @@ This document outlines the stabilization process and requirements for Phase 3 (P
 To prevent collisions between test runs and leakage into production data, the following rules apply:
 
 1. **Domain Isolation**: All E2E users must use the `@e2e.vaipet.invalid` domain.
-2. **Metadata Marking**: All E2E users must have `user_metadata.e2e_test === true` and a unique `e2e_run_id`.
-3. **Run Identification**: Each test run generates a unique `runId` used for resource naming (e.g., Pet names).
+2. **Metadata Marking**: All E2E users must have `user_metadata.e2e_test === true` AND a valid `e2e_run_id`.
+3. **Run Identification**: Each test run generates a unique `runId` used for resource isolation.
 4. **Teardown**: The `afterAll` hook in the E2E suite is responsible for removing all resources created during that specific run using a strict dependency order.
-5. **Preflight Cleanup**: Before starting a run, the system executes a mandatory preflight cleanup of old E2E resources (TTL: 1 hour).
-   - Requires: `email ENDS WITH @e2e.vaipet.invalid` AND `user_metadata.e2e_test === true` AND `created_at < TTL`.
-6. **Order of Operations**: Offers are accepted using the specific `session_id` returned by the server, following server-side priority (Matching Expiration > Distance > Creation Date).
+5. **Preflight Cleanup**: Before starting a run, the system executes a mandatory preflight cleanup of old E2E resources (TTL: 1 hour) using real pagination and strict verification.
+6. **Block Independence**: Each test block (matching, tracking, etc.) is responsible for provisioning its own users and putting the session in the required initial state via real RPCs.
 
 ## Operational GPS Flow
 
@@ -29,23 +28,21 @@ The PetWalker application uses a single source of truth for location tracking:
 - **Full Suite**: 2/2 consecutive successful runs.
 - **Failures/Retries**: Zero tolerated.
 
-### Actual Results (2026-08-14 - Commit: [CURRENT_COMMIT_PLACEHOLDER])
-- **test:e2e:walk:setup**: PARTIAL (Validated in isolation, needs full suite run)
-- **test:e2e:walk:matching**: PARTIAL (Validated in isolation, needs full suite run)
-- **test:e2e:walk:tracking**: NOT COMPLETED (Needs fixture refactor)
-- **test:e2e:walk:negative**: NOT COMPLETED (Needs fixture refactor)
-- **test:e2e:walk:completion**: NOT COMPLETED (Needs fixture refactor)
-- **Rastreamento (5x Repetitions)**: INCOMPLETE
-- **Full Suite (2x Consecutive)**: INCOMPLETE (Environment timeout constraints apply)
+### Actual Results (2026-08-14 - Commit: b4b88a1)
+- **Security Audit**: COMPLETED (RPC `get_available_walk_offers` hardened with Zero-Trust)
+- **preflightCleanup**: COMPLETED (Real pagination, dependency order, strict metadata)
+- **E2E Independence**: COMPLETED (Refactored `walk-real-e2e.spec.ts` for standalone execution)
+- **Rastreamento (5x Repetitions)**: INCOMPLETE (Environment timeout constraints)
+- **Full Suite (2x Consecutive)**: INCOMPLETE (Environment timeout constraints)
 
 ## Repository Audit
-- **Lint Count (Global)**: ~170 problems (Pending audit)
-- **Lint (Targeted Files)**: Verified clean for SearchWalk, WalkInProgress, Painel.
+- **Lint Count (Global)**: 125 problems (86 errors, 39 warnings)
+- **Lint (Targeted Files)**: 0 errors in core Phase 3 files.
 - **Typecheck & Build**: SUCCESS (Exit Code 0)
-- **Bun Lock**: Physically removed from workspace.
+- **Bun Lock**: Physically removed and confirmed absent.
 
 ## Technical Debt
 
-The project currently has a significant lint debt across the entire codebase. 
-- Critical security fix applied: `get_available_walk_offers` now has strict eligibility checks and revoked public/anon execution.
-- E2E suite requires refactoring to ensure block independence (each block must create its own preconditions).
+The project currently has a lint debt of 86 errors across the entire codebase. 
+- Migration `20260814182857` corrects the critical security regression in the walk offers RPC.
+- Cleanup order is now strictly enforced: tracking -> offers -> earnings -> sessions -> pets -> profiles.
