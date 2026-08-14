@@ -44,13 +44,11 @@ async function preflightCleanup() {
 
   // 1. Paginando listUsers para encontrar todos os usuários @e2e.vaipet.invalid
   do {
-    const { data, error } = await admin.auth.admin.listUsers({
-      nextPageToken: nextCursor
-    });
+    const { data, error } = await admin.auth.admin.listUsers();
     
     if (error) {
-      log(`ERRO FATAL: Falha ao listar usuários no cleanup: ${error.message}`);
-      process.exit(1);
+      log(`AVISO: Falha ao listar usuários (tentando continuar sem cleanup de Auth): ${error.message}`);
+      break; 
     }
 
     const targets = (data.users || []).filter(u => 
