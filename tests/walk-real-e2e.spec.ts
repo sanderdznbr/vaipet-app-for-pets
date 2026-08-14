@@ -34,54 +34,95 @@ const log = (msg: string) => {
 const flushLog = () =>
   fs.writeFileSync(path.join(ART, "transitions.log"), LOG.join("\n") + "\n", "utf8");
 
-/** Remove dados E2E abandonados (TTL: 1 hora) */
+/** Remove dados E2E abandonados (TTL: 1 hora) com paginação e falha explícita */
 async function preflightCleanup() {
   log("iniciando preflight cleanup de dados abandonados...");
   const ttlMs = 3600_000;
   const cutoff = new Date(Date.now() - ttlMs).toISOString();
+  let allTargetIds: string[] = [];
+  let nextCursor: string | undefined;
 
-  const { data: oldUsers } = await admin.auth.admin.listUsers();
-  const targetUsers = (oldUsers?.users ?? []).filter(u => 
-    u.email?.endsWith("@e2e.vaipet.invalid") && 
-    u.created_at < cutoff
-  );
+  // 1. Paginando listUsers para encontrar todos os usuários @e2e.vaipet.invalid
+  do {
+    const { data, error } = await admin.auth.admin.listUsers({
+      nextPageToken: nextCursor
+    });
+    
+    if (error) {
+      log(`ERRO FATAL: Falha ao listar usuários no cleanup: ${error.message}`);
+      process.exit(1);
+    }
 
-  if (targetUsers.length === 0) {
-    log("nenhum dado E2E abandonado encontrado.");
+    const targets = (data.users || []).filter(u => 
+      u.email?.endsWith("@e2e.vaipet.invalid") && 
+      u.created_at < cutoff &&
+      u.user_metadata?.e2e_test === true
+    );
+    
+    allTargetIds.push(...targets.map(u => u.id));
+    nextCursor = data.nextPageToken;
+  } while (nextCursor);
+
+  if (allTargetIds.length === 0) {
+    log("nenhum dado E2E abandonado encontrado (TTL + metadata check).");
     return;
   }
 
-  log(`encontrados ${targetUsers.length} usuários abandonados. removendo dependências...`);
-  const ids = targetUsers.map(u => u.id);
+  log(`encontrados ${allTargetIds.length} usuários abandonados. removendo dependências...`);
 
-  try {
-    // Ordem correta: tracking -> ofertas -> sessões -> pets -> profiles -> auth
-    await admin.from("walker_tracking").delete().in("walker_id", ids);
-    
-    const { data: sessions } = await admin
-      .from("walk_sessions")
-      .select("id")
-      .or(`customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})`);
-    
-    const sessionIds = (sessions ?? []).map(s => s.id);
-    if (sessionIds.length > 0) {
-      await admin.from("walk_offers").delete().in("session_id", sessionIds);
-      await admin.from("walk_sessions").delete().in("id", sessionIds);
+  // 2. Exclusão em ordem de dependência
+  const deleteOps = [
+    { table: "walker_tracking", col: "walker_id" },
+    { table: "walk_offers", col: "walker_id" },
+    { table: "pets", col: "owner_id" },
+    { table: "petwalker_profiles", col: "user_id" },
+    { table: "user_roles", col: "user_id" },
+    { table: "profiles", col: "id" }
+  ];
+
+  for (const op of deleteOps) {
+    const { error } = await admin.from(op.table).delete().in(op.col, allTargetIds);
+    if (error) {
+      log(`ERRO FATAL: Falha ao limpar tabela ${op.table}: ${error.message}`);
+      process.exit(1);
     }
-
-    await admin.from("walk_offers").delete().in("walker_id", ids);
-    await admin.from("pets").delete().in("owner_id", ids);
-    await admin.from("petwalker_profiles").delete().in("user_id", ids);
-    await admin.from("user_roles").delete().in("user_id", ids);
-    await admin.from("profiles").delete().in("id", ids);
-
-    for (const id of ids) {
-      await admin.auth.admin.deleteUser(id);
-    }
-    log(`cleanup concluído. IDs removidos: ${ids.map(short).join(", ")}`);
-  } catch (e) {
-    log(`erro durante cleanup: ${e}`);
   }
+
+  // Sessões e ofertas vinculadas
+  const { data: sessions, error: sError } = await admin
+    .from("walk_sessions")
+    .select("id")
+    .or(`customer_id.in.(${allTargetIds.join(",")}),walker_id.in.(${allTargetIds.join(",")})`);
+  
+  if (sError) {
+    log(`ERRO FATAL: Falha ao buscar sessões para cleanup: ${sError.message}`);
+    process.exit(1);
+  }
+
+  const sIds = (sessions || []).map(s => s.id);
+  if (sIds.length > 0) {
+    await admin.from("walk_offers").delete().in("session_id", sIds);
+    await admin.from("walk_sessions").delete().in("id", sIds);
+  }
+
+  // 3. Exclusão dos usuários no Auth
+  for (const id of allTargetIds) {
+    const { error } = await admin.auth.admin.deleteUser(id);
+    if (error) {
+      log(`AVISO: Falha ao deletar usuário ${short(id)}: ${error.message}`);
+      // Não interrompe aqui pois o usuário pode ter sido deletado em paralelo
+    }
+  }
+
+  // 4. Verificação pós-limpeza
+  const { data: verify } = await admin.auth.admin.listUsers();
+  const stillExists = (verify.users || []).filter(u => allTargetIds.includes(u.id));
+  if (stillExists.length > 0) {
+    log(`ERRO FATAL: Cleanup incompleto. ${stillExists.length} usuários ainda presentes.`);
+    process.exit(1);
+  }
+
+  log(`cleanup concluído com sucesso. IDs removidos: ${allTargetIds.map(short).join(", ")}`);
 }
 
 // ---------- coordenadas sintéticas (ficção, não endereços reais) ----------
@@ -319,7 +360,7 @@ test.beforeAll(async ({ browser }) => {
     email: ownerEmail,
     password: ownerPassword,
     email_confirm: true,
-    user_metadata: { full_name: "E2E Owner", signup_intent: "pet_owner" },
+    user_metadata: { full_name: "E2E Owner", signup_intent: "pet_owner", e2e_test: true },
   });
   if (o.error) throw o.error;
   ownerId = o.data.user!.id;
@@ -328,7 +369,7 @@ test.beforeAll(async ({ browser }) => {
     email: walkerEmail,
     password: walkerPassword,
     email_confirm: true,
-    user_metadata: { full_name: "E2E Walker", signup_intent: "petwalker" },
+    user_metadata: { full_name: "E2E Walker", signup_intent: "petwalker", e2e_test: true },
   });
   if (w.error) throw w.error;
   walkerId = w.data.user!.id;
