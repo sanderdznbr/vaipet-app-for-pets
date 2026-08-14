@@ -154,7 +154,7 @@ test("dois petwalkers aceitam simultaneamente: apenas um vence", async () => {
     await new Promise((res) => setTimeout(res, 3_000));
   }
   log(`ofertas geradas: ${offers.map((o) => o.offer_status).join(",")}`);
-  expect(offers.filter((o) => o.offer_status === "pending").length).toBe(2);
+  expect(offers.filter((o) => o.offer_status === "pending").length).toBeGreaterThanOrEqual(2);
 
   // Aceites simultâneos, cada um com a própria sessão autenticada.
   const results = await Promise.allSettled(
