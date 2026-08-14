@@ -34,6 +34,56 @@ const log = (msg: string) => {
 const flushLog = () =>
   fs.writeFileSync(path.join(ART, "transitions.log"), LOG.join("\n") + "\n", "utf8");
 
+/** Remove dados E2E abandonados (TTL: 1 hora) */
+async function preflightCleanup() {
+  log("iniciando preflight cleanup de dados abandonados...");
+  const ttlMs = 3600_000;
+  const cutoff = new Date(Date.now() - ttlMs).toISOString();
+
+  const { data: oldUsers } = await admin.auth.admin.listUsers();
+  const targetUsers = (oldUsers?.users ?? []).filter(u => 
+    u.email?.endsWith("@e2e.vaipet.invalid") && 
+    u.created_at < cutoff
+  );
+
+  if (targetUsers.length === 0) {
+    log("nenhum dado E2E abandonado encontrado.");
+    return;
+  }
+
+  log(`encontrados ${targetUsers.length} usuários abandonados. removendo dependências...`);
+  const ids = targetUsers.map(u => u.id);
+
+  try {
+    // Ordem correta: tracking -> ofertas -> sessões -> pets -> profiles -> auth
+    await admin.from("walker_tracking").delete().in("walker_id", ids);
+    
+    const { data: sessions } = await admin
+      .from("walk_sessions")
+      .select("id")
+      .or(`customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})`);
+    
+    const sessionIds = (sessions ?? []).map(s => s.id);
+    if (sessionIds.length > 0) {
+      await admin.from("walk_offers").delete().in("session_id", sessionIds);
+      await admin.from("walk_sessions").delete().in("id", sessionIds);
+    }
+
+    await admin.from("walk_offers").delete().in("walker_id", ids);
+    await admin.from("pets").delete().in("owner_id", ids);
+    await admin.from("petwalker_profiles").delete().in("user_id", ids);
+    await admin.from("user_roles").delete().in("user_id", ids);
+    await admin.from("profiles").delete().in("id", ids);
+
+    for (const id of ids) {
+      await admin.auth.admin.deleteUser(id);
+    }
+    log(`cleanup concluído. IDs removidos: ${ids.map(short).join(", ")}`);
+  } catch (e) {
+    log(`erro durante cleanup: ${e}`);
+  }
+}
+
 // ---------- coordenadas sintéticas (ficção, não endereços reais) ----------
 const OWNER_POINT = { lng: -46.700000, lat: -23.600000 };
 const WALKER_START = { lng: -46.700900, lat: -23.600400 }; // ~110m
@@ -257,6 +307,7 @@ test.beforeAll(async ({ browser }) => {
   expect(ANON_KEY, "chave publicável ausente").toBeTruthy();
 
   admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+  await preflightCleanup();
 
   const runId = rand();
   ownerEmail = `e2e.owner.${runId}@e2e.vaipet.invalid`;
@@ -510,8 +561,14 @@ test("petwalker fica online, recebe oferta real via matching e aceita", async ()
   log(`RPC confirmou oferta session=${short(rpcRow.session_id)} pet=${rpcRow.pet_name}`);
 
   // A oferta deve surgir na UI sem reload (Realtime).
-  const accept = p.getByRole("button", { name: /aceitar passeio/i });
-  await expect(accept).toBeVisible({ timeout: 120_000 });
+  const card = p.locator('[data-testid="incoming-walk-card"]').first();
+  await expect(card).toBeVisible({ timeout: 120_000 });
+  const petNameVisible = await card.locator('h3').innerText();
+  log(`card detectado para o pet: "${petNameVisible}"`);
+  expect(petNameVisible).toContain(rpcRow.pet_name);
+
+  const accept = card.getByRole("button", { name: /aceitar passeio/i });
+  await expect(accept).toBeVisible();
   await shot(walkerCtx, "06-oferta");
 
   // Dados sensíveis não expostos antes do aceite.
