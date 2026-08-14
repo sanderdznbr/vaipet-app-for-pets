@@ -567,7 +567,22 @@ test("petwalker fica online, recebe oferta real via matching e aceita", async ()
   log(`card detectado para o pet: "${petNameVisible}"`);
   expect(petNameVisible).toContain(rpcRow.pet_name);
 
-  const accept = card.getByRole("button", { name: /aceitar passeio/i });
+  // Aguarda e clica na primeira oferta real retornada pela RPC
+  log("walker: aguardando card de oferta...");
+  const offerCard = p.getByTestId("incoming-offer-card").first();
+  await expect(offerCard).toBeVisible({ timeout: 45_000 });
+  
+  // Verificação visual do nome do pet no card antes do clique
+  const petNameInCard = await offerCard.locator('[data-testid="offer-pet-name"]').innerText();
+  log(`walker: pet no card="${petNameInCard}"`);
+  expect(petNameInCard.toLowerCase()).toContain("pete2e");
+
+  // Intercepta a requisição para garantir que o session_id enviado é o correto
+  const requestPromise = p.waitForRequest(req => 
+    req.url().includes("rpc/accept_walk_request") && req.method() === "POST"
+  );
+
+  const accept = offerCard.getByRole("button", { name: /aceitar passeio/i });
   await expect(accept).toBeVisible();
   await shot(walkerCtx, "06-oferta");
 
@@ -577,6 +592,12 @@ test("petwalker fica online, recebe oferta real via matching e aceita", async ()
   expect(body).not.toContain(sessionId.toLowerCase());
 
   await accept.click();
+  const request = await requestPromise;
+  const postData = request.postDataJSON();
+  const interceptedSessionId = postData._session_id;
+  
+  log(`walker: aceitou oferta session_id=${short(interceptedSessionId)}`);
+  expect(interceptedSessionId).toBe(sessionId);
 
   const accepted = await waitFor("sessão accepted", async () => {
     const s = await dbSession();

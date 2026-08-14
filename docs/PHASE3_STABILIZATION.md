@@ -10,7 +10,7 @@ To prevent collisions between test runs and leakage into production data, the fo
 2. **Run Identification**: Each test run generates a unique `runId` used for resource naming (e.g., Pet names).
 3. **Teardown**: The `afterAll` hook in the E2E suite is responsible for removing all resources created during that specific run.
 4. **Preflight Cleanup**: Before starting a run, the system executes a mandatory preflight cleanup of old E2E resources (TTL: 1 hour) that use the reserved `@e2e.vaipet.invalid` domain. This ensures that abandoned sessions do not interfere with new runs.
-5. **Order of Operations**: Offers are accepted using the specific `session_id` returned by the server, following server-side priority (Distance > Expiration > Creation Date).
+5. **Order of Operations**: Offers are accepted using the specific `session_id` returned by the server, following server-side priority (Matching Expiration > Distance > Creation Date).
 
 ## Operational GPS Flow
 
@@ -27,7 +27,7 @@ The PetWalker application uses a single source of truth for location tracking:
 - **Full Suite**: 2/2 consecutive successful runs.
 - **Failures/Retries**: Zero tolerated.
 
-### Actual Results (2026-08-14 - Commit: [PENDING])
+### Actual Results (2026-08-14 - Commit: `b4b88a1`)
 - Rastreamento 1: [RESULT] ([DURATION])
 - Rastreamento 2: [RESULT] ([DURATION])
 - Rastreamento 3: [RESULT] ([DURATION])

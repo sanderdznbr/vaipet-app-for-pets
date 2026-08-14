@@ -9,7 +9,13 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:e2e:walk": "playwright test tests/walk-real-e2e.spec.ts tests/walk-concurrency.spec.ts"
+    "test:e2e:walk": "playwright test tests/walk-real-e2e.spec.ts tests/walk-concurrency.spec.ts",
+    "test:e2e:walk:setup": "playwright test tests/walk-real-e2e.spec.ts -g 'provisionado'",
+    "test:e2e:walk:matching": "playwright test tests/walk-real-e2e.spec.ts -g 'dono cria solicitação' -g 'petwalker encontra e aceita'",
+    "test:e2e:walk:tracking": "playwright test tests/walk-real-e2e.spec.ts -g 'rastreamento real'",
+    "test:e2e:walk:negative": "playwright test tests/walk-real-e2e.spec.ts -g 'casos negativos'",
+    "test:e2e:walk:completion": "playwright test tests/walk-real-e2e.spec.ts -g 'encerramento explícito'",
+    "test:e2e:walk:cleanup": "playwright test tests/walk-real-e2e.spec.ts -g 'teardown'"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",
