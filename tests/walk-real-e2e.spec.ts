@@ -123,6 +123,30 @@ async function preflightCleanup() {
   log(`cleanup concluído com sucesso. IDs removidos: ${allTargetIds.map(short).join(", ")}`);
 }
 
+async function quickCleanup(ids: string[]) {
+  if (!ids.length) return;
+  const deleteOps = [
+    { table: "walker_tracking", col: "walker_id" },
+    { table: "walk_offers", col: "walker_id" },
+    { table: "pets", col: "owner_id" },
+    { table: "petwalker_profiles", col: "user_id" },
+    { table: "user_roles", col: "user_id" },
+    { table: "profiles", col: "id" }
+  ];
+  for (const op of deleteOps) {
+    await admin.from(op.table).delete().in(op.col, ids);
+  }
+  const { data: sessions } = await admin
+    .from("walk_sessions")
+    .select("id")
+    .or(`customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})`);
+  const sIds = (sessions || []).map(s => s.id);
+  if (sIds.length > 0) {
+    await admin.from("walk_offers").delete().in("session_id", sIds);
+    await admin.from("walk_sessions").delete().in("id", sIds);
+  }
+}
+
 // ---------- coordenadas sintéticas (ficção, não endereços reais) ----------
 const OWNER_POINT = { lng: -46.700000, lat: -23.600000 };
 const WALKER_START = { lng: -46.700900, lat: -23.600400 }; // ~110m
