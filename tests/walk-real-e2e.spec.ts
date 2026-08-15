@@ -303,7 +303,11 @@ test("tracking: GPS operacional, Throttle e Realtime", async ({ browser }) => {
     await expect(walkerMarker).toBeVisible({ timeout: 15000 });
     const initialPos = await walkerMarker.boundingBox();
 
-    // 2. 3 atualizações de GPS com throttle
+    // 2. 3 atualizações de GPS real via context.setGeolocation()
+    // Abrir página operacional do walker para disparar watchPosition
+    const wOpCtx = await createAuthedContext(browser, walker.session, { lng: -46.7001, lat: -23.6001 });
+    await wOpCtx.page.goto(`/petwalker/passeio/${sessionId}`);
+
     const points = [
       { lng: -46.7005, lat: -23.6005 },
       { lng: -46.7008, lat: -23.6008 },
@@ -311,12 +315,10 @@ test("tracking: GPS operacional, Throttle e Realtime", async ({ browser }) => {
     ];
 
     for (const pt of points) {
-      const { error: upErr } = await walker.client.rpc("update_walker_location", { _lat: pt.lat, _lng: pt.lng, _accuracy: 10 });
-      if (upErr) throw upErr;
-      const { error: apErr } = await walker.client.rpc("append_walk_tracking_point", { _session_id: sessionId, _point: [pt.lng, pt.lat] });
-      if (apErr) throw apErr;
-      await new Promise(r => setTimeout(r, 6000));
+      await wOpCtx.context.setGeolocation({ longitude: pt.lng, latitude: pt.lat });
+      await wOpCtx.page.waitForTimeout(7000); // 5s throttle + 2s buffer
     }
+    await wOpCtx.context.close();
 
     // 3. Comprovar persistência da trilha histórica
     const { data: trail } = await admin.from("walker_tracking").select("*").eq("walk_session_id", sessionId);
