@@ -275,7 +275,8 @@ async function prepareOperationalWalk(runId: string, owner: any, walker: any, pe
     meeting_point_geom: `SRID=4326;POINT(-46.7 -23.6)`,
     home_location: { lng: -46.7, lat: -23.6 },
     planned_duration_minutes: 30,
-    total_price_cents: 2250
+    total_price_cents: 2250,
+    start_time: new Date().toISOString()
   }).select("id").single();
   if (sessErr) throw new Error(`Falha ao criar sessão: ${sessErr.message}`);
 
