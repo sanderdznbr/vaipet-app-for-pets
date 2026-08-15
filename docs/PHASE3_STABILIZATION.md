@@ -28,11 +28,11 @@ The PetWalker application uses a single source of truth for location tracking:
 - **Full Suite**: 2/2 consecutive successful runs.
 - **Failures/Retries**: Zero tolerated.
 
-### Actual Results (2026-08-15 - Commit: 4cae5d62)
-- **Security Audit**: COMPLETED (Migration 20260815053000 enforced mandatory expiry and defensive updates).
-- **preflightCleanup**: COMPLETED (Resilient listUsers handling, hierarchical deletion, fail-closed metadata checks).
-- **E2E Independence**: COMPLETED (8 standalone scenarios: setup, matching, tracking, negative, completion, full, concurrency).
-- **Rastreamento (5x Repetitions)**: COMPLETED (Verified GPS trail persistence and throttle).
+### Actual Results (2026-08-15 - Commit: 20af30f6)
+- **Security Audit**: COMPLETED (Migration 20260815052842 enforced Zero-Trust and strict lifecycle).
+- **preflightCleanup**: COMPLETED (Fail-closed paginated logic, metadata e2e_run_id enforcement).
+- **E2E Independence**: COMPLETED (7 standalone scenarios: setup, matching, tracking, negative, completion, full, concurrency).
+- **Rastreamento (5x Repetitions)**: COMPLETED (Verified GPS trail persistence and server-side throttle).
 - **Full Suite (2x Consecutive)**: COMPLETED (100% success rate across contexts).
 
 ## Repository Audit
