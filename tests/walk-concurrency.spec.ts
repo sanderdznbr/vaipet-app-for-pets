@@ -122,23 +122,29 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
   if (!admin) return;
-  if (sessionId) {
-    await admin.from("walk_offers").delete().eq("session_id", sessionId);
-    await admin.from("walk_sessions").delete().eq("id", sessionId);
-  }
-  for (const w of walkers) {
-    await admin.from("walker_tracking").delete().eq("walker_id", w.id);
-    await admin.from("walk_offers").delete().eq("walker_id", w.id);
-    await admin.from("petwalker_profiles").delete().eq("user_id", w.id);
-    await admin.from("user_roles").delete().eq("user_id", w.id);
-  }
-  if (petId) await admin.from("pets").delete().eq("id", petId);
-  for (const id of [ownerId, ...walkers.map((w) => w.id)].filter(Boolean)) {
-    await admin.from("profiles").delete().eq("id", id);
-    await admin.auth.admin.deleteUser(id).catch(() => {});
+  try {
+    if (sessionId) {
+      await admin.from("walk_offers").delete().eq("session_id", sessionId);
+      await admin.from("walk_sessions").delete().eq("id", sessionId);
+    }
+    for (const w of walkers) {
+      await admin.from("walker_tracking").delete().eq("walker_id", w.id);
+      await admin.from("walk_offers").delete().eq("walker_id", w.id);
+      await admin.from("petwalker_profiles").delete().eq("user_id", w.id);
+      await admin.from("user_roles").delete().eq("user_id", w.id);
+    }
+    if (petId) await admin.from("pets").delete().eq("id", petId);
+    for (const id of [ownerId, ...walkers.map((w) => w.id)].filter(Boolean)) {
+      await admin.from("profiles").delete().eq("id", id);
+      const { error } = await admin.auth.admin.deleteUser(id);
+      if (error) console.log(`[conc] Teardown error deleting user ${id}: ${error.message}`);
+    }
+  } catch (e: any) {
+    console.log(`[conc] Critical teardown failure: ${e.message}`);
   }
   log("teardown concluído");
 });
+
 
 test("dois petwalkers aceitam simultaneamente: apenas um vence", async () => {
   test.setTimeout(180_000);
