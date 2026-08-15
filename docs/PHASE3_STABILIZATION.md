@@ -1,6 +1,6 @@
 # Certificação de Estabilização - Fase 3.1
 
-**Status: Implementada, em processo de certificação**
+**Status: Implementada, em processo de certificação
 **HEAD:** 99820ec2e9a3fb704c84c3b0c72f5a76e2ce82b9
 **Data:** 15 de Agosto de 2026
 
