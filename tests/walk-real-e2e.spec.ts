@@ -194,11 +194,13 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
   const runId = `match_${Math.random().toString(36).slice(2, 8)}`;
   const owner = await provisionUser(runId, "pet_owner");
   const walker = await provisionUser(runId, "petwalker");
+  let oCtx: { context: BrowserContext; page: Page } | undefined;
+  let wCtx: { context: BrowserContext; page: Page } | undefined;
 
   try {
     const { data: pet } = await admin.from("pets").insert({ owner_id: owner.id, name: `PetMatch_${runId}`, breed: "SRD", is_active: true }).select("id").single();
-    const oCtx = await createAuthedContext(browser, owner.session, { lng: -46.7, lat: -23.6 });
-    const wCtx = await createAuthedContext(browser, walker.session, { lng: -46.7009, lat: -23.6004 });
+    oCtx = await createAuthedContext(browser, owner.session, { lng: -46.7, lat: -23.6 });
+    wCtx = await createAuthedContext(browser, walker.session, { lng: -46.7009, lat: -23.6004 });
 
     // Dono solicita
     await oCtx.page.goto("/search-walk", { waitUntil: 'networkidle' });
@@ -216,7 +218,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       return data?.some(o => o.offer_status === 'pending');
     }, { timeout: 15000 }).toBe(true);
 
-    // PetWalker aceita
+    // PetWalker aceita via UI
     await wCtx.page.goto("/petwalker/painel");
     const offerCard = wCtx.page.locator(`button:has-text("ACEITAR PASSEIO")`);
     await expect(offerCard).toBeVisible({ timeout: 15000 });
@@ -224,10 +226,9 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
 
     // Validar aceite via Realtime no Dono
     await expect(oCtx.page.locator('h3:has-text("Passeio confirmado")')).toBeVisible({ timeout: 15000 });
-    
-    await oCtx.context.close();
-    await wCtx.context.close();
   } finally {
+    if (oCtx) await oCtx.context.close();
+    if (wCtx) await wCtx.context.close();
     await quickCleanup([owner.id, walker.id]);
   }
 });
