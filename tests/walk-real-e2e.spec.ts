@@ -374,30 +374,31 @@ test("completion: Fluxo UI e Cálculo de Métricas", async ({ browser }) => {
   const runId = `comp_${Math.random().toString(36).slice(2, 8)}`;
   const owner = await provisionUser(runId, "pet_owner");
   const walker = await provisionUser(runId, "petwalker");
+  let wCtx: { context: BrowserContext; page: Page } | undefined;
 
   try {
-    const { data: pet } = await admin.from("pets").insert({ owner_id: owner.id, name: "C", breed: "SRD" }).select("id").single();
-    const { data: sess } = await admin.from("walk_sessions").insert({
-      customer_id: owner.id,
-      walker_id: walker.id,
-      current_status: "in_progress",
-      start_time: new Date(Date.now() - 900000).toISOString(),
-      pet_id: pet!.id,
-      matching_expires_at: new Date(Date.now() + 600000).toISOString()
-    }).select("id").single();
+    const { sessionId } = await prepareOperationalWalk(runId, owner, walker, `PetComp_${runId}`);
+    
+    wCtx = await createAuthedContext(browser, walker.session, { lng: -46.7, lat: -23.6 });
+    await wCtx.page.goto(`/petwalker/passeio/${sessionId}`);
 
-    const wCtx = await createAuthedContext(browser, walker.session, { lng: -46.7, lat: -23.6 });
-    await wCtx.page.goto(`/petwalker/passeio/${sess!.id}`);
-
+    // Validação de conclusão UI
     await wCtx.page.click('button:has-text("Finalizar passeio")');
     await wCtx.page.click('button:has-text("Confirmar")');
 
     await expect(wCtx.page).toHaveURL("/petwalker/painel");
-    const { data: final } = await admin.from("walk_sessions").select("current_status").eq("id", sess!.id).single();
-    expect(final!.current_status).toBe("completed");
     
-    await wCtx.context.close();
+    // Validar preço e duração no histórico
+    const { data: final } = await admin.from("walk_sessions").select("current_status, total_price_cents, actual_duration_minutes").eq("id", sessionId).single();
+    expect(final!.current_status).toBe("completed");
+    expect(final!.total_price_cents).toBeGreaterThan(0);
+    
+    // Segunda conclusão deve falhar (já testado em negative, mas bom ter aqui)
+    const { error: repeatErr } = await walker.client.rpc("petwalker_complete_walk", { _session_id: sessionId });
+    expect(repeatErr).toBeTruthy();
+
   } finally {
+    if (wCtx) await wCtx.context.close();
     await quickCleanup([owner.id, walker.id]);
   }
 });
