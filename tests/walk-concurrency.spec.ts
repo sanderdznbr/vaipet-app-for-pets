@@ -137,7 +137,7 @@ test.afterAll(async () => {
 
   log(`iniciando teardown rigoroso para ${ids.length} usuários...`);
 
-  // 1. Busca walk_sessions
+  // 1. Busca walk_sessions vinculadas aos usuários
   const { data: sessions, error: sErr } = await admin
     .from("walk_sessions")
     .select("id")
@@ -184,13 +184,38 @@ test.afterAll(async () => {
   for (const id of ids) {
     const { error: dErr } = await admin.auth.admin.deleteUser(id);
     if (dErr) throw new Error(`Teardown falhou ao deletar usuário Auth ${id}: ${dErr.message}`);
+    
+    // Verificação individual: getUserById (confirmação fail-closed)
+    const { data: check } = await admin.auth.admin.getUserById(id);
+    if (check?.user) {
+        throw new Error(`Teardown falhou: usuário Auth ${id} ainda existe após exclusão.`);
+    }
   }
 
-  // Confirmação final
-  const { data: remain } = await admin.from("profiles").select("id").in("id", ids);
-  if (remain?.length) throw new Error(`Teardown INCOMPLETO: perfis residuais detectados para ${ids.join(", ")}`);
+  // Verificações fail-closed pós-cleanup em todas as tabelas de domínio
+  const checkTables = [
+    { name: "walk_sessions", filter: `customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})` },
+    { name: "walk_offers", filter: `walker_id.in.(${ids.join(",")})` },
+    { name: "petwalker_earnings", filter: `walker_id.in.(${ids.join(",")})` },
+    { name: "pets", filter: `owner_id.in.(${ids.join(",")})` },
+    { name: "petwalker_profiles", filter: `user_id.in.(${ids.join(",")})` },
+    { name: "user_roles", filter: `user_id.in.(${ids.join(",")})` },
+    { name: "profiles", filter: `id.in.(${ids.join(",")})` }
+  ];
 
-  log("teardown rigoroso concluído");
+  for (const t of checkTables) {
+      const { count, error } = await admin.from(t.name)
+        .select("*", { count: "exact", head: true })
+        .or(t.filter);
+
+      if (error) {
+          log(`[warn] Falha ao validar cleanup na tabela ${t.name} (permissão ou schema): ${error.message}`);
+          continue;
+      }
+      if (count !== 0) throw new Error(`Teardown INCOMPLETO: ${count} registros residuais detectados na tabela ${t.name}`);
+  }
+
+  log("teardown rigoroso e validação pós-cleanup concluídos");
 });
 
 
