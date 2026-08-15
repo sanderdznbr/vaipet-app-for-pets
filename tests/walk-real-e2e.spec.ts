@@ -72,7 +72,7 @@ async function quickCleanup(ids: string[]) {
   const { data: sessions, error: listSErr } = await admin
     .from("walk_sessions")
     .select("id")
-    .or(`customer_id.in.(${ids.map(id => `'${id}'`).join(",")}),walker_id.in.(${ids.map(id => `'${id}'`).join(",")})`);
+    .or(`customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})`);
   
   if (listSErr) throw new Error(`Falha ao buscar sessões: ${listSErr.message}`);
 
