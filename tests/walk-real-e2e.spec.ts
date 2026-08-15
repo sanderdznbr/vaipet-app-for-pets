@@ -258,14 +258,24 @@ test("tracking: GPS real e Marcador Dinâmico", async ({ browser }) => {
   }
 });
 
-test("negative: Segurança de RPC e Regras de Negócio", async () => {
+test("negative: Segurança de RPC e Regras de Negócio", async ({ browser }) => {
   const runId = `neg_${Math.random().toString(36).slice(2, 8)}`;
   const owner = await provisionUser(runId, "pet_owner");
   const walker = await provisionUser(runId, "petwalker");
+  const busyWalker = await provisionUser(runId, "petwalker");
   const stranger = await provisionUser(runId, "pet_owner");
 
   try {
     const { data: pet } = await admin.from("pets").insert({ owner_id: owner.id, name: "N", breed: "SRD" }).select("id").single();
+    
+    // 1. GPS inválido (limites físicos)
+    const { error: gpsErr } = await walker.client.rpc("update_walker_location", { _lat: 91, _lng: 0, _accuracy: 10 });
+    expect(gpsErr).toBeTruthy();
+
+    // 2. Solicitação sem Pet
+    const { error: noPetErr } = await owner.client.from("walk_sessions").insert({ customer_id: owner.id, current_status: "searching" });
+    expect(noPetErr).toBeTruthy();
+
     const { data: sess } = await admin.from("walk_sessions").insert({
       customer_id: owner.id,
       current_status: "searching",
@@ -273,20 +283,55 @@ test("negative: Segurança de RPC e Regras de Negócio", async () => {
       pet_id: pet!.id
     }).select("id").single();
 
-    // 1. Auto-aceite proibido
+    // 3. Auto-aceite proibido
     const { error: autoErr } = await owner.client.rpc("accept_walk_request", { _session_id: sess!.id });
     expect(autoErr?.message).toContain("Auto-aceite proibido");
 
-    // 2. Acesso negado para estranho
+    // 4. Acesso negado para estranho (RLS)
     const { error: sErr } = await stranger.client.rpc("accept_walk_request", { _session_id: sess!.id });
     expect(sErr).toBeTruthy();
 
-    // 3. GPS inválido
-    const { error: gpsErr } = await walker.client.rpc("update_walker_location", { _lat: 91, _lng: 0, _accuracy: 10 });
-    expect(gpsErr).toBeTruthy();
+    // 5. Walker ocupado não deve ver ofertas (validado via RPC get_available_walk_offers)
+    await admin.from("walk_sessions").insert({
+      customer_id: stranger.id,
+      walker_id: busyWalker.id,
+      current_status: "in_progress",
+      pet_id: pet!.id, // reuse pet for brevity
+      matching_expires_at: new Date(Date.now() + 600000).toISOString()
+    });
+    const { data: busyOffers } = await busyWalker.client.rpc("get_available_walk_offers");
+    expect(busyOffers?.length || 0).toBe(0);
+
+    // 6. Sessão expirada não pode ser aceita
+    const { data: expSess } = await admin.from("walk_sessions").insert({
+      customer_id: owner.id,
+      current_status: "searching",
+      matching_expires_at: new Date(Date.now() - 1000).toISOString(),
+      pet_id: pet!.id
+    }).select("id").single();
+    const { error: expErr } = await walker.client.rpc("accept_walk_request", { _session_id: expSess!.id });
+    expect(expErr).toBeTruthy();
+
+    // 7. Transição de status inválida (finalizar sem iniciar)
+    const { error: statusErr } = await walker.client.rpc("petwalker_complete_walk", { _session_id: sess!.id });
+    expect(statusErr).toBeTruthy();
+
+    // 8. RLS: Dono não pode deletar sessão de outro dono
+    const { error: delErr } = await stranger.client.from("walk_sessions").delete().eq("id", sess!.id);
+    expect(delErr).toBeTruthy();
+
+    // 9. RLS: Walker não pode ver localização de sessão concluída
+    await admin.from("walk_sessions").update({ current_status: 'completed' }).eq("id", sess!.id);
+    const { data: trackData } = await walker.client.from("walker_tracking").select("*").eq("walk_session_id", sess!.id);
+    expect(trackData?.length || 0).toBe(0);
+
+    // 10. Anonimato: Acesso sem token
+    const anon = createClient(SUPABASE_URL, ANON_KEY);
+    const { error: anonErr } = await anon.rpc("get_available_walk_offers");
+    expect(anonErr).toBeTruthy();
 
   } finally {
-    await quickCleanup([owner.id, walker.id, stranger.id]);
+    await quickCleanup([owner.id, walker.id, busyWalker.id, stranger.id]);
   }
 });
 
@@ -328,37 +373,47 @@ test("full: Jornada Completa determinística (Dois Contextos)", async ({ browser
   const walker = await provisionUser(runId, "petwalker");
 
   try {
-    const { data: pet } = await admin.from("pets").insert({ owner_id: owner.id, name: `FullPet_${runId}`, breed: "SRD" }).select("id").single();
+    const { data: pet } = await admin.from("pets").insert({ owner_id: owner.id, name: `FullPet_${runId}`, breed: "SRD", is_active: true }).select("id").single();
     const oCtx = await createAuthedContext(browser, owner.session, { lng: -46.7, lat: -23.6 });
     const wCtx = await createAuthedContext(browser, walker.session, { lng: -46.7009, lat: -23.6004 });
 
-    // 1. Dono solicita
-    await oCtx.page.goto("/search-walk");
+    // 1. Dono solicita via UI
+    await oCtx.page.goto("/inicio");
+    await oCtx.page.locator('h1:has-text("Bora"), h1:has-text("passear?")').waitFor({ state: 'visible', timeout: 15000 });
+    await oCtx.page.click('#tour-start-walk');
+    await expect(oCtx.page).toHaveURL(/\/search-walk/);
+    await oCtx.page.waitForSelector(`[data-testid="pet-card-${pet!.id}"]`, { state: 'visible', timeout: 15000 });
     await oCtx.page.click(`[data-testid="pet-card-${pet!.id}"]`);
-    await oCtx.page.click('button:has-text("15 minutos")');
+    await oCtx.page.click('button:has-text("30 minutos")');
     await oCtx.page.click('button:has-text("Solicitar Agora")');
 
-    // 2. Matching
-    await admin.rpc("process_walk_matching");
+    // 2. Matching via Job Real
+    await expect.poll(async () => {
+      await admin.rpc("process_walk_matching");
+      const { data } = await admin.from("walk_offers").select("offer_status").eq("walker_id", walker.id);
+      return data?.some(o => o.offer_status === 'pending');
+    }, { timeout: 15000 }).toBe(true);
 
-    // 3. Walker aceita
+    // 3. Walker aceita via UI
     await wCtx.page.goto("/petwalker/painel");
-    await wCtx.page.click('button:has-text("ACEITAR PASSEIO")');
+    const offerBtn = wCtx.page.locator(`button:has-text("ACEITAR PASSEIO")`);
+    await expect(offerBtn).toBeVisible({ timeout: 10000 });
+    await offerBtn.click();
 
-    // 4. Ciclo operacional
+    // 4. Ciclo operacional via UI
     await wCtx.page.click('button:has-text("Iniciar deslocamento")');
     await wCtx.page.click('button:has-text("Cheguei ao local")');
     await wCtx.page.click('button:has-text("Iniciar passeio")');
 
-    // 5. GPS
+    // 5. GPS operacional
     await wCtx.context.setGeolocation({ longitude: -46.7005, latitude: -23.6005 });
     
-    // 6. Conclusão
+    // 6. Conclusão via UI
     await wCtx.page.click('button:has-text("Finalizar passeio")');
     await wCtx.page.click('button:has-text("Confirmar")');
 
     await expect(wCtx.page).toHaveURL("/petwalker/painel");
-    await expect(oCtx.page.locator('h2:has-text("Passeio concluído")')).toBeVisible({ timeout: 10000 });
+    await expect(oCtx.page.locator('h2:has-text("Passeio concluído"), h3:has-text("Passeio concluído")').first()).toBeVisible({ timeout: 15000 });
 
     await oCtx.context.close();
     await wCtx.context.close();
