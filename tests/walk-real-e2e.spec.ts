@@ -216,53 +216,64 @@ test.beforeAll(async () => {
 
 test("setup: Isolamento e Autenticação", async ({ browser }) => {
   const runId = `setup_${Math.random().toString(36).slice(2, 8)}`;
-  const owner = await provisionUser(runId, "pet_owner");
-  const walker = await provisionUser(runId, "petwalker");
-  let oCtx: { context: BrowserContext; page: Page } | undefined;
+  const ownerCreds = await provisionUser(runId, "pet_owner");
+  const walkerCreds = await provisionUser(runId, "petwalker");
+  let oCtx: { context: BrowserContext; page: Page; client: SupabaseClient } | undefined;
 
   try {
-    oCtx = await createAuthedContext(browser, owner.session, { lng: -46.7, lat: -23.6 });
+    oCtx = await createAuthedContext(browser, ownerCreds, { lng: -46.7, lat: -23.6 });
+    
+    // Assertions fail-fast
+    await expect(oCtx.page).not.toHaveURL(/.*\/auth.*/);
+    const { data: { user } } = await oCtx.client.auth.getUser();
+    expect(user?.id).toBe(ownerCreds.id);
+    
     // Validar isolamento RLS: Dono não vê perfil privado do Walker
-    const { data: walkerProfile } = await owner.client.from("petwalker_profiles").select("experience_years").eq("user_id", walker.id).maybeSingle();
+    const { data: walkerProfile } = await oCtx.client.from("petwalker_profiles").select("experience_years").eq("user_id", walkerCreds.id).maybeSingle();
     expect(walkerProfile).toBeNull();
   } finally {
     if (oCtx) await oCtx.context.close();
-    await quickCleanup([owner.id, walker.id]);
+    await quickCleanup([ownerCreds.id, walkerCreds.id]);
   }
 });
 
 test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser }) => {
   const runId = `match_${Math.random().toString(36).slice(2, 8)}`;
-  const owner = await provisionUser(runId, "pet_owner");
-  const walker = await provisionUser(runId, "petwalker");
-  let oCtx: { context: BrowserContext; page: Page } | undefined;
-  let wCtx: { context: BrowserContext; page: Page } | undefined;
+  const ownerCreds = await provisionUser(runId, "pet_owner");
+  const walkerCreds = await provisionUser(runId, "petwalker");
+  let oCtx: { context: BrowserContext; page: Page; client: SupabaseClient } | undefined;
+  let wCtx: { context: BrowserContext; page: Page; client: SupabaseClient } | undefined;
 
   try {
     // 1. Setup: Pet para o dono
     const { data: pet } = await admin.from("pets").insert({ 
-      owner_id: owner.id, 
+      owner_id: ownerCreds.id, 
       name: `PetMatch_${runId}`, 
       breed: "SRD", 
       is_active: true 
     }).select("id").single();
 
-    oCtx = await createAuthedContext(browser, owner.session, { lng: -46.7, lat: -23.6 });
-    wCtx = await createAuthedContext(browser, walker.session, { lng: -46.7001, lat: -23.6001 });
+    oCtx = await createAuthedContext(browser, ownerCreds, { lng: -46.7, lat: -23.6 });
+    wCtx = await createAuthedContext(browser, walkerCreds, { lng: -46.7001, lat: -23.6001 });
+
+    // Assertions fail-fast
+    await expect(oCtx.page).not.toHaveURL(/.*\/auth.*/);
+    await expect(wCtx.page).not.toHaveURL(/.*\/auth.*/);
+    const { data: { user: ownerUser } } = await oCtx.client.auth.getUser();
+    const { data: { user: walkerUser } } = await wCtx.client.auth.getUser();
+    expect(ownerUser?.id).toBe(ownerCreds.id);
+    expect(walkerUser?.id).toBe(walkerCreds.id);
 
     // 2. Dono solicita passeio via UI
-    await oCtx.page.goto("/", { waitUntil: 'networkidle' });
+    await oCtx.page.goto("/", { waitUntil: 'domcontentloaded' });
     
-    // Clicar no CTA de iniciar passeio (usando ID do tour definido em HomePasseio.tsx)
     const heroBtn = oCtx.page.locator('#tour-start-walk');
     await expect(heroBtn).toBeVisible({ timeout: 15000 });
     await heroBtn.click();
     
-    // Modal de seleção de tempo
     await oCtx.page.click('button:has-text("30 minutos")');
     await oCtx.page.click('button:has-text("Confirmar")');
     
-    // Esperar redirecionamento e capturar session_id
     await expect(oCtx.page).toHaveURL(/.*search-walk.*/, { timeout: 15000 });
     const url = new URL(oCtx.page.url());
     const sessId = url.searchParams.get("resume");
@@ -276,7 +287,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     }, { timeout: 15000 }).toBe(true);
 
     // 4. Walker aceita via UI no Painel
-    await wCtx.page.goto("/petwalker/painel");
+    await wCtx.page.goto("/petwalker/painel", { waitUntil: 'domcontentloaded' });
     const acceptBtn = wCtx.page.locator('button:has-text("Aceitar Passeio")');
     await expect(acceptBtn).toBeVisible({ timeout: 20000 });
     await acceptBtn.click();
@@ -285,12 +296,12 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     await expect(wCtx.page).toHaveURL(/.*walk-details.*/, { timeout: 15000 });
     const { data: sess } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessId!).single();
     expect(sess?.current_status).toBe("walker_assigned");
-    expect(sess?.walker_id).toBe(walker.id);
+    expect(sess?.walker_id).toBe(walkerCreds.id);
 
   } finally {
     if (oCtx) await oCtx.context.close();
     if (wCtx) await wCtx.context.close();
-    await quickCleanup([owner.id, walker.id]);
+    await quickCleanup([ownerCreds.id, walkerCreds.id]);
   }
 });
 
