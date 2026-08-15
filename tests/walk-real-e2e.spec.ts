@@ -187,11 +187,12 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
 
     // Dono solicita
     await oCtx.page.goto("/inicio");
-    await oCtx.page.click('button:has-text("Buscar passeio")');
+    await oCtx.page.click('a[href="/search-walk"], button:has-text("Buscar passeio")');
     await expect(oCtx.page).toHaveURL(/\/search-walk/);
-    await oCtx.page.locator(`[data-testid="pet-card-${pet!.id}"]`).click();
-    await oCtx.page.locator('button:has-text("30 minutos")').click();
-    await oCtx.page.locator('button:has-text("Solicitar Agora")').click();
+    await oCtx.page.waitForSelector(`[data-testid^="pet-card-"]`, { timeout: 10000 });
+    await oCtx.page.click(`[data-testid="pet-card-${pet!.id}"]`);
+    await oCtx.page.click('button:has-text("30 minutos")');
+    await oCtx.page.click('button:has-text("Solicitar Agora")');
 
     // Job de matching real
     await expect.poll(async () => {
