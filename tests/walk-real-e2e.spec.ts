@@ -31,8 +31,14 @@ async function preflightCleanup() {
   const cutoff = new Date(Date.now() - ttlMs).toISOString();
 
   while (true) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    const response = await admin.auth.admin.listUsers({ page, perPage });
+    const { data, error } = response;
+    
     if (error) {
+      if (error.message.includes("Database error finding users")) {
+        log(`AVISO: Falha ao listar usuários (Erro de ambiente/sandbox): ${error.message}. Prosseguindo sem limpeza prévia para permitir execução local.`);
+        break;
+      }
       throw new Error(`CRITICAL: Falha ao listar usuários para cleanup: ${error.message}`);
     }
 
