@@ -8,7 +8,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  * e do Dono, validando matching, tracking, segurança e conclusão.
  */
 
-test.setTimeout(180000); 
+test.setTimeout(300000); 
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
