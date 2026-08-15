@@ -41,7 +41,9 @@ async function preflightCleanup() {
     }
 
     if (error) {
-      throw new Error(`CRITICAL: Falha na Auth API ao listar usuários para cleanup: ${error.message}`);
+      // Diagnóstico detalhado para o usuário
+      console.error(`[cleanup] Erro detectado na Auth API: ${error.message} (Page: ${page})`);
+      throw new Error(`CRITICAL: Falha na Auth API ao listar usuários para cleanup: ${error.message}. Este é um erro interno do backend Supabase (listUsers retornou 500).`);
     }
 
     const users = data?.users || [];

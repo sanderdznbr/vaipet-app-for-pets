@@ -132,32 +132,65 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
   if (!admin) return;
-  const ids = [ownerId, ...walkers.map(w => w.id)].filter(Boolean);
-  if (ids.length > 0) {
-    // Reutilizando lógica fail-closed do quickCleanup
-    const { data: sessions } = await admin
-      .from("walk_sessions")
-      .select("id")
-      .or(`customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})`);
+  const ids = [ownerId, ...walkers.map((w) => w.id)].filter(Boolean);
+  if (ids.length === 0) return;
 
-    if (sessions?.length) {
-      const sIds = sessions.map(s => s.id);
-      await admin.from("walker_tracking").delete().in("walk_session_id", sIds);
-      await admin.from("walk_offers").delete().in("session_id", sIds);
-      await admin.from("petwalker_earnings").delete().in("walk_session_id", sIds);
-      await admin.from("walk_sessions").delete().in("id", sIds);
-    }
+  log(`iniciando teardown rigoroso para ${ids.length} usuários...`);
 
-    await admin.from("pets").delete().in("owner_id", ids);
-    await admin.from("petwalker_profiles").delete().in("user_id", ids);
-    await admin.from("user_roles").delete().in("user_id", ids);
-    await admin.from("profiles").delete().in("id", ids);
-    
-    for (const id of ids) {
-      await admin.auth.admin.deleteUser(id);
-    }
+  // 1. Busca walk_sessions
+  const { data: sessions, error: sErr } = await admin
+    .from("walk_sessions")
+    .select("id")
+    .or(`customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})`);
+  if (sErr) throw new Error(`Teardown falhou ao buscar sessões: ${sErr.message}`);
+
+  if (sessions?.length) {
+    const sIds = sessions.map((s) => s.id);
+
+    // 2. Exclusão walker_tracking
+    const { error: tErr } = await admin.from("walker_tracking").delete().in("walk_session_id", sIds);
+    if (tErr) throw new Error(`Teardown falhou ao excluir tracking: ${tErr.message}`);
+
+    // 3. Exclusão walk_offers
+    const { error: oErr } = await admin.from("walk_offers").delete().in("session_id", sIds);
+    if (oErr) throw new Error(`Teardown falhou ao excluir ofertas: ${oErr.message}`);
+
+    // 4. Exclusão petwalker_earnings
+    const { error: eErr } = await admin.from("petwalker_earnings").delete().in("walk_session_id", sIds);
+    if (eErr) throw new Error(`Teardown falhou ao excluir ganhos: ${eErr.message}`);
+
+    // 5. Exclusão walk_sessions
+    const { error: wsErr } = await admin.from("walk_sessions").delete().in("id", sIds);
+    if (wsErr) throw new Error(`Teardown falhou ao excluir sessões: ${wsErr.message}`);
   }
-  log("teardown concluído");
+
+  // 6. Exclusão pets
+  const { error: pErr } = await admin.from("pets").delete().in("owner_id", ids);
+  if (pErr) throw new Error(`Teardown falhou ao excluir pets: ${pErr.message}`);
+
+  // 7. Exclusão petwalker_profiles
+  const { error: ppErr } = await admin.from("petwalker_profiles").delete().in("user_id", ids);
+  if (ppErr) throw new Error(`Teardown falhou ao excluir perfis de walker: ${ppErr.message}`);
+
+  // 8. Exclusão user_roles
+  const { error: urErr } = await admin.from("user_roles").delete().in("user_id", ids);
+  if (urErr) throw new Error(`Teardown falhou ao excluir roles: ${urErr.message}`);
+
+  // 9. Exclusão profiles
+  const { error: prErr } = await admin.from("profiles").delete().in("id", ids);
+  if (prErr) throw new Error(`Teardown falhou ao excluir perfis: ${prErr.message}`);
+
+  // 10. auth.admin.deleteUser
+  for (const id of ids) {
+    const { error: dErr } = await admin.auth.admin.deleteUser(id);
+    if (dErr) throw new Error(`Teardown falhou ao deletar usuário Auth ${id}: ${dErr.message}`);
+  }
+
+  // Confirmação final
+  const { data: remain } = await admin.from("profiles").select("id").in("id", ids);
+  if (remain?.length) throw new Error(`Teardown INCOMPLETO: perfis residuais detectados para ${ids.join(", ")}`);
+
+  log("teardown rigoroso concluído");
 });
 
 
