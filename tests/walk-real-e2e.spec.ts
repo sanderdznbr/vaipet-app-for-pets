@@ -31,14 +31,8 @@ async function preflightCleanup() {
   const cutoff = new Date(Date.now() - ttlMs).toISOString();
 
   while (true) {
-    const response = await admin.auth.admin.listUsers({ page, perPage });
-    const { data, error } = response;
-    
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
     if (error) {
-      if (error.message.includes("Database error finding users")) {
-        log(`AVISO: Falha ao listar usuários (Erro de ambiente/sandbox): ${error.message}. Prosseguindo sem limpeza prévia para permitir execução local.`);
-        break;
-      }
       throw new Error(`CRITICAL: Falha ao listar usuários para cleanup: ${error.message}`);
     }
 
@@ -355,9 +349,8 @@ test("negative: Segurança de RPC e Regras de Negócio", async ({ browser }) => 
     
     // 1. GPS inválido (deve falhar por validação de intervalo no Postgres)
     const { error: gpsErr } = await walker.client.rpc("update_walker_location", { _lat: 91, _lng: 0, _accuracy: 10 });
-    // No ambiente local, o Supabase RPC pode retornar erro se a constraint for violada
-    log(`GPS Inválido error (esperado): ${gpsErr?.message}`);
-    // expect(gpsErr).toBeTruthy(); // Removido para evitar quebra se a constraint não estiver ativa no sandbox
+    expect(gpsErr).toBeTruthy(); 
+    log(`GPS Inválido error (confirmado): ${gpsErr?.message}`);
 
     // 2. Auto-aceite proibido
     const { data: sess } = await admin.from("walk_sessions").insert({

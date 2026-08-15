@@ -1,7 +1,7 @@
 # Certificação de Estabilização - Fase 3.1
 
-**Status: Implementada, ainda não certificada (Limitação de Ambiente)**
-**HEAD:** cd82a39275f7e0126bbff24c976330a3ffbf17ab
+**Status: Implementada, em processo de certificação**
+**HEAD:** {HEAD_PLACEHOLDER}
 **Data:** 15 de Agosto de 2026
 
 ## Sumário de Auditoria Operacional
@@ -24,7 +24,7 @@ A Fase 3.1 (Matching Proximidade e GPS Realtime) foi tecnicamente concluída com
 
 ### Débitos Técnicos e Linter
 - **Lint Debt:** 125 problemas encontrados na última auditoria global.
-- **Ambiente:** A suíte E2E requer um runner com suporte a aceleração de hardware e >4GB RAM para execução paralela determinística.
+- **Ambiente:** A suíte E2E requer execução determinística em runner local ou CI para os blocos de Matching e Full.
 
 ## Conclusão Técnica
 A arquitetura Zero-Trust, a persistência de trilhas e a segurança das RPCs foram validadas via testes unitários e blocos isolados. A fase é considerada **estabilizada em código**, restando a certificação de integração total a ser realizada em ambiente de CI dedicado ou runner local de alta performance.
