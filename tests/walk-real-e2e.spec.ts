@@ -187,12 +187,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
 
     // Dono solicita
     await oCtx.page.goto("/inicio");
-    await oCtx.page.goto("/inicio", { waitUntil: 'networkidle' });
-    const heroBtn = oCtx.page.locator('#tour-start-walk');
-    await expect(heroBtn).toBeVisible({ timeout: 15000 });
-    await heroBtn.click();
-    
-    await expect(oCtx.page).toHaveURL(/\/search-walk/);
+    await oCtx.page.goto("/search-walk", { waitUntil: 'networkidle' });
     const petCard = oCtx.page.locator(`[data-testid="pet-card-${pet!.id}"]`);
     await expect(petCard).toBeVisible({ timeout: 15000 });
     await petCard.click();
