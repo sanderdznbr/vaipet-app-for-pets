@@ -187,14 +187,23 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
 
     // Dono solicita
     await oCtx.page.goto("/inicio");
-    await oCtx.page.goto("/inicio");
-    await oCtx.page.locator('h1:has-text("Bora"), h1:has-text("passear?")').waitFor({ state: 'visible', timeout: 15000 });
-    await oCtx.page.click('#tour-start-walk');
+    await oCtx.page.goto("/inicio", { waitUntil: 'networkidle' });
+    const heroBtn = oCtx.page.locator('#tour-start-walk');
+    await expect(heroBtn).toBeVisible({ timeout: 15000 });
+    await heroBtn.click();
+    
     await expect(oCtx.page).toHaveURL(/\/search-walk/);
-    await oCtx.page.waitForSelector(`[data-testid="pet-card-${pet!.id}"]`, { state: 'visible', timeout: 15000 });
-    await oCtx.page.click(`[data-testid="pet-card-${pet!.id}"]`);
-    await oCtx.page.click('button:has-text("30 minutos")');
-    await oCtx.page.click('button:has-text("Solicitar Agora")');
+    const petCard = oCtx.page.locator(`[data-testid="pet-card-${pet!.id}"]`);
+    await expect(petCard).toBeVisible({ timeout: 15000 });
+    await petCard.click();
+    
+    const durationBtn = oCtx.page.locator('button:has-text("30 minutos")');
+    await expect(durationBtn).toBeVisible({ timeout: 10000 });
+    await durationBtn.click();
+    
+    const requestBtn = oCtx.page.locator('button:has-text("Solicitar Agora")');
+    await expect(requestBtn).toBeVisible({ timeout: 10000 });
+    await requestBtn.click();
 
     // Job de matching real
     await expect.poll(async () => {
