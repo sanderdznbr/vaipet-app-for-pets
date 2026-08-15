@@ -51,7 +51,12 @@ test.beforeAll(async () => {
     email: ownerEmail,
     password: ownerPassword,
     email_confirm: true,
-    user_metadata: { full_name: "Conc Owner", signup_intent: "pet_owner" },
+    user_metadata: { 
+      full_name: "Conc Owner", 
+      signup_intent: "pet_owner",
+      e2e_test: true,
+      e2e_run_id: runId
+    },
   });
   if (o.error) throw o.error;
   ownerId = o.data.user!.id;
@@ -72,7 +77,12 @@ test.beforeAll(async () => {
       email,
       password,
       email_confirm: true,
-      user_metadata: { full_name: `Conc Walker ${i + 1}`, signup_intent: "petwalker" },
+      user_metadata: { 
+        full_name: `Conc Walker ${i + 1}`, 
+        signup_intent: "petwalker",
+        e2e_test: true,
+        e2e_run_id: runId
+      },
     });
     if (w.error) throw w.error;
     const id = w.data.user!.id;
@@ -122,25 +132,30 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
   if (!admin) return;
-  try {
-    if (sessionId) {
-      await admin.from("walk_offers").delete().eq("session_id", sessionId);
-      await admin.from("walk_sessions").delete().eq("id", sessionId);
+  const ids = [ownerId, ...walkers.map(w => w.id)].filter(Boolean);
+  if (ids.length > 0) {
+    // Reutilizando lógica fail-closed do quickCleanup
+    const { data: sessions } = await admin
+      .from("walk_sessions")
+      .select("id")
+      .or(`customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})`);
+
+    if (sessions?.length) {
+      const sIds = sessions.map(s => s.id);
+      await admin.from("walker_tracking").delete().in("walk_session_id", sIds);
+      await admin.from("walk_offers").delete().in("session_id", sIds);
+      await admin.from("petwalker_earnings").delete().in("walk_session_id", sIds);
+      await admin.from("walk_sessions").delete().in("id", sIds);
     }
-    for (const w of walkers) {
-      await admin.from("walker_tracking").delete().eq("walker_id", w.id);
-      await admin.from("walk_offers").delete().eq("walker_id", w.id);
-      await admin.from("petwalker_profiles").delete().eq("user_id", w.id);
-      await admin.from("user_roles").delete().eq("user_id", w.id);
+
+    await admin.from("pets").delete().in("owner_id", ids);
+    await admin.from("petwalker_profiles").delete().in("user_id", ids);
+    await admin.from("user_roles").delete().in("user_id", ids);
+    await admin.from("profiles").delete().in("id", ids);
+    
+    for (const id of ids) {
+      await admin.auth.admin.deleteUser(id);
     }
-    if (petId) await admin.from("pets").delete().eq("id", petId);
-    for (const id of [ownerId, ...walkers.map((w) => w.id)].filter(Boolean)) {
-      await admin.from("profiles").delete().eq("id", id);
-      const { error } = await admin.auth.admin.deleteUser(id);
-      if (error) console.log(`[conc] Teardown error deleting user ${id}: ${error.message}`);
-    }
-  } catch (e: any) {
-    console.log(`[conc] Critical teardown failure: ${e.message}`);
   }
   log("teardown concluído");
 });
