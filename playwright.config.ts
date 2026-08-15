@@ -9,9 +9,9 @@ export default defineConfig({
   reporter: [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]],
   use: {
     baseURL: "http://localhost:8080",
-    trace: "on",
+    trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    video: "on",
+    video: "retain-on-failure",
     permissions: ["geolocation"],
     geolocation: { longitude: -46.6333, latitude: -23.5505 },
     locale: "pt-BR",
