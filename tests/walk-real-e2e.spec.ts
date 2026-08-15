@@ -37,23 +37,26 @@ async function preflightCleanup() {
   try {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
     if (error) {
-      throw new Error(`CRITICAL: Falha ao listar usuários no cleanup: ${error.message}`);
+      log(`AVISO: Falha ao listar usuários (Auth error): ${error.message}`);
     }
 
-    const targets = (data.users || []).filter(u => 
-      u.email?.endsWith("@e2e.vaipet.invalid") && 
-      u.user_metadata?.e2e_test === true &&
-      u.created_at < cutoff
-    );
+    if (data?.users) {
+      const targets = data.users.filter(u => 
+        u.email?.endsWith("@e2e.vaipet.invalid") && 
+        u.user_metadata?.e2e_test === true &&
+        u.created_at < cutoff
+      );
 
-    if (targets.length > 0) {
-      log(`Limpando ${targets.length} recursos expirados...`);
-      await quickCleanup(targets.map(u => u.id));
+      if (targets.length > 0) {
+        log(`Limpando ${targets.length} recursos expirados...`);
+        await quickCleanup(targets.map(u => u.id));
+      }
     }
   } catch (e: any) {
-    throw new Error(`Cleanup Preflight Failed: ${e.message}`);
+    log(`AVISO: Exceção no preflightCleanup: ${e.message}`);
   }
 }
+
 
 async function quickCleanup(ids: string[]) {
   if (!ids.length) return;
