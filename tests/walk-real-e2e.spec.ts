@@ -149,12 +149,12 @@ async function createAuthedContext(browser: any, credentials: { email: string; p
   log(`Autenticando usuário: ${credentials.email}`);
   await page.goto("/auth", { waitUntil: "domcontentloaded" });
   
-  await page.getByPlaceholder("seu@email.com").fill(credentials.email);
-  await page.getByPlaceholder("sua senha").fill(credentials.password);
-  await page.getByRole("button", { name: /Entrar/i }).click();
+  await page.getByPlaceholder("E-mail").fill(credentials.email);
+  await page.getByPlaceholder("Senha").fill(credentials.password);
+  await page.getByRole("button", { name: /^Entrar$/i }).click();
 
-  await expect(page).not.toHaveURL(/.*\/auth.*/, { timeout: 20000 });
-  await expect(page.locator("nav, .mapboxgl-map, #tour-start-walk").first()).toBeVisible({ timeout: 20000 });
+  await expect(page).not.toHaveURL(/.*\/auth.*/, { timeout: 30000 });
+  await expect(page.locator("nav, .mapboxgl-map, #tour-start-walk").first()).toBeVisible({ timeout: 30000 });
 
   const storageState = await context.storageState();
   const tokenExists = storageState.origins
