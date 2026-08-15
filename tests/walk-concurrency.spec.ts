@@ -184,13 +184,40 @@ test.afterAll(async () => {
   for (const id of ids) {
     const { error: dErr } = await admin.auth.admin.deleteUser(id);
     if (dErr) throw new Error(`Teardown falhou ao deletar usuário Auth ${id}: ${dErr.message}`);
+    
+    // Verificação individual: getUserById
+    const { data: check, error: checkErr } = await admin.auth.admin.getUserById(id);
+    if (check?.user) {
+        throw new Error(`Teardown falhou: usuário Auth ${id} ainda existe após exclusão.`);
+    }
   }
 
-  // Confirmação final
-  const { data: remain } = await admin.from("profiles").select("id").in("id", ids);
-  if (remain?.length) throw new Error(`Teardown INCOMPLETO: perfis residuais detectados para ${ids.join(", ")}`);
+  // Verificações fail-closed pós-cleanup em todas as tabelas
+  const checkTables = [
+    { name: "walk_sessions", col: "customer_id", filter: `customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})` },
+    { name: "walker_tracking", col: "walk_session_id", filter: "" }, // Relativo a sessões já limpas
+    { name: "walk_offers", col: "walker_id", filter: `walker_id.in.(${ids.join(",")})` },
+    { name: "petwalker_earnings", col: "walker_id", filter: `walker_id.in.(${ids.join(",")})` },
+    { name: "pets", col: "owner_id", filter: `owner_id.in.(${ids.join(",")})` },
+    { name: "petwalker_profiles", col: "user_id", filter: `user_id.in.(${ids.join(",")})` },
+    { name: "user_roles", col: "user_id", filter: `user_id.in.(${ids.join(",")})` },
+    { name: "profiles", col: "id", filter: `id.in.(${ids.join(",")})` }
+  ];
 
-  log("teardown rigoroso concluído");
+  for (const t of checkTables) {
+      const q = admin.from(t.name).select("*", { count: "exact", head: true });
+      const { count, error } = t.filter ? await q.or(t.filter) : await q.in(t.col, []); // simplificado
+      
+      // Re-executar com filtro correto se necessário
+      const finalQ = t.filter ? admin.from(t.name).select("*", { count: "exact", head: true }).or(t.filter) 
+                              : admin.from(t.name).select("*", { count: "exact", head: true }).in(t.col, ids);
+      const res = await finalQ;
+
+      if (res.error) throw new Error(`Erro ao validar cleanup na tabela ${t.name}: ${res.error.message}`);
+      if (res.count !== 0) throw new Error(`Teardown INCOMPLETO: ${res.count} registros residuais detectados na tabela ${t.name}`);
+  }
+
+  log("teardown rigoroso e validação pós-cleanup concluídos");
 });
 
 
