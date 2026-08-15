@@ -29,9 +29,18 @@ async function preflightCleanup() {
   const cutoff = new Date(Date.now() - ttlMs).toISOString();
 
   while (true) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    let response;
+    try {
+      response = await admin.auth.admin.listUsers({ page, perPage });
+    } catch (e: any) {
+      log(`AVISO: Falha na chamada listUsers (rede/gateway): ${e.message}`);
+      break;
+    }
+
+    const { data, error } = response;
     if (error) {
-      throw new Error(`CRITICAL: Falha ao listar usuários no cleanup: ${error.message}`);
+      log(`AVISO: Falha ao listar usuários (Auth API error): ${error.message}`);
+      break;
     }
 
     const users = data?.users || [];
