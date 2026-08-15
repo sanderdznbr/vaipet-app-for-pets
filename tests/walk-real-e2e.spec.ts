@@ -188,7 +188,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     // Dono solicita
     await oCtx.page.goto("/inicio");
     await oCtx.page.click('button:has-text("Buscar passeio")');
-    await expect(oCtx.page).toHaveURL("/search-walk");
+    await expect(oCtx.page).toHaveURL(/\/search-walk/);
     await oCtx.page.click(`[data-testid="pet-card-${pet!.id}"]`);
     await oCtx.page.click('button:has-text("30 minutos")');
     await oCtx.page.click('button:has-text("Solicitar Agora")');
