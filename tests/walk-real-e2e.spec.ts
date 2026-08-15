@@ -364,7 +364,8 @@ test("negative: Segurança de RPC e Regras de Negócio", async ({ browser }) => 
       customer_id: owner.id,
       current_status: "searching",
       matching_expires_at: new Date(Date.now() + 600000).toISOString(),
-      pet_id: pet!.id
+      pet_id: pet!.id,
+      start_time: new Date().toISOString()
     }).select("id").single();
     const { error: autoErr } = await owner.client.rpc("accept_walk_request", { _session_id: sess!.id });
     expect(autoErr?.message).toContain("Auto-aceite proibido");
