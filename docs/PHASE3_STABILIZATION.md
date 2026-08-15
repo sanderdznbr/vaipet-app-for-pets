@@ -39,4 +39,5 @@ A Fase 3.1 foi tecnicamente estabilizada e o teardown de concorrência foi endur
 
 ---
 *Assinado: Lovable Agent*
-*HEAD: 2c140d51a1213709dd02f374c46bd28d03db0600 (anterior)*
+*HEAD: 775f907900d1598c453c3d05f67486ffe4850126*
+*Cleanup Validation: Todas as tabelas confirmadas com count=0; Auth users confirmados via getUserById.*

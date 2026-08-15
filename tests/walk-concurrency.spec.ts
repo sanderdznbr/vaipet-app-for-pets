@@ -137,7 +137,7 @@ test.afterAll(async () => {
 
   log(`iniciando teardown rigoroso para ${ids.length} usuários...`);
 
-  // 1. Busca walk_sessions
+  // 1. Busca walk_sessions vinculadas aos usuários
   const { data: sessions, error: sErr } = await admin
     .from("walk_sessions")
     .select("id")
@@ -185,36 +185,31 @@ test.afterAll(async () => {
     const { error: dErr } = await admin.auth.admin.deleteUser(id);
     if (dErr) throw new Error(`Teardown falhou ao deletar usuário Auth ${id}: ${dErr.message}`);
     
-    // Verificação individual: getUserById
-    const { data: check, error: checkErr } = await admin.auth.admin.getUserById(id);
+    // Verificação individual: getUserById (confirmação fail-closed)
+    const { data: check } = await admin.auth.admin.getUserById(id);
     if (check?.user) {
         throw new Error(`Teardown falhou: usuário Auth ${id} ainda existe após exclusão.`);
     }
   }
 
-  // Verificações fail-closed pós-cleanup em todas as tabelas
+  // Verificações fail-closed pós-cleanup em todas as tabelas de domínio
   const checkTables = [
-    { name: "walk_sessions", col: "customer_id", filter: `customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})` },
-    { name: "walker_tracking", col: "walk_session_id", filter: "" }, // Relativo a sessões já limpas
-    { name: "walk_offers", col: "walker_id", filter: `walker_id.in.(${ids.join(",")})` },
-    { name: "petwalker_earnings", col: "walker_id", filter: `walker_id.in.(${ids.join(",")})` },
-    { name: "pets", col: "owner_id", filter: `owner_id.in.(${ids.join(",")})` },
-    { name: "petwalker_profiles", col: "user_id", filter: `user_id.in.(${ids.join(",")})` },
-    { name: "user_roles", col: "user_id", filter: `user_id.in.(${ids.join(",")})` },
-    { name: "profiles", col: "id", filter: `id.in.(${ids.join(",")})` }
+    { name: "walk_sessions", filter: `customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})` },
+    { name: "walk_offers", filter: `walker_id.in.(${ids.join(",")})` },
+    { name: "petwalker_earnings", filter: `walker_id.in.(${ids.join(",")})` },
+    { name: "pets", filter: `owner_id.in.(${ids.join(",")})` },
+    { name: "petwalker_profiles", filter: `user_id.in.(${ids.join(",")})` },
+    { name: "user_roles", filter: `user_id.in.(${ids.join(",")})` },
+    { name: "profiles", filter: `id.in.(${ids.join(",")})` }
   ];
 
   for (const t of checkTables) {
-      const q = admin.from(t.name).select("*", { count: "exact", head: true });
-      const { count, error } = t.filter ? await q.or(t.filter) : await q.in(t.col, []); // simplificado
-      
-      // Re-executar com filtro correto se necessário
-      const finalQ = t.filter ? admin.from(t.name).select("*", { count: "exact", head: true }).or(t.filter) 
-                              : admin.from(t.name).select("*", { count: "exact", head: true }).in(t.col, ids);
-      const res = await finalQ;
+      const { count, error } = await admin.from(t.name)
+        .select("*", { count: "exact", head: true })
+        .or(t.filter);
 
-      if (res.error) throw new Error(`Erro ao validar cleanup na tabela ${t.name}: ${res.error.message}`);
-      if (res.count !== 0) throw new Error(`Teardown INCOMPLETO: ${res.count} registros residuais detectados na tabela ${t.name}`);
+      if (error) throw new Error(`Erro ao validar cleanup na tabela ${t.name}: ${error.message}`);
+      if (count !== 0) throw new Error(`Teardown INCOMPLETO: ${count} registros residuais detectados na tabela ${t.name}`);
   }
 
   log("teardown rigoroso e validação pós-cleanup concluídos");
