@@ -31,9 +31,17 @@ async function preflightCleanup() {
   const cutoff = new Date(Date.now() - ttlMs).toISOString();
 
   while (true) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    let data, error;
+    try {
+      const response = await admin.auth.admin.listUsers({ page, perPage });
+      data = response.data;
+      error = response.error;
+    } catch (e: any) {
+      throw new Error(`CRITICAL: Falha na rede/gateway ao listar usuários para cleanup: ${e.message}`);
+    }
+
     if (error) {
-      throw new Error(`CRITICAL: Falha ao listar usuários para cleanup: ${error.message}`);
+      throw new Error(`CRITICAL: Falha na Auth API ao listar usuários para cleanup: ${error.message}`);
     }
 
     const users = data?.users || [];
@@ -270,7 +278,8 @@ async function prepareOperationalWalk(runId: string, owner: any, walker: any, pe
     home_location: { lng: -46.7, lat: -23.6 },
     planned_duration_minutes: 30,
     total_price_cents: 2250,
-    start_time: new Date().toISOString()
+    start_time: new Date().toISOString(),
+    walk_type: 'outdoor'
   }).select("id").single();
   if (sessErr) throw new Error(`Falha ao criar sessão: ${sessErr.message}`);
 
@@ -358,7 +367,8 @@ test("negative: Segurança de RPC e Regras de Negócio", async ({ browser }) => 
       current_status: "searching",
       matching_expires_at: new Date(Date.now() + 600000).toISOString(),
       pet_id: pet!.id,
-      start_time: new Date().toISOString()
+      start_time: new Date().toISOString(),
+      walk_type: 'outdoor'
     }).select("id").single();
     const { error: autoErr } = await owner.client.rpc("accept_walk_request", { _session_id: sess!.id });
     expect(autoErr?.message).toContain("Auto-aceite proibido");
@@ -374,7 +384,9 @@ test("negative: Segurança de RPC e Regras de Negócio", async ({ browser }) => 
       customer_id: owner.id,
       current_status: "searching",
       matching_expires_at: new Date(Date.now() - 1000).toISOString(),
-      pet_id: pet!.id
+      pet_id: pet!.id,
+      walk_type: 'outdoor',
+      start_time: new Date().toISOString()
     }).select("id").single();
     const { error: expErr } = await walker.client.rpc("accept_walk_request", { _session_id: expSess!.id });
     expect(expErr).toBeTruthy();
@@ -383,7 +395,9 @@ test("negative: Segurança de RPC e Regras de Negócio", async ({ browser }) => 
     const { data: nullSess } = await admin.from("walk_sessions").insert({
       customer_id: owner.id,
       current_status: "searching",
-      pet_id: pet!.id
+      pet_id: pet!.id,
+      walk_type: 'outdoor',
+      start_time: new Date().toISOString()
     }).select("id").single();
     const { error: nullErr } = await walker.client.rpc("accept_walk_request", { _session_id: nullSess!.id });
     expect(nullErr).toBeTruthy();
