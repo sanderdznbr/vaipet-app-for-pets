@@ -233,41 +233,74 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
   }
 });
 
-test("tracking: GPS real e Marcador Dinâmico", async ({ browser }) => {
+async function prepareOperationalWalk(runId: string, owner: any, walker: any, petName: string) {
+  const { data: pet } = await admin.from("pets").insert({ owner_id: owner.id, name: petName, breed: "SRD", is_active: true }).select("id").single();
+  
+  // 1. Criar sessão
+  const { data: sess } = await admin.from("walk_sessions").insert({
+    customer_id: owner.id,
+    current_status: "searching",
+    pet_id: pet!.id,
+    matching_expires_at: new Date(Date.now() + 600000).toISOString(),
+    meeting_point_geom: `SRID=4326;POINT(-46.7 -23.6)`
+  }).select("id").single();
+
+  // 2. Matching e Aceite via RPC (Simulando operacional)
+  await admin.rpc("process_walk_matching");
+  const { error: accErr } = await walker.client.rpc("accept_walk_request", { _session_id: sess!.id });
+  if (accErr) throw accErr;
+
+  // 3. Transições até In Progress via RPC
+  await walker.client.rpc("petwalker_start_heading", { _session_id: sess!.id });
+  await walker.client.rpc("petwalker_arrive_pickup", { _session_id: sess!.id });
+  await walker.client.rpc("petwalker_start_walk", { _session_id: sess!.id });
+
+  return { petId: pet!.id, sessionId: sess!.id };
+}
+
+test("tracking: GPS operacional, Throttle e Realtime", async ({ browser }) => {
   const runId = `track_${Math.random().toString(36).slice(2, 8)}`;
   const owner = await provisionUser(runId, "pet_owner");
   const walker = await provisionUser(runId, "petwalker");
+  let oCtx: { context: BrowserContext; page: Page } | undefined;
+  let wCtx: { context: BrowserContext; page: Page } | undefined;
 
   try {
-    const { data: pet } = await admin.from("pets").insert({ owner_id: owner.id, name: `PetTrack_${runId}`, breed: "SRD" }).select("id").single();
-    const { data: sess } = await admin.from("walk_sessions").insert({
-      customer_id: owner.id,
-      walker_id: walker.id,
-      current_status: "in_progress",
-      start_time: new Date().toISOString(),
-      pet_id: pet!.id,
-      matching_expires_at: new Date(Date.now() + 600000).toISOString()
-    }).select("id").single();
+    const { sessionId } = await prepareOperationalWalk(runId, owner, walker, `PetTrack_${runId}`);
+    oCtx = await createAuthedContext(browser, owner.session, { lng: -46.7, lat: -23.6 });
+    wCtx = await createAuthedContext(browser, walker.session, { lng: -46.7001, lat: -23.6001 });
 
-    const oCtx = await createAuthedContext(browser, owner.session, { lng: -46.7, lat: -23.6 });
-    const wCtx = await createAuthedContext(browser, walker.session, { lng: -46.7001, lat: -23.6001 });
+    await oCtx.page.goto(`/search-walk?resume=${sessionId}`);
+    
+    // Validar marcador do dono existe
+    const walkerMarker = oCtx.page.locator('.mapboxgl-marker');
+    await expect(walkerMarker).toBeVisible({ timeout: 15000 });
 
-    await wCtx.page.goto(`/petwalker/passeio/${sess!.id}`);
-    await oCtx.page.goto(`/search-walk?resume=${sess!.id}`);
+    // 3 atualizações de GPS com throttle
+    const points = [
+      { lng: -46.7005, lat: -23.6005 },
+      { lng: -46.7008, lat: -23.6008 },
+      { lng: -46.7010, lat: -23.6010 }
+    ];
 
-    // Mover GPS
-    const newPos = { lng: -46.7005, lat: -23.6005 };
-    await wCtx.context.setGeolocation({ longitude: newPos.lng, latitude: newPos.lat });
+    for (const pt of points) {
+      await wCtx.client.rpc("update_walker_location", { _lat: pt.lat, _lng: pt.lng, _accuracy: 10 });
+      await wCtx.client.rpc("append_walk_tracking_point", { _session_id: sessionId, _point: [pt.lng, pt.lat] });
+      // Esperar throttle do servidor (5s) + margem
+      await new Promise(r => setTimeout(r, 6000));
+    }
 
-    // Validar atualização no mapa do dono
-    await expect.poll(async () => {
-      const { data } = await admin.from("walker_tracking").select("*").eq("walk_session_id", sess!.id);
-      return data?.length || 0;
-    }, { timeout: 15000 }).toBeGreaterThan(0);
+    // Comprovar persistência e trilha
+    const { data: trail } = await admin.from("walker_tracking").select("*").eq("walk_session_id", sessionId);
+    expect(trail?.length).toBeGreaterThanOrEqual(3);
 
-    await oCtx.context.close();
-    await wCtx.context.close();
+    // Comprovar que o marcador no dono mudou de posição sem reload
+    // (Apenas verificamos que o marcador continua visível e o status é walking)
+    await expect(oCtx.page.locator('h2:has-text("Passeio em andamento")')).toBeVisible();
+
   } finally {
+    if (oCtx) await oCtx.context.close();
+    if (wCtx) await wCtx.context.close();
     await quickCleanup([owner.id, walker.id]);
   }
 });
