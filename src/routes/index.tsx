@@ -1,21 +1,16 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { Navigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
-export const RedirectIndex = () => {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  
-  useEffect(() => {
-    if (!user) {
-      navigate('/auth', { replace: true });
-      return;
-    }
-    
-    navigate('/inicio', { replace: true });
-  }, [user, navigate]);
+const RedirectIndex = () => {
+  const { user, loading } = useAuth();
 
-  return null;
+  if (loading) return null;
+
+  if (user) {
+    return <Navigate to="/inicio" replace />;
+  }
+
+  return <Navigate to="/auth" replace />;
 };
 
 export default RedirectIndex;
