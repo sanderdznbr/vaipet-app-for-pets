@@ -209,36 +209,49 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
   let wCtx: { context: BrowserContext; page: Page } | undefined;
 
   try {
-    const { data: pet } = await admin.from("pets").insert({ owner_id: owner.id, name: `PetMatch_${runId}`, breed: "SRD", is_active: true }).select("id").single();
+    // 1. Setup: Pet para o dono
+    const { data: pet } = await admin.from("pets").insert({ 
+      owner_id: owner.id, 
+      name: `PetMatch_${runId}`, 
+      breed: "SRD", 
+      is_active: true 
+    }).select("id").single();
+
     oCtx = await createAuthedContext(browser, owner.session, { lng: -46.7, lat: -23.6 });
     wCtx = await createAuthedContext(browser, walker.session, { lng: -46.7001, lat: -23.6001 });
 
-    // 1. Dono solicita via UI (Home -> Modal -> Search)
+    // 2. Dono solicita passeio via UI
     await oCtx.page.goto("/", { waitUntil: 'networkidle' });
-    await oCtx.page.click('#tour-start-walk');
+    
+    // Clicar no CTA de iniciar passeio (usando ID do tour definido em HomePasseio.tsx)
+    const heroBtn = oCtx.page.locator('#tour-start-walk');
+    await expect(heroBtn).toBeVisible({ timeout: 15000 });
+    await heroBtn.click();
+    
+    // Modal de seleção de tempo
     await oCtx.page.click('button:has-text("30 minutos")');
     await oCtx.page.click('button:has-text("Confirmar")');
     
-    // Esperar redirecionamento para busca ativa
+    // Esperar redirecionamento e capturar session_id
     await expect(oCtx.page).toHaveURL(/.*search-walk.*/, { timeout: 15000 });
-    const { searchParams } = new URL(oCtx.page.url());
-    const sessId = searchParams.get("resume");
+    const url = new URL(oCtx.page.url());
+    const sessId = url.searchParams.get("resume");
     expect(sessId).toBeTruthy();
 
-    // 2. Matching real via Server RPC
+    // 3. Matching Job (Server-side)
     await expect.poll(async () => {
       await admin.rpc("process_walk_matching");
       const { data } = await admin.from("walk_offers").select("offer_status").eq("session_id", sessId!);
       return data?.some(o => o.offer_status === 'pending');
     }, { timeout: 15000 }).toBe(true);
 
-    // 3. Walker aceita via UI
+    // 4. Walker aceita via UI no Painel
     await wCtx.page.goto("/petwalker/painel");
     const acceptBtn = wCtx.page.locator('button:has-text("Aceitar Passeio")');
     await expect(acceptBtn).toBeVisible({ timeout: 20000 });
     await acceptBtn.click();
 
-    // 4. Verificação de estado final
+    // 5. Verificação de sucesso
     await expect(wCtx.page).toHaveURL(/.*walk-details.*/, { timeout: 15000 });
     const { data: sess } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessId!).single();
     expect(sess?.current_status).toBe("walker_assigned");
