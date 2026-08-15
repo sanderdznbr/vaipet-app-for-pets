@@ -247,21 +247,21 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
 async function prepareOperationalWalk(runId: string, owner: any, walker: any, petName: string) {
   const { data: pet } = await admin.from("pets").insert({ owner_id: owner.id, name: petName, breed: "SRD", is_active: true }).select("id").single();
   
-  // 1. Criar sessão
   const { data: sess } = await admin.from("walk_sessions").insert({
     customer_id: owner.id,
     current_status: "searching",
     pet_id: pet!.id,
     matching_expires_at: new Date(Date.now() + 600000).toISOString(),
-    meeting_point_geom: `SRID=4326;POINT(-46.7 -23.6)`
+    meeting_point_geom: `SRID=4326;POINT(-46.7 -23.6)`,
+    home_location: { lng: -46.7, lat: -23.6 },
+    planned_duration_minutes: 30,
+    total_price_cents: 2250
   }).select("id").single();
 
-  // 2. Matching e Aceite via RPC (Simulando operacional)
   await admin.rpc("process_walk_matching");
   const { error: accErr } = await walker.client.rpc("accept_walk_request", { _session_id: sess!.id });
   if (accErr) throw accErr;
 
-  // 3. Transições até In Progress via RPC
   await walker.client.rpc("petwalker_start_heading", { _session_id: sess!.id });
   await walker.client.rpc("petwalker_arrive_pickup", { _session_id: sess!.id });
   await walker.client.rpc("petwalker_start_walk", { _session_id: sess!.id });
@@ -283,11 +283,12 @@ test("tracking: GPS operacional, Throttle e Realtime", async ({ browser }) => {
 
     await oCtx.page.goto(`/search-walk?resume=${sessionId}`);
     
-    // Validar marcador do dono existe
-    const walkerMarker = oCtx.page.locator('.mapboxgl-marker');
+    // 1. Comprovar que o marcador do dono existe e ler posição inicial
+    const walkerMarker = oCtx.page.locator('.mapboxgl-marker').first();
     await expect(walkerMarker).toBeVisible({ timeout: 15000 });
+    const initialPos = await walkerMarker.boundingBox();
 
-    // 3 atualizações de GPS com throttle
+    // 2. 3 atualizações de GPS com throttle
     const points = [
       { lng: -46.7005, lat: -23.6005 },
       { lng: -46.7008, lat: -23.6008 },
@@ -295,19 +296,21 @@ test("tracking: GPS operacional, Throttle e Realtime", async ({ browser }) => {
     ];
 
     for (const pt of points) {
-      await wCtx.client.rpc("update_walker_location", { _lat: pt.lat, _lng: pt.lng, _accuracy: 10 });
-      await wCtx.client.rpc("append_walk_tracking_point", { _session_id: sessionId, _point: [pt.lng, pt.lat] });
-      // Esperar throttle do servidor (5s) + margem
+      const { error: upErr } = await walker.client.rpc("update_walker_location", { _lat: pt.lat, _lng: pt.lng, _accuracy: 10 });
+      if (upErr) throw upErr;
+      const { error: apErr } = await walker.client.rpc("append_walk_tracking_point", { _session_id: sessionId, _point: [pt.lng, pt.lat] });
+      if (apErr) throw apErr;
       await new Promise(r => setTimeout(r, 6000));
     }
 
-    // Comprovar persistência e trilha
+    // 3. Comprovar persistência da trilha histórica
     const { data: trail } = await admin.from("walker_tracking").select("*").eq("walk_session_id", sessionId);
     expect(trail?.length).toBeGreaterThanOrEqual(3);
 
-    // Comprovar que o marcador no dono mudou de posição sem reload
-    // (Apenas verificamos que o marcador continua visível e o status é walking)
-    await expect(oCtx.page.locator('h2:has-text("Passeio em andamento")')).toBeVisible();
+    // 4. Comprovar que a posição visual do marcador mudou sem reload
+    const finalPos = await walkerMarker.boundingBox();
+    expect(finalPos!.x).not.toBe(initialPos!.x);
+    expect(oCtx.page.url()).toContain(sessionId); // Não recarregou a página do dono (preservou URL)
 
   } finally {
     if (oCtx) await oCtx.context.close();
