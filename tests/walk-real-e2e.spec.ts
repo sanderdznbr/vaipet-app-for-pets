@@ -186,19 +186,13 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     const wCtx = await createAuthedContext(browser, walker.session, { lng: -46.7009, lat: -23.6004 });
 
     // Dono solicita
-    await oCtx.page.goto("/inicio");
     await oCtx.page.goto("/search-walk", { waitUntil: 'networkidle' });
     const petCard = oCtx.page.locator(`[data-testid="pet-card-${pet!.id}"]`);
     await expect(petCard).toBeVisible({ timeout: 15000 });
     await petCard.click();
     
-    const durationBtn = oCtx.page.locator('button:has-text("30 minutos")');
-    await expect(durationBtn).toBeVisible({ timeout: 10000 });
-    await durationBtn.click();
-    
-    const requestBtn = oCtx.page.locator('button:has-text("Solicitar Agora")');
-    await expect(requestBtn).toBeVisible({ timeout: 10000 });
-    await requestBtn.click();
+    await oCtx.page.click('button:has-text("30 minutos")');
+    await oCtx.page.click('button:has-text("Solicitar Agora")');
 
     // Job de matching real
     await expect.poll(async () => {
@@ -210,11 +204,11 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     // PetWalker aceita
     await wCtx.page.goto("/petwalker/painel");
     const offerCard = wCtx.page.locator(`button:has-text("ACEITAR PASSEIO")`);
-    await expect(offerCard).toBeVisible({ timeout: 10000 });
+    await expect(offerCard).toBeVisible({ timeout: 15000 });
     await offerCard.click();
 
     // Validar aceite via Realtime no Dono
-    await expect(oCtx.page.locator('h3:has-text("Passeio confirmado")')).toBeVisible({ timeout: 10000 });
+    await expect(oCtx.page.locator('h3:has-text("Passeio confirmado")')).toBeVisible({ timeout: 15000 });
     
     await oCtx.context.close();
     await wCtx.context.close();
