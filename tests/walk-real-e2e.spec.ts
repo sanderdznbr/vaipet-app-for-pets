@@ -473,7 +473,8 @@ test("full: Jornada Completa determinística (Dois Contextos)", async ({ browser
     await wCtx.page.click('button:has-text("Iniciar passeio")');
 
     // 5. GPS operacional
-    await wCtx.client.rpc("update_walker_location", { _lat: -23.6005, _lng: -46.7005, _accuracy: 10 });
+    await wCtx.context.setGeolocation({ latitude: -23.6005, longitude: -46.7005 });
+    await wCtx.page.waitForTimeout(7000); // Esperar watchPosition capturar e processar (throttled 5s + 2s buffer)
     
     // 6. Conclusão via UI
     await wCtx.page.click('button:has-text("Finalizar passeio")');
