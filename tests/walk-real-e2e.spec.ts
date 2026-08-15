@@ -267,9 +267,10 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
 });
 
 async function prepareOperationalWalk(runId: string, owner: any, walker: any, petName: string) {
-  const { data: pet } = await admin.from("pets").insert({ owner_id: owner.id, name: petName, breed: "SRD", is_active: true }).select("id").single();
+  const { data: pet, error: petErr } = await admin.from("pets").insert({ owner_id: owner.id, name: petName, breed: "SRD", is_active: true }).select("id").single();
+  if (petErr) throw new Error(`Falha ao criar pet: ${petErr.message}`);
   
-  const { data: sess } = await admin.from("walk_sessions").insert({
+  const { data: sess, error: sessErr } = await admin.from("walk_sessions").insert({
     customer_id: owner.id,
     current_status: "searching",
     pet_id: pet!.id,
@@ -279,10 +280,11 @@ async function prepareOperationalWalk(runId: string, owner: any, walker: any, pe
     planned_duration_minutes: 30,
     total_price_cents: 2250
   }).select("id").single();
+  if (sessErr) throw new Error(`Falha ao criar sessão: ${sessErr.message}`);
 
   await admin.rpc("process_walk_matching");
   const { error: accErr } = await walker.client.rpc("accept_walk_request", { _session_id: sess!.id });
-  if (accErr) throw accErr;
+  if (accErr) throw new Error(`Falha ao aceitar: ${accErr.message}`);
 
   await walker.client.rpc("petwalker_start_heading", { _session_id: sess!.id });
   await walker.client.rpc("petwalker_arrive_pickup", { _session_id: sess!.id });
