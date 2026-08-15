@@ -29,19 +29,8 @@ async function preflightCleanup() {
   const cutoff = new Date(Date.now() - ttlMs).toISOString();
 
   while (true) {
-    let response;
-    try {
-      response = await admin.auth.admin.listUsers({ page, perPage });
-    } catch (e: any) {
-      log(`AVISO: Falha na chamada listUsers (rede/gateway): ${e.message}`);
-      break;
-    }
-
-    const { data, error } = response;
-    if (error) {
-      log(`AVISO: Falha ao listar usuários (Auth API error): ${error.message}`);
-      break;
-    }
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) throw new Error(`CRITICAL: Falha ao listar usuários (Auth API): ${error.message}`);
 
     const users = data?.users || [];
     if (users.length === 0) break;
@@ -49,11 +38,12 @@ async function preflightCleanup() {
     const targets = users.filter(u => 
       u.email?.endsWith("@e2e.vaipet.invalid") && 
       u.user_metadata?.e2e_test === true &&
+      (u.user_metadata?.e2e_run_id && u.user_metadata.e2e_run_id !== "") &&
       u.created_at < cutoff
     );
 
     if (targets.length > 0) {
-      log(`Limpando ${targets.length} usuários expirados (Página ${page})...`);
+      log(`Limpando ${targets.length} usuários (Página ${page})...`);
       await quickCleanup(targets.map(u => u.id));
     }
 
