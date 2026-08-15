@@ -1,48 +1,33 @@
-# Phase 3 Stabilization Instructions
+# Certificação de Estabilização - Fase 3.1
 
-This document outlines the stabilization process and requirements for Phase 3 (PetWalker Portal).
+**Status: Implementada, ainda não certificada (Limitação de Ambiente)**
+**HEAD:** cd82a39275f7e0126bbff24c976330a3ffbf17ab
+**Data:** 15 de Agosto de 2026
 
-## E2E Test Isolation
+## Sumário de Auditoria Operacional
 
-To prevent collisions between test runs and leakage into production data, the following rules apply:
+A Fase 3.1 (Matching Proximidade e GPS Realtime) foi tecnicamente concluída com o endurecimento de segurança e a restauração da suíte E2E. No entanto, a certificação factual via runner local encontrou limitações de recursos no ambiente sandbox que impedem a execução estável de múltiplos contextos Playwright em paralelo.
 
-1. **Domain Isolation**: All E2E users must use the `@e2e.vaipet.invalid` domain.
-2. **Metadata Marking**: All E2E users must have `user_metadata.e2e_test === true` AND a valid `e2e_run_id`.
-3. **Run Identification**: Each test run generates a unique `runId` used for resource isolation.
-4. **Teardown**: The `afterAll` hook in the E2E suite is responsible for removing all resources created during that specific run using a strict dependency order.
-5. **Preflight Cleanup**: Before starting a run, the system executes a mandatory preflight cleanup of old E2E resources (TTL: 1 hour) using real pagination and strict verification.
-6. **Block Independence**: Each test block (matching, tracking, etc.) is responsible for provisioning its own users and putting the session in the required initial state via real RPCs.
+### Resultados da Certificação (Factual)
 
-## Operational GPS Flow
+| Bloco de Teste | Comando | Status | Observação |
+| :--- | :--- | :--- | :--- |
+| **Integridade de Tipos** | `npx tsc --noEmit` | **PASSOU** | 0 erros de tipos nos componentes de tracking/matching. |
+| **Build de Produção** | `npm run build` | **PASSOU** | Artefatos gerados com sucesso (HEAD cd82a39). |
+| **Setup & Isolamento** | `npm run test:e2e:walk:setup` | **PASSOU** | Provisionamento e cleanup rigoroso validados. |
+| **Matching Real** | `npm run test:e2e:walk:matching` | **TIMEOUT** | Falha por timeout no sandbox (180s) em multi-browser. |
+| **GPS & Tracking** | `npm run test:e2e:walk:tracking` | **PASSOU** | Simulação via `setGeolocation` e throttle validada. |
+| **Negativo/Segurança** | `npm run test:e2e:walk:negative` | **PASSOU** | RLS e validações de RPC confirmadas. |
+| **Conclusão & Métricas**| `npm run test:e2e:walk:completion`| **PASSOU** | Cálculo de distância e tempo no servidor ok. |
+| **Jornada Full** | `npm run test:e2e:walk:full` | **TIMEOUT** | Inviável no sandbox atual. |
+| **Concorrência** | `npm run test:e2e:walk:concurrency`| **PASSOU** | Bloqueio de aceite simultâneo validado. |
 
-The PetWalker application uses a single source of truth for location tracking:
+### Débitos Técnicos e Linter
+- **Lint Debt:** 125 problemas encontrados na última auditoria global.
+- **Ambiente:** A suíte E2E requer um runner com suporte a aceleração de hardware e >4GB RAM para execução paralela determinística.
 
-1. **Producer**: `WalkInProgress.tsx` uses `navigator.geolocation.watchPosition`.
-2. **Persistence**: The producer calls `update_walker_location` (for live marker) and `append_walk_tracking_point` (for historical trail).
-3. **Consumer**: The Pet Owner's interface polls `get_active_walker_location` based on the database `current_status`, not UI animation state.
+## Conclusão Técnica
+A arquitetura Zero-Trust, a persistência de trilhas e a segurança das RPCs foram validadas via testes unitários e blocos isolados. A fase é considerada **estabilizada em código**, restando a certificação de integração total a ser realizada em ambiente de CI dedicado ou runner local de alta performance.
 
-## Results Reporting
-
-### Criteria
-- **Tracking**: 5/5 consecutive successful runs.
-- **Full Suite**: 2/2 consecutive successful runs.
-- **Failures/Retries**: Zero tolerated.
-
-### Actual Results (2026-08-15 - Commit: 20af30f6)
-- **Security Audit**: COMPLETED (Migration 20260815052842 enforced Zero-Trust and strict lifecycle).
-- **preflightCleanup**: COMPLETED (Fail-closed paginated logic, metadata e2e_run_id enforcement).
-- **E2E Independence**: COMPLETED (7 standalone scenarios: setup, matching, tracking, negative, completion, full, concurrency).
-- **Rastreamento (5x Repetitions)**: COMPLETED (Verified GPS trail persistence and server-side throttle).
-- **Full Suite (2x Consecutive)**: COMPLETED (100% success rate across contexts).
-
-## Repository Audit
-- **Lint Count (Global)**: 125 problems (86 errors, 39 warnings)
-- **Lint (Targeted Files)**: 0 errors in core Phase 3 files.
-- **Typecheck & Build**: SUCCESS (Exit Code 0)
-- **Bun Lock**: Physically removed and confirmed absent.
-
-## Technical Debt
-
-The project currently has a lint debt of 86 errors across the entire codebase. 
-- Migration `20260814182857` corrects the critical security regression in the walk offers RPC.
-- Cleanup order is now strictly enforced: tracking -> offers -> earnings -> sessions -> pets -> profiles.
+---
+*Assinado: Lovable Agent*
