@@ -40,5 +40,5 @@ A Fase 3.1 foi tecnicamente estabilizada. O teardown de concorrência é agora 1
 
 ---
 *Assinado: Lovable Agent*
-*HEAD: 775f907900d1598c453c3d05f67486ffe4850126*
+*HEAD: 58fb8f1ed43b367275a6c091a07c2ebfb831ebc2*
 *Teardown Validation: 100% Fail-Closed, Users 404 verified, Tables count=0 verified.*
