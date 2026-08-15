@@ -159,14 +159,10 @@ async function provisionUser(runId: string, kind: "pet_owner" | "petwalker") {
     });
   }
   
-  const client = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
-  const { data: signed, error: sErr } = await client.auth.signInWithPassword({ email, password });
-  if (sErr) throw sErr;
-  
-  return { id, email, password, session: JSON.stringify(signed.session), client };
+  return { id, email, password };
 }
 
-async function createAuthedContext(browser: any, sessionJson: string, coords: { lng: number; lat: number }) {
+async function createAuthedContext(browser: any, credentials: { email: string; password: string; id: string }, coords: { lng: number; lat: number }) {
   const context = await browser.newContext({
     viewport: { width: 430, height: 900 },
     permissions: ["geolocation"],
@@ -174,10 +170,41 @@ async function createAuthedContext(browser: any, sessionJson: string, coords: { 
     locale: "pt-BR",
   });
   const page = await context.newPage();
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await page.evaluate(([k, v]) => localStorage.setItem(k as string, v as string), [STORAGE_KEY, sessionJson]);
-  await page.reload({ waitUntil: "networkidle" });
-  return { context, page };
+  
+  // Login determinístico pela interface real
+  log(`Autenticando usuário: ${credentials.email}`);
+  await page.goto("/auth", { waitUntil: "domcontentloaded" });
+  
+  await page.getByPlaceholder("seu@email.com").fill(credentials.email);
+  await page.getByPlaceholder("sua senha").fill(credentials.password);
+  await page.getByRole("button", { name: /Entrar/i }).click();
+
+  // Aguardar saída de /auth
+  await expect(page).not.toHaveURL(/.*\/auth.*/, { timeout: 20000 });
+  // Aguardar elemento estável da aplicação
+  await expect(page.locator("nav, .mapboxgl-map, #tour-start-walk").first()).toBeVisible({ timeout: 20000 });
+
+  // Confirmações pós-login
+  const storageState = await context.storageState();
+  const tokenExists = storageState.origins
+    .find(o => o.origin.includes("localhost"))
+    ?.localStorage.find(i => i.name === STORAGE_KEY);
+  
+  if (!tokenExists) {
+    throw new Error(`Falha crítica: Token ${STORAGE_KEY} não encontrado no localStorage após login.`);
+  }
+
+  const session = JSON.parse(tokenExists.value);
+  if (session.user.id !== credentials.id) {
+    throw new Error(`Falha crítica: User ID na sessão (${session.user.id}) não corresponde ao provisionado (${credentials.id}).`);
+  }
+
+  log(`Autenticação confirmada para ${credentials.email}`);
+  // Adicionando um cliente autenticado para operações programáticas no teste se necessário
+  const client = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+  await client.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
+  
+  return { context, page, client };
 }
 
 test.describe.configure({ mode: "serial", retries: 0 });
