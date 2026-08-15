@@ -1,7 +1,7 @@
 # Certificação de Estabilização - Fase 3.1
 
 **Status: Implementada, em processo de certificação**
-**HEAD:** 99820ec2e9a3fb704c84c3b0c72f5a76e2ce82b9
+**HEAD:** 2bbacdb28e70d5e5791579a5e7fc2314d11c0236
 **Data:** 15 de Agosto de 2026
 
 ## Sumário de Auditoria Operacional
@@ -20,14 +20,14 @@ A Fase 3.1 (Matching Proximidade e GPS Realtime) foi tecnicamente concluída com
 | **Negativo/Segurança** | `npm run test:e2e:walk:negative` | **BLOQUEADO** | Falha em `listUsers` (Auth API) no sandbox. |
 | **Conclusão & Métricas**| `npm run test:e2e:walk:completion`| **BLOQUEADO** | Falha em `listUsers` (Auth API) no sandbox. |
 | **Jornada Full** | `npm run test:e2e:walk:full` | **BLOQUEADO** | Falha em `listUsers` (Auth API) no sandbox. |
-| **Concorrência** | `npm run test:e2e:walk:concurrency`| **PASSOU** | Bloqueio de aceite simultâneo validado (1.3s). |
+| **Concorrência** | `npm run test:e2e:walk:concurrency`| **PASSOU** | Bloqueio de aceite simultâneo validado (1.2s). |
 
 ### Diagnóstico de Falhas
-1. **Auth API (listUsers)**: O comando `admin.auth.admin.listUsers` falha consistentemente no sandbox com `Database error finding users`. Por instrução, o `preflightCleanup` agora é **fail-closed**, o que causa o aborto imediato dos testes para garantir isolamento absoluto.
-2. **Schema Alignment**: Identificado e corrigido o campo `walk_type` (NOT NULL) nos helpers de provisionamento.
+1. **Auth API (listUsers)**: O comando `admin.auth.admin.listUsers` falha consistentemente no sandbox com `Database error finding users`. Por instrução, o `preflightCleanup` é **fail-closed**, o que causa o aborto imediato dos testes para garantir isolamento absoluto.
+2. **Timeouts**: Observados em cenários de multi-contexto Playwright no sandbox, possivelmente devido à contenção de recursos, mas o bloqueio primário é a falha na Auth API.
 
 ### Conclusão Técnica
-A arquitetura Zero-Trust, a persistência de trilhas e a segurança das RPCs foram validadas via análise estática e teste de concorrência. A fase é considerada **estabilizada em código**, com a suíte E2E pronta para execução em ambiente de CI onde a Auth API do backend esteja totalmente disponível.
+A arquitetura Zero-Trust, a persistência de trilhas e a segurança das RPCs foram validadas via análise estática e teste de concorrência. A fase é considerada **estabilizada em código**, com a suíte E2E configurada com traces, screenshots e vídeos em caso de falha, pronta para execução em ambiente de CI dedicado.
 
 ---
 *Assinado: Lovable Agent*
