@@ -211,32 +211,39 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
   try {
     const { data: pet } = await admin.from("pets").insert({ owner_id: owner.id, name: `PetMatch_${runId}`, breed: "SRD", is_active: true }).select("id").single();
     oCtx = await createAuthedContext(browser, owner.session, { lng: -46.7, lat: -23.6 });
-    wCtx = await createAuthedContext(browser, walker.session, { lng: -46.7009, lat: -23.6004 });
+    wCtx = await createAuthedContext(browser, walker.session, { lng: -46.7001, lat: -23.6001 });
 
-    // Dono solicita
-    await oCtx.page.goto("/search-walk", { waitUntil: 'networkidle' });
-    const petCard = oCtx.page.locator(`[data-testid="pet-card-${pet!.id}"]`);
-    await expect(petCard).toBeVisible({ timeout: 15000 });
-    await petCard.click();
-    
+    // 1. Dono solicita via UI (Home -> Modal -> Search)
+    await oCtx.page.goto("/", { waitUntil: 'networkidle' });
+    await oCtx.page.click('#tour-start-walk');
     await oCtx.page.click('button:has-text("30 minutos")');
-    await oCtx.page.click('button:has-text("Solicitar Agora")');
+    await oCtx.page.click('button:has-text("Confirmar")');
+    
+    // Esperar redirecionamento para busca ativa
+    await expect(oCtx.page).toHaveURL(/.*search-walk.*/, { timeout: 15000 });
+    const { searchParams } = new URL(oCtx.page.url());
+    const sessId = searchParams.get("resume");
+    expect(sessId).toBeTruthy();
 
-    // Job de matching real
+    // 2. Matching real via Server RPC
     await expect.poll(async () => {
       await admin.rpc("process_walk_matching");
-      const { data } = await admin.from("walk_offers").select("offer_status").eq("walker_id", walker.id);
+      const { data } = await admin.from("walk_offers").select("offer_status").eq("session_id", sessId!);
       return data?.some(o => o.offer_status === 'pending');
     }, { timeout: 15000 }).toBe(true);
 
-    // PetWalker aceita via UI
+    // 3. Walker aceita via UI
     await wCtx.page.goto("/petwalker/painel");
-    const offerCard = wCtx.page.locator(`button:has-text("ACEITAR PASSEIO")`);
-    await expect(offerCard).toBeVisible({ timeout: 15000 });
-    await offerCard.click();
+    const acceptBtn = wCtx.page.locator('button:has-text("Aceitar Passeio")');
+    await expect(acceptBtn).toBeVisible({ timeout: 20000 });
+    await acceptBtn.click();
 
-    // Validar aceite via Realtime no Dono
-    await expect(oCtx.page.locator('h3:has-text("Passeio confirmado")')).toBeVisible({ timeout: 15000 });
+    // 4. Verificação de estado final
+    await expect(wCtx.page).toHaveURL(/.*walk-details.*/, { timeout: 15000 });
+    const { data: sess } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessId!).single();
+    expect(sess?.current_status).toBe("walker_assigned");
+    expect(sess?.walker_id).toBe(walker.id);
+
   } finally {
     if (oCtx) await oCtx.context.close();
     if (wCtx) await wCtx.context.close();
