@@ -177,14 +177,15 @@ test("setup: Isolamento e Autenticação", async ({ browser }) => {
   const runId = `setup_${Math.random().toString(36).slice(2, 8)}`;
   const owner = await provisionUser(runId, "pet_owner");
   const walker = await provisionUser(runId, "petwalker");
+  let oCtx: { context: BrowserContext; page: Page } | undefined;
 
   try {
-    const oCtx = await createAuthedContext(browser, owner.session, { lng: -46.7, lat: -23.6 });
+    oCtx = await createAuthedContext(browser, owner.session, { lng: -46.7, lat: -23.6 });
     // Validar isolamento RLS: Dono não vê perfil privado do Walker
     const { data: walkerProfile } = await owner.client.from("petwalker_profiles").select("experience_years").eq("user_id", walker.id).maybeSingle();
     expect(walkerProfile).toBeNull();
-    await oCtx.context.close();
   } finally {
+    if (oCtx) await oCtx.context.close();
     await quickCleanup([owner.id, walker.id]);
   }
 });
