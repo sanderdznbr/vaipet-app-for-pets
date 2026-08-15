@@ -55,31 +55,55 @@ async function preflightCleanup() {
 async function quickCleanup(ids: string[]) {
   if (!ids.length) return;
   
+  log(`quickCleanup: Processando ${ids.length} usuários...`);
+
   // Exclusão em ordem hierárquica
-  const { data: sessions, error: sErr } = await admin
+  const { data: sessions, error: listSErr } = await admin
     .from("walk_sessions")
     .select("id")
-    .or(`customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})`);
+    .or(`customer_id.in.(${ids.map(id => `'${id}'`).join(",")}),walker_id.in.(${ids.map(id => `'${id}'`).join(",")})`);
   
-  if (sErr) throw new Error(`Falha ao buscar sessões para cleanup: ${sErr.message}`);
+  if (listSErr) throw new Error(`Falha ao buscar sessões: ${listSErr.message}`);
 
   if (sessions?.length) {
     const sIds = sessions.map(s => s.id);
-    await admin.from("walker_tracking").delete().in("walk_session_id", sIds);
-    await admin.from("walk_offers").delete().in("session_id", sIds);
-    await admin.from("petwalker_earnings").delete().in("walk_session_id", sIds);
-    await admin.from("walk_sessions").delete().in("id", sIds);
+    const { error: tErr } = await admin.from("walker_tracking").delete().in("walk_session_id", sIds);
+    if (tErr) throw new Error(`walker_tracking cleanup error: ${tErr.message}`);
+
+    const { error: oErr } = await admin.from("walk_offers").delete().in("session_id", sIds);
+    if (oErr) throw new Error(`walk_offers cleanup error: ${oErr.message}`);
+
+    const { error: eErr } = await admin.from("petwalker_earnings").delete().in("walk_session_id", sIds);
+    if (eErr) throw new Error(`petwalker_earnings cleanup error: ${eErr.message}`);
+
+    const { error: sErr } = await admin.from("walk_sessions").delete().in("id", sIds);
+    if (sErr) throw new Error(`walk_sessions cleanup error: ${sErr.message}`);
   }
 
-  await admin.from("pets").delete().in("owner_id", ids);
-  await admin.from("petwalker_profiles").delete().in("user_id", ids);
-  await admin.from("user_roles").delete().in("user_id", ids);
-  await admin.from("profiles").delete().in("id", ids);
+  const { error: petErr } = await admin.from("pets").delete().in("owner_id", ids);
+  if (petErr) throw new Error(`pets cleanup error: ${petErr.message}`);
+
+  const { error: wpErr } = await admin.from("petwalker_profiles").delete().in("user_id", ids);
+  if (wpErr) throw new Error(`petwalker_profiles cleanup error: ${wpErr.message}`);
+
+  const { error: urErr } = await admin.from("user_roles").delete().in("user_id", ids);
+  if (urErr) throw new Error(`user_roles cleanup error: ${urErr.message}`);
+
+  const { error: prErr } = await admin.from("profiles").delete().in("id", ids);
+  if (prErr) throw new Error(`profiles cleanup error: ${prErr.message}`);
   
   for (const id of ids) {
     const { error: dErr } = await admin.auth.admin.deleteUser(id);
-    if (dErr) throw new Error(`CRITICAL: Erro ao deletar usuário Auth ${id}: ${dErr.message}`);
+    if (dErr) throw new Error(`Auth deleteUser error (${id}): ${dErr.message}`);
   }
+
+  // Verificação pós-limpeza (fail-closed)
+  const { count, error: countErr } = await admin
+    .from("profiles")
+    .select("*", { count: 'exact', head: true })
+    .in("id", ids);
+  if (countErr) throw new Error(`Cleanup verification error: ${countErr.message}`);
+  if (count && count > 0) throw new Error(`CRITICAL: Cleanup falhou — ${count} perfis ainda existem`);
 }
 
 async function provisionUser(runId: string, kind: "pet_owner" | "petwalker") {
