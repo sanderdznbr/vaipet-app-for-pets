@@ -190,15 +190,23 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       const slideToConfirm = oCtx.page.locator('[data-testid="slide-to-confirm"]');
       await expect(slideToConfirm).toBeVisible({ timeout: 15000 });
       
-      // Se estiver desabilitado, o clique não vai disparar o onConfirm.
-      // Vamos verificar se há quoteLoading ou erro no log se falhar.
-      await expect(slideToConfirm).not.toHaveAttribute('disabled', { timeout: 10000 });
+      // Simula o arrasto (drag) manualmente para garantir o gatilho.
+      // 1. Pega a caixa do trilho
+      const box = await slideToConfirm.boundingBox();
+      if (!box) throw new Error("SlideToConfirm box not found");
       
-      // O componente SlideToConfirm propaga o clique para a função 'end(true)' se drag === 0
-      // Vamos clicar no thumb especificamente (o elemento que tem os eventos de ponteiro)
+      // 2. Localiza o thumb
       const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
-      await thumb.click({ force: true });
-      log("8. Pedido publicado via clique no thumb");
+      const tBox = await thumb.boundingBox();
+      if (!tBox) throw new Error("Thumb box not found");
+
+      // 3. Executa o drag
+      await oCtx.page.mouse.move(tBox.x + tBox.width / 2, tBox.y + tBox.height / 2);
+      await oCtx.page.mouse.down();
+      await oCtx.page.mouse.move(box.x + box.width - 20, tBox.y + tBox.height / 2, { steps: 10 });
+      await oCtx.page.mouse.up();
+      
+      log("8. Pedido publicado via drag simulado");
     });
 
     await test.step("9. backend: request-searching", async () => {
