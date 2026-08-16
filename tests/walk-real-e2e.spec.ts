@@ -205,10 +205,10 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       // Validar seleção real
       await expect.poll(async () => {
         return await petCard.evaluate(el => 
+          el.querySelector('.border-primary') !== null || 
+          el.querySelector('.ring-primary') !== null ||
           el.getAttribute('aria-checked') === 'true' || 
-          el.getAttribute('data-state') === 'checked' ||
-          el.classList.contains('border-primary') ||
-          el.classList.contains('ring-2')
+          el.getAttribute('data-state') === 'checked'
         );
       }, { message: "PetMatch deve estar visualmente selecionado", timeout: 10000 }).toBeTruthy();
     });
