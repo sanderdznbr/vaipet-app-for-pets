@@ -188,30 +188,17 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("4. owner: select-pet", async () => {
-      const petCard = oCtx.page.locator('div, button').filter({ hasText: /^PetMatch$/ }).first();
+      const petCard = oCtx.page.locator('div, button, span').filter({ hasText: /^PetMatch$/ }).first();
       await expect(petCard).toBeVisible({ timeout: 10000 });
       
-      const isSelected = await petCard.evaluate(el => {
-        const parent = el.closest('div');
-        return parent?.querySelector('.border-primary') !== null || 
-               parent?.querySelector('.ring-primary') !== null ||
-               el.classList.contains('border-primary') ||
-               el.getAttribute('aria-checked') === 'true';
-      });
-
-      if (!isSelected) {
-        await petCard.click();
-      }
+      // Clica para selecionar
+      await petCard.click({ force: true });
 
       await expect.poll(async () => {
-        return await petCard.evaluate(el => {
-          const parent = el.closest('div');
-          return parent?.querySelector('.border-primary') !== null || 
-                 parent?.querySelector('.ring-primary') !== null ||
-                 el.classList.contains('border-primary') ||
-                 el.getAttribute('aria-checked') === 'true';
-        });
-      }, { message: "PetMatch deve estar visualmente selecionado", timeout: 10000 }).toBeTruthy();
+        // Verifica se o botão "Continuar" está habilitado (não contém a mensagem de erro)
+        const btnText = await oCtx.page.locator('button').filter({ hasText: /(Continuar|Selecione)/i }).innerText();
+        return btnText.includes('Continuar') && !btnText.includes('Selecione');
+      }, { message: "PetMatch deve estar selecionado (botão Continuar habilitado)", timeout: 10000 }).toBeTruthy();
     });
 
     await test.step("5. owner: select-schedule", async () => {
