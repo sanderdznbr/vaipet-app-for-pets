@@ -188,14 +188,15 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("4. owner: select-pet", async () => {
-      const petCard = oCtx.page.locator('div, button, span').filter({ hasText: /^PetMatch$/ }).first();
-      await expect(petCard).toBeVisible({ timeout: 10000 });
+      // Tenta clicar no ícone da pata ou no texto do pet
+      const petIcon = oCtx.page.locator('div').filter({ hasText: /^PetMatch$/ }).locator('div').first();
+      await expect(petIcon).toBeVisible({ timeout: 10000 });
       
-      // Clica para selecionar
-      await petCard.click({ force: true });
+      // Clicar no centro do container que engloba o ícone e o texto
+      const petContainer = oCtx.page.locator('div').filter({ has: oCtx.page.locator('text=PetMatch') }).nth(-1);
+      await petContainer.click({ force: true });
 
       await expect.poll(async () => {
-        // Verifica se o botão "Continuar" está habilitado (não contém a mensagem de erro)
         const btnText = await oCtx.page.locator('button').filter({ hasText: /(Continuar|Selecione)/i }).innerText();
         return btnText.includes('Continuar') && !btnText.includes('Selecione');
       }, { message: "PetMatch deve estar selecionado (botão Continuar habilitado)", timeout: 10000 }).toBeTruthy();
