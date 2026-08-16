@@ -74,8 +74,6 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
   });
   const page = await context.newPage();
 
-  page.on('console', msg => log(`BROWSER_CONSOLE: ${msg.type()}: ${msg.text()}`));
-
   let rpcResponse: any = null;
   page.on('response', async (response) => {
     if (response.url().includes('rpc/accept_walk_request')) {
@@ -127,8 +125,11 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
     await acceptBtn.click();
     
     log("5. Validando banco...");
-    // Aumentamos o tempo de espera no banco para permitir a propagação do RPC
-    await page.waitForTimeout(5000);
+    await expect.poll(async () => {
+      const { data } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessionId).single();
+      return data?.current_status === "accepted" && data?.walker_id === walker.id;
+    }, { timeout: 10000 }).toBeTruthy();
+    
     const { data: finalSession } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessionId).single();
     log(`status_depois: ${finalSession?.current_status}`);
     log(`walker_id_gravado: ${finalSession?.walker_id}`);
@@ -137,7 +138,12 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
     expect(statusAntes?.current_status).toBe("searching");
     expect(finalSession?.current_status).toBe("accepted");
 
-    log("6. Validando navegação...");
+    log("6. Clicando no ActiveWalkSheet para navegar...");
+    const manageBtn = page.getByRole('button', { name: /Iniciar deslocamento|Gerenciar Passeio/i });
+    await expect(manageBtn).toBeVisible({ timeout: 15000 });
+    await manageBtn.click();
+
+    log("7. Validando navegação final...");
     await expect(page).toHaveURL(/\/petwalker\/passeio\/.*/, { timeout: 20000 });
     log(`url_depois: ${page.url()}`);
     

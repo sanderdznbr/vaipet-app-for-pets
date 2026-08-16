@@ -376,10 +376,10 @@ const Painel = () => {
     }
     setOfferAction('accepting');
     try {
-      const { data: success, error } = await supabase.rpc('accept_walk_request', { _session_id: showOfferSheet.session_id }); console.log("PETWALKER_DEBUG: RPC Result:", { success, error });
+      const { data: success, error } = await supabase.rpc('accept_walk_request', { _session_id: showOfferSheet.session_id }); 
       if (error) throw error;
       
-      if (success === true) { console.log("PETWALKER_DEBUG: Success true, calling refresh and navigation...");
+      if (success === true) { 
         toast.success('Passeio confirmado!');
         await refreshActiveRequest();
         hasOfferRef.current = false;
