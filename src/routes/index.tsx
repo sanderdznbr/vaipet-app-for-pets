@@ -1,165 +1,127 @@
 /**
- * O resultado foi aceito. A falha agora está isolada no aceite do PetWalker.
+ * O aceite isolado do PetWalker está CERTIFICADO com evidências completas.
  *
- * Não execute novamente o E2E completo.
+ * Agora falta somente a execução integrada final da Phase 3.1.
  *
- * Não aumente timeout.
+ * Antes de executar, audite o teste completo:
  *
- * Não altere a lógica da aplicação sem diagnóstico.
+ * rg -n "fallback|accessibility shortcut|dispatchEvent|PointerEvent|page.evaluate|force:|petwalker/painel|walk-details" tests/walk-real-e2e.spec.ts
  *
- * Não declare a Phase 3.1 certificada.
+ * O matching completo deve reutilizar exatamente os fluxos já certificados:
  *
- * PARTE 1 — DIAGNÓSTICO EXATO DO STEP 12
+ * OWNER:
  *
- * Mostre:
+ * - autenticação real;
  *
- * 1. Código completo dos Steps 11, 12 e 13;
+ * - seleção real do pet;
  *
- * 2. Linha exata aguardada quando ocorreu o timeout;
+ * - tipo e duração;
  *
- * 3. URL do PetWalker no momento da falha;
+ * - arrasto real do SlideToConfirm com page.mouse;
  *
- * 4. Screenshot da oferta visível;
+ * - criação da walk_session;
  *
- * 5. Todos os botões, links e textos visíveis nessa tela;
+ * - status searching.
  *
- * 6. Console errors, page errors, requests failed e HTTP >= 400;
+ * PETWALKER:
  *
- * 7. Código do componente/cartão usado para aceitar a oferta;
+ * - autenticação real;
  *
- * 8. RPC/função chamada pela interface no aceite.
+ * - rota /petwalker;
  *
- * Execute:
+ * - transição “Ficar Online”, se necessária;
  *
- * rg -n -C 40 "walker: accept-via-ui|acceptance-confirmed|accept_walk_request|Aceitar|walk-details" src tests
+ * - oferta da mesma session_id visível;
  *
- * Determine se o bloqueio ocorreu:
+ * - clique em data-testid="walker-accept-button";
  *
- * - ao localizar o botão;
+ * - RPC 200;
  *
- * - ao clicar/arrastar;
+ * - walker_id esperado === gravado;
  *
- * - durante a chamada RPC;
+ * - status searching → accepted;
  *
- * - ao aguardar navegação;
+ * - navegação para /petwalker/passeio/{session_id}.
  *
- * - ou ao validar o banco.
+ * Remova do teste completo qualquer fluxo antigo, incluindo:
  *
- * PARTE 2 — TESTE ISOLADO DO ACEITE
+ * - /petwalker/painel;
  *
- * Crie um teste específico chamado “walker-acceptance:” com setup controlado.
+ * - /walk-details;
  *
- * O setup pode usar service_role exclusivamente para:
- *
- * - provisionar Owner e PetWalker E2E;
- *
- * - criar pet E2E;
- *
- * - criar uma walk_session válida em searching;
- *
- * - criar/gerar a oferta canônica para o PetWalker.
- *
- * O teste propriamente dito deve obrigatoriamente:
- *
- * 1. Autenticar o PetWalker pela interface real;
- *
- * 2. Navegar para /petwalker;
- *
- * 3. Visualizar a oferta;
- *
- * 4. Aceitar pela interface real;
- *
- * 5. Usar a mesma interação disponível ao usuário em produção;
- *
- * 6. Aguardar a resposta real da RPC;
- *
- * 7. Confirmar no banco:
- *
- *    - walker_id gravado === ID do PetWalker autenticado;
- *
- *    - status anterior === searching;
- *
- *    - status posterior === accepted;
- *
- * 8. Confirmar visualmente a navegação/estado de passeio aceito;
- *
- * 9. Executar cleanup fail-closed com zero resíduos.
- *
- * Não use:
- *
- * - chamada direta à accept_walk_request pelo teste;
- *
- * - page.evaluate;
- *
- * - dispatchEvent;
- *
- * - PointerEvent sintético;
- *
- * - force:true;
+ * - fallback de clique no slider;
  *
  * - comportamento exclusivo para headless;
  *
- * - alteração direta do status para accepted.
+ * - eventos sintéticos;
  *
- * É permitido adicionar data-testid sem alterar comportamento.
+ * - force:true.
  *
- * PARTE 3 — FAIL-FAST E EVIDÊNCIAS
+ * Não altere código funcional já certificado. Faça somente a sincronização do E2E completo com os dois testes isolados aprovados.
  *
- * Cada espera do aceite deve ter timeout máximo de 20 segundos.
+ * Execute uma única vez:
  *
- * Registre:
- *
- * - session_id;
- *
- * - walker_id esperado;
- *
- * - walker_id gravado;
- *
- * - status antes;
- *
- * - status depois;
- *
- * - URL antes do aceite;
- *
- * - URL depois do aceite;
- *
- * - status HTTP/RPC;
- *
- * - mensagem de erro sanitizada, se existir.
- *
- * Execute somente:
- *
- * npx playwright test tests/walk-real-e2e.spec.ts -g "walker-acceptance:" --reporter=line
+ * npx playwright test tests/walk-real-e2e.spec.ts -g "matching:" --reporter=line
  *
  * PLAYWRIGHT_EXIT_CODE=$?
  *
  * echo PLAYWRIGHT_EXIT_CODE=$PLAYWRIGHT_EXIT_CODE
  *
- * Critérios obrigatórios:
+ * Registre na saída:
+ *
+ * - owner_id;
+ *
+ * - walker_id esperado;
+ *
+ * - session_id;
+ *
+ * - status após publicação;
+ *
+ * - confirmação da oferta visível;
+ *
+ * - resposta RPC;
+ *
+ * - walker_id gravado;
+ *
+ * - status depois do aceite;
+ *
+ * - URL final;
+ *
+ * - contagens finais do cleanup.
+ *
+ * Critérios finais:
  *
  * - “1 passed”;
  *
  * - PLAYWRIGHT_EXIT_CODE=0;
  *
+ * - mesma session_id do início ao fim;
+ *
+ * - searching → accepted;
+ *
  * - walker_id correto;
  *
- * - status accepted;
+ * - URL /petwalker/passeio/{session_id};
  *
- * - confirmação visual;
+ * - cleanup zero.
  *
- * - cleanup zero;
+ * Timeout ou SIGTERM continuam sendo FAIL.
  *
- * - duração inferior a 90 segundos.
+ * Se passar:
  *
- * Se falhar, informe a primeira linha Playwright que falhou e preserve trace, screenshot e vídeo. Não faça commit nem tente o E2E completo.
+ * 1. Execute npx tsc --noEmit;
  *
- * Inclua também:
+ * 2. Execute npm run build;
  *
- * git rev-parse HEAD
+ * 3. Atualize docs/PHASE3_STABILIZATION.md com os resultados brutos;
  *
- * git status --short
+ * 4. Atualize a Security Memory para “Matching E2E integrado: CERTIFICADO”;
  *
- * git diff --stat
+ * 5. Mostre HEAD completo, git status --short e git diff --stat;
+ *
+ * 6. Só então declare a Phase 3.1 concluída.
+ *
+ * Se falhar, informe apenas o primeiro step real que falhou e não altere novamente os fluxos isolados já certificados.
  */
 
 import { Navigate } from "react-router-dom";
