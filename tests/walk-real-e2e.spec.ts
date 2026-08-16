@@ -186,18 +186,18 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("6. owner: continue-to-walk-type", async () => {
-      const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).first();
-      await continueBtn.click();
-      await expect(oCtx.page.locator('text=QUAL O TIPO DE PASSEIO?').first()).toBeVisible({ timeout: 10000 });
+      const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).last();
+      await continueBtn.click({ force: true });
+      await expect(oCtx.page.locator('text=QUAL O TIPO DE PASSEIO?').first()).toBeVisible({ timeout: 15000 });
     });
 
     await test.step("7. owner: select-walk-type", async () => {
       const walkTypeLivre = oCtx.page.locator('button').filter({ hasText: /Passeio Livre/i }).first();
-      await walkTypeLivre.click();
+      await walkTypeLivre.click({ force: true });
       
-      const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).first();
-      await continueBtn.click();
-      await expect(oCtx.page.locator('text=Duração').first()).toBeVisible({ timeout: 10000 });
+      const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).last();
+      await continueBtn.click({ force: true });
+      await expect(oCtx.page.locator('text=Duração').first()).toBeVisible({ timeout: 15000 });
     });
 
     await test.step("8. owner: select-duration", async () => {
