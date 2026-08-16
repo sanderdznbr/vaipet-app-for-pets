@@ -189,8 +189,10 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     await test.step("8. owner: confirm-request", async () => {
       const slideToConfirm = oCtx.page.locator('[data-testid="slide-to-confirm"]');
       await expect(slideToConfirm).toBeVisible({ timeout: 15000 });
-      const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
-      await thumb.click({ force: true });
+      
+      // O SlideToConfirm possui um atalho de clique no container se drag === 0
+      // Vamos tentar clicar no centro do container para garantir que o evento de clique seja disparado
+      await slideToConfirm.click({ force: true });
       log("8. Pedido publicado");
     });
 
