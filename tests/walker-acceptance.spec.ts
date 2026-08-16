@@ -67,6 +67,7 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
   const runId = `acc_${Date.now()}`;
   const walker = await provisionWalker(runId);
   const { ownerId, sessionId } = await createOwnerAndRequest(runId);
+  const startTime = Date.now();
   
   const context = await browser.newContext({
     viewport: { width: 430, height: 900 },
@@ -75,8 +76,23 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
   });
   const page = await context.newPage();
 
+  // Instrumentação de rede para capturar a resposta do accept_walk_request
+  let rpcResponse: any = null;
+  page.on('response', async (response) => {
+    if (response.url().includes('rpc/accept_walk_request')) {
+      rpcResponse = {
+        status: response.status(),
+        body: await response.json().catch(() => ({})),
+      };
+      log(`RPC_RESPONSE: ${JSON.stringify(rpcResponse)}`);
+    }
+  });
+
   try {
     await admin.from("walk_offers").insert({ session_id: sessionId, walker_id: walker.id, offer_status: "pending" });
+
+    log(`session_id: ${sessionId}`);
+    log(`walker_id_esperado: ${walker.id}`);
 
     log("1. Autenticando PetWalker...");
     await page.goto("/auth");
@@ -93,7 +109,6 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
     
     await expect.poll(async () => {
         if (await acceptBtn.isVisible()) return true;
-        
         const onlineBtn = page.getByRole('button', { name: /Ficar Online/i });
         if (await onlineBtn.isVisible()) {
             log("Ficando Online...");
@@ -101,22 +116,33 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
             await page.waitForTimeout(2000);
         }
         return await acceptBtn.isVisible();
-    }, { timeout: 60000 }).toBeTruthy();
+    }, { timeout: 45000 }).toBeTruthy();
     
+    const { data: statusAntes } = await admin.from("walk_sessions").select("current_status").eq("id", sessionId).single();
+    log(`status_antes: ${statusAntes?.current_status}`);
+    log(`url_antes: ${page.url()}`);
+
     log("4. Aceitando passeio...");
     await acceptBtn.click();
     
     log("5. Validando navegação...");
-    await expect(page).toHaveURL(/.*walk-details.*/, { timeout: 30000 });
+    await expect(page).toHaveURL(/.*walk-details.*/, { timeout: 20000 });
+    log(`url_depois: ${page.url()}`);
     
     log("6. Validando banco...");
     const { data: finalSession } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessionId).single();
-    expect(finalSession?.current_status).toBe("accepted");
+    log(`status_depois: ${finalSession?.current_status}`);
+    log(`walker_id_gravado: ${finalSession?.walker_id}`);
+
     expect(finalSession?.walker_id).toBe(walker.id);
+    expect(statusAntes?.current_status).toBe("searching");
+    expect(finalSession?.current_status).toBe("accepted");
     
+    log(`Duração: ${(Date.now() - startTime) / 1000}s`);
     log("walker-acceptance: PASS");
   } finally {
     await context.close();
     await quickCleanup([walker.id, ownerId]);
+    log("Cleanup concluído.");
   }
 });
