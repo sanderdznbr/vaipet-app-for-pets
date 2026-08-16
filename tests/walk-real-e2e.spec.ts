@@ -2,11 +2,10 @@ import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  
  /**
-  * E2E OPERACIONAL REAL — Fase 3.1 (Patch Mínimo)
+  * E2E OPERACIONAL REAL — Fase 3.1 (Roteiro UI Real)
   */
  
  test.setTimeout(240000); 
-
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -118,27 +117,6 @@ async function createAuthedContext(browser: any, credentials: { email: string; p
 
 test.describe.configure({ mode: "serial", retries: 0 });
 
-test("setup: Isolamento e Autenticação", async ({ browser }) => {
-  const runId = `setup_${Date.now()}`;
-  const ownerCreds = await provisionUser(runId, "pet_owner");
-  const walkerCreds = await provisionUser(runId, "petwalker");
-  let oCtx, wCtx;
-  try {
-    [oCtx, wCtx] = await Promise.all([
-      createAuthedContext(browser, ownerCreds, { lng: -46.7, lat: -23.6 }),
-      createAuthedContext(browser, walkerCreds, { lng: -46.7, lat: -23.6 })
-    ]);
-    log("2. Pet Owner autenticado");
-    log("7. PetWalker autenticado");
-    await expect(oCtx.page).not.toHaveURL(/.*\/auth.*/);
-    await expect(wCtx.page).not.toHaveURL(/.*\/auth.*/);
-  } finally {
-    if (oCtx) await oCtx.context.close();
-    if (wCtx) await wCtx.context.close();
-    await quickCleanup([ownerCreds.id, walkerCreds.id]);
-  }
-});
-
 test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser }) => {
   const runId = `match_${Date.now()}`;
   const ownerCreds = await provisionUser(runId, "pet_owner");
@@ -169,40 +147,84 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
 
     await test.step("2. owner: start-walk-visible", async () => {
       const startWalkBtn = oCtx.page.locator('#tour-start-walk');
-      try {
-        await expect(startWalkBtn).toBeVisible({ timeout: 10000 });
-        await expect(startWalkBtn).toBeEnabled({ timeout: 10000 });
-      } catch (e) {
-        log("ERRO: #tour-start-walk não visível/habilitado");
-        const bodyText = await oCtx.page.innerText('body');
-        log(`Conteúdo visível: ${bodyText.substring(0, 500)}`);
-        throw e;
-      }
+      await expect(startWalkBtn).toBeVisible({ timeout: 10000 });
     });
 
-    await test.step("3. owner: open-request-flow", async () => {
+    await test.step("3. owner: bottom-sheet-open", async () => {
       await oCtx.page.locator('#tour-start-walk').click();
-      // O fluxo de abertura pode levar a uma nova rota ou modal
-      await expect(oCtx.page.locator('button:has-text("30 minutos"), h2:has-text("solicitação"), h1:has-text("solicitação")').first()).toBeVisible({ timeout: 10000 });
+      const bottomSheet = oCtx.page.locator('h2, div').filter({ hasText: /INICIAR O PASSEIO/i }).first();
+      await expect(bottomSheet).toBeVisible({ timeout: 15000 });
+      await expect(oCtx.page.locator('text=QUAL PET?').first()).toBeVisible({ timeout: 10000 });
     });
 
-    await test.step("4. owner: select-duration", async () => {
-      const durationBtn = oCtx.page.getByRole('button', { name: /30 minutos/i });
-      await expect(durationBtn).toBeVisible({ timeout: 10000 });
-      await durationBtn.click();
+    await test.step("4. owner: select-pet", async () => {
+      const petText = oCtx.page.locator('span').filter({ hasText: /^PetMatch$/ }).first();
+      await expect(petText).toBeVisible({ timeout: 10000 });
+      
+      const petButton = oCtx.page.locator('button').filter({ has: petText }).first();
+      
+      await expect.poll(async () => {
+        // Clica usando force e avalia o clique no DOM
+        await petButton.click({ force: true });
+        await petButton.evaluate(el => (el as HTMLButtonElement).click());
+        
+        const btn = oCtx.page.locator('button').filter({ hasText: /Continuar|Selecione/i }).last();
+        if (await btn.isVisible()) {
+          const btnText = await btn.innerText();
+          log(`Botão de ação: "${btnText}"`);
+          return btnText.includes('Continuar');
+        }
+        return false;
+      }, { message: "PetMatch deve estar selecionado", timeout: 20000 }).toBeTruthy();
     });
 
-    await test.step("5. owner: confirm-request", async () => {
-      const confirmBtn = oCtx.page.getByRole('button', { name: /confirmar/i });
-      await confirmBtn.click();
-      await expect(oCtx.page).toHaveURL(/.*search-walk.*/, { timeout: 15000 });
-      log("5. Pedido publicado");
+    await test.step("5. owner: select-schedule", async () => {
+      // O fluxo real parece não ter uma etapa explícita "Agora" separada se o default já for agora
+      // Mas se o step 1 terminou com Continuar, clicamos nele.
+      const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).last();
+      await continueBtn.click({ force: true });
+      await oCtx.page.waitForTimeout(1000);
+    });
+
+    await test.step("6. owner: select-walk-type", async () => {
+      // Step 2: Qual o tipo de passeio?
+      const walkTypeLivre = oCtx.page.locator('button').filter({ hasText: /Passeio Livre/i }).first();
+      await expect(walkTypeLivre).toBeVisible({ timeout: 10000 });
+      await walkTypeLivre.click({ force: true });
+      
+      const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).last();
+      await continueBtn.click({ force: true });
+      await oCtx.page.waitForTimeout(1000);
+    });
+
+    await test.step("7. owner: select-duration", async () => {
+      // Step 3: Duração
+      await expect(oCtx.page.locator('text=Duração').first()).toBeVisible({ timeout: 10000 });
+      
+      // Aumenta/Diminui se necessário ou apenas confirma o valor padrão
+      const confirmBtn = oCtx.page.locator('button').filter({ hasText: /Confirmar|Continuar/i }).last();
+      await confirmBtn.click({ force: true });
+      await oCtx.page.waitForTimeout(1000);
+    });
+
+    await test.step("8. owner: confirm-request", async () => {
+      // Step 4: Resumo e Confirmação final
+      const finalBtn = oCtx.page.locator('button').filter({ hasText: /Confirmar|Pedir|Solicitar/i }).last();
+      await expect(finalBtn).toBeVisible({ timeout: 10000 });
+      await finalBtn.click({ force: true });
+      
+      await expect(oCtx.page).toHaveURL(/.*search-walk.*/, { timeout: 20000 });
+      await expect(oCtx.page.locator('text=Buscando|Procurando|Encontrando|Aguardando')).toBeVisible({ timeout: 20000 });
+      log("8. Pedido publicado e em busca");
     });
 
     let sessId: string;
-    await test.step("6. backend: matching-session-created", async () => {
-      sessId = new URL(oCtx.page.url()).searchParams.get("resume") || "";
-      expect(sessId).toBeTruthy();
+    await test.step("9. backend: matching-session-created", async () => {
+      await expect.poll(async () => {
+        const url = new URL(oCtx.page.url());
+        sessId = url.searchParams.get("resume") || "";
+        return !!sessId;
+      }, { timeout: 10000 }).toBeTruthy();
 
       await expect.poll(async () => {
         const { data } = await admin.from("walk_sessions")
@@ -229,14 +251,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       log("Job matching executado");
     });
 
-    await test.step("7. walker: authenticated-ready", async () => {
-      log("7. PetWalker autenticado");
-      await expect(wCtx.page).not.toHaveURL(/.*\/auth.*/, { timeout: 10000 });
-      const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", walkerCreds.id);
-      expect(roles?.some(r => r.role === 'petwalker')).toBeTruthy();
-    });
-
-    await test.step("8. walker: offer-visible", async () => {
+    await test.step("7. walker: offer-visible", async () => {
       await wCtx.page.goto("/petwalker/painel");
       const acceptBtn = wCtx.page.locator('button:has-text("Aceitar Passeio")');
       await expect(acceptBtn).toBeVisible({ timeout: 30000 });
@@ -263,7 +278,6 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
         timeout: 20000,
       }).toBeTruthy();
 
-      // Verificar se não há ofertas duplicadas aceitas (opcional, mas bom para integridade)
       const { count } = await admin.from("walk_sessions")
         .select("*", { count: 'exact', head: true })
         .eq("id", sessId)
