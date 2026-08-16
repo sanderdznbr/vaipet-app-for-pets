@@ -1,10 +1,6 @@
 import { test, expect, type SupabaseClient } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
-/**
- * PARTE 2 — TESTE ISOLADO DO ACEITE (walker-acceptance:)
- */
-
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const PROJECT_REF = SUPABASE_URL.replace(/^https?:\/\//, "").split(".")[0];
@@ -67,13 +63,21 @@ async function quickCleanup(ids: string[]) {
   for (const id of ids) await admin.auth.admin.deleteUser(id);
 }
 
-test("walker-acceptance: ACEITE ISOLADO", async ({ page }) => {
+test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
   const runId = `acc_${Date.now()}`;
   const walker = await provisionWalker(runId);
   const { ownerId, sessionId } = await createOwnerAndRequest(runId);
   
+  const context = await browser.newContext({
+    viewport: { width: 430, height: 900 },
+    permissions: ["geolocation"],
+    geolocation: { longitude: -46.7, latitude: -23.6 },
+    locale: "pt-BR",
+  });
+  const page = await context.newPage();
+
   try {
-    // Provision the offer manually
+    // Offer visibility requires walker to be online and possibly GPS synced
     await admin.from("walk_offers").insert({ session_id: sessionId, walker_id: walker.id, offer_status: "pending" });
 
     log("1. Autenticando PetWalker...");
@@ -86,36 +90,35 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ page }) => {
     log("2. Navegando para /petwalker...");
     await page.goto("/petwalker");
     
-    log("3. Visualizando oferta (polling loop)...");
+    log("3. Visualizando oferta...");
     const acceptBtn = page.locator('[data-testid="walker-accept-button"]');
     
-    // Polling because the offer might take time to load via Supabase Realtime or Polling
+    // UI might need to go online
     await expect.poll(async () => {
         const isVisible = await acceptBtn.isVisible();
         if (!isVisible) {
-            // Check if we need to stay online (the UI might reset availability if GPS fails in sandbox)
-            const onlineText = await page.innerText('body');
-            if (onlineText.includes('Você está offline')) {
-                log("Detectado OFFLINE no UI. Forçando ONLINE...");
+            const bodyText = await page.innerText('body');
+            if (bodyText.includes('Ficar Online')) {
                 await page.getByRole('button', { name: /Ficar Online/i }).click().catch(() => {});
             }
         }
         return isVisible;
-    }, { timeout: 45000, message: "Oferta visível no UI" }).toBeTruthy();
+    }, { timeout: 35000 }).toBeTruthy();
     
-    log("4. Clicando em ACEITAR PASSEIO...");
+    log("4. Aceitando passeio...");
     await acceptBtn.click();
     
-    log("5. Aguardando navegação para walk-details...");
-    await expect(page).toHaveURL(/.*walk-details.*/, { timeout: 30000 });
+    log("5. Validando navegação...");
+    await expect(page).toHaveURL(/.*walk-details.*/, { timeout: 25000 });
     
     log("6. Validando banco...");
-    const { data: finalSession } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessionId).single();
-    expect(finalSession?.current_status).toBe("accepted");
-    expect(finalSession?.walker_id).toBe(walker.id);
+    const { data } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessionId).single();
+    expect(data?.current_status).toBe("accepted");
+    expect(data?.walker_id).toBe(walker.id);
     
     log("walker-acceptance: PASS");
   } finally {
+    await context.close();
     await quickCleanup([walker.id, ownerId]);
   }
 });
