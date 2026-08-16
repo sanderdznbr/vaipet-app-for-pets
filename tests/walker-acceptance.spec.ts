@@ -3,8 +3,6 @@ import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const PROJECT_REF = SUPABASE_URL.replace(/^https?:\/\//, "").split(".")[0];
-
 const log = (msg: string) => console.log(`[${new Date().toISOString()}] [walker-acceptance] ${msg}`);
 
 let admin: SupabaseClient;
@@ -76,6 +74,8 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
   });
   const page = await context.newPage();
 
+  page.on('console', msg => log(`BROWSER_CONSOLE: ${msg.type()}: ${msg.text()}`));
+
   let rpcResponse: any = null;
   page.on('response', async (response) => {
     if (response.url().includes('rpc/accept_walk_request')) {
@@ -126,12 +126,9 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
     log("4. Aceitando passeio...");
     await acceptBtn.click();
     
-    log("5. Validando navegação...");
-    // Regex correto escapando as barras
-    await expect(page).toHaveURL(/\/petwalker\/passeio\/.*/, { timeout: 20000 });
-    log(`url_depois: ${page.url()}`);
-    
-    log("6. Validando banco...");
+    log("5. Validando banco...");
+    // Aumentamos o tempo de espera no banco para permitir a propagação do RPC
+    await page.waitForTimeout(5000);
     const { data: finalSession } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessionId).single();
     log(`status_depois: ${finalSession?.current_status}`);
     log(`walker_id_gravado: ${finalSession?.walker_id}`);
@@ -139,6 +136,10 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
     expect(finalSession?.walker_id).toBe(walker.id);
     expect(statusAntes?.current_status).toBe("searching");
     expect(finalSession?.current_status).toBe("accepted");
+
+    log("6. Validando navegação...");
+    await expect(page).toHaveURL(/\/petwalker\/passeio\/.*/, { timeout: 20000 });
+    log(`url_depois: ${page.url()}`);
     
     log(`Duração: ${(Date.now() - startTime) / 1000}s`);
     log("walker-acceptance: PASS");
