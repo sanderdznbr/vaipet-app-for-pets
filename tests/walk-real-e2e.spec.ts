@@ -161,7 +161,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
           const targets = oCtx.page.locator('div, button, span, p').filter({ hasText: petName });
           const count = await targets.count();
           for (let i = 0; i < count; i++) {
-              await targets.nth(i).evaluate(el => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
+              await targets.nth(i).click().catch(() => {});
           }
           const text = await continueBtn.innerText();
           return text.includes('Continuar') && !text.includes('Selecione');
