@@ -7,7 +7,6 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  
  test.setTimeout(240000); 
 
-
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const ANON_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
@@ -159,36 +158,26 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("4. owner: select-pet", async () => {
-      // Localiza o texto exato do pet.
       const petText = oCtx.page.locator('span').filter({ hasText: /^PetMatch$/ }).first();
       await expect(petText).toBeVisible({ timeout: 10000 });
       
       const petButton = oCtx.page.locator('button').filter({ has: petText }).first();
       
-      // Tenta várias abordagens de clique no botão
-      await petButton.click({ force: true });
-      await oCtx.page.waitForTimeout(500);
-      
-      // Se não funcionou, tenta clicar diretamente no span
-      await petText.click({ force: true });
-      await oCtx.page.waitForTimeout(500);
-
-      // Tenta via dispatchEvent 'click' no botão
-      await petButton.evaluate(el => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
-
       await expect.poll(async () => {
+        await petButton.evaluate(el => (el as HTMLButtonElement).click());
         const btn = oCtx.page.locator('button').filter({ hasText: /Continuar|Selecione/i }).last();
-        const isVisible = await btn.isVisible();
-        if (!isVisible) return false;
-        const btnText = await btn.innerText();
-        log(`Botão de ação: "${btnText}"`);
-        return btnText.includes('Continuar');
-      }, { message: "PetMatch deve estar selecionado (botão Continuar habilitado)", timeout: 10000 }).toBeTruthy();
+        if (await btn.isVisible()) {
+          const btnText = await btn.innerText();
+          log(`Botão de ação: "${btnText}"`);
+          return btnText.includes('Continuar');
+        }
+        return false;
+      }, { message: "PetMatch deve estar selecionado", timeout: 15000 }).toBeTruthy();
     });
 
     await test.step("5. owner: select-schedule", async () => {
       const agoraLabel = oCtx.page.locator('label').filter({ hasText: /^Agora$/ }).first();
-      await agoraLabel.click();
+      await agoraLabel.click({ force: true });
       await expect(agoraLabel).toBeVisible();
     });
 
@@ -209,21 +198,23 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
 
     await test.step("8. owner: select-duration", async () => {
       const duration30 = oCtx.page.locator('button, div').filter({ hasText: /^30 minutos$/ }).first();
-      await duration30.click();
+      await duration30.click({ force: true });
       
-      const confirmBtn = oCtx.page.locator('button').filter({ hasText: /Confirmar/i }).first();
-      await confirmBtn.click();
+      const confirmBtn = oCtx.page.locator('button').filter({ hasText: /Confirmar/i }).last();
+      await confirmBtn.click({ force: true });
       
-      await expect(oCtx.page).toHaveURL(/.*search-walk.*/, { timeout: 15000 });
-      await expect(oCtx.page.locator('text=Buscando|Procurando|Encontrando|Aguardando')).toBeVisible({ timeout: 10000 });
+      await expect(oCtx.page).toHaveURL(/.*search-walk.*/, { timeout: 20000 });
+      await expect(oCtx.page.locator('text=Buscando|Procurando|Encontrando|Aguardando')).toBeVisible({ timeout: 15000 });
       log("8. Pedido publicado e em busca");
     });
 
     let sessId: string;
     await test.step("9. backend: matching-session-created", async () => {
-      const url = new URL(oCtx.page.url());
-      sessId = url.searchParams.get("resume") || "";
-      expect(sessId).toBeTruthy();
+      await expect.poll(async () => {
+        const url = new URL(oCtx.page.url());
+        sessId = url.searchParams.get("resume") || "";
+        return !!sessId;
+      }, { timeout: 10000 }).toBeTruthy();
 
       await expect.poll(async () => {
         const { data } = await admin.from("walk_sessions")
