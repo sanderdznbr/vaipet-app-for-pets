@@ -196,24 +196,14 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
       await thumb.click({ force: true });
       
-      try {
-        await expect(oCtx.page).toHaveURL(/.*search-walk.*/, { timeout: 8000 });
-      } catch (e) {
-        log("Click no thumb não disparou navegação. Tentando drag forçado.");
-        const box = await slideToConfirm.boundingBox();
-        if (box) {
-          await oCtx.page.mouse.move(box.x + 20, box.y + 30);
-          await oCtx.page.mouse.down();
-          await oCtx.page.mouse.move(box.x + box.width - 20, box.y + 30, { steps: 10 });
-          await oCtx.page.mouse.up();
-        }
-      }
-      
-      log("8. Pedido publicado via SlideToConfirm");
+      log("8. Pedido publicado via SlideToConfirm (click)");
     });
 
     await test.step("9. backend: request-searching", async () => {
-      await expect(oCtx.page).toHaveURL(/.*search-walk.*/, { timeout: 20000 });
+      // Navegação para /search-walk via poll agressivo
+      await expect.poll(async () => {
+        return oCtx.page.url().includes("search-walk");
+      }, { timeout: 20000 }).toBeTruthy();
       
       await expect.poll(async () => {
         const url = new URL(oCtx.page.url());
