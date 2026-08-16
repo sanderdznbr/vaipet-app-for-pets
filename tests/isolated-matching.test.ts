@@ -43,7 +43,10 @@ test("matching: OWNER_REQUEST_E2E_COMPLETED", async ({ browser }) => {
     await expect(page).toHaveURL(/.*\/inicio.*/, { timeout: 30000 });
 
     log("3. Iniciando fluxo de pedido");
-    await page.locator('#tour-start-walk').click();
+    const startWalkBtn = page.locator('#tour-start-walk');
+    await expect(startWalkBtn).toBeVisible({ timeout: 15000 });
+    await startWalkBtn.click();
+
     
     log("4. Selecionando Pet");
     const petLabel = page.getByText(petName).first();
