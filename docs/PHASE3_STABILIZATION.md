@@ -1,15 +1,15 @@
 # Phase 3.1 Stabilization - Certification Report
 
 ## Execution Details
-- **Date/Time**: Sun Aug 16 22:50:40 UTC 2026
-- **HEAD certified**: 6bb40108c86f4adbcb2323b2bf30c5f688fa4377
+- **Date/Time**: Sun Aug 16 23:10:00 UTC 2026
+- **HEAD certified**: 981c5bb2a9b8696f0c078f9851b1d6b25c0d0631
 - **Working Tree**: Clean (Verified via git status)
 - **Status**: **PASS (CERTIFIED)**
 
 ## Test Results Summary
-- **Isolated Matching**: 1 passed (35.6s) | Exit Code: 0
-- **Walker Acceptance**: 1 passed (31.1s) | Exit Code: 0
-- **Integrated Matching**: 1 passed (52.8s) | Exit Code: 0
+- **Isolated Matching**: 1 passed (34.3s) | Exit Code: 0
+- **Walker Acceptance**: 1 passed (36.3s) | Exit Code: 0
+- **Integrated Matching**: 1 passed (55.4s) | Exit Code: 0
 - **Typecheck (TSC)**: Exit Code: 0
 - **Build (Vite)**: Exit Code: 0
 
@@ -25,10 +25,10 @@
 - **Auth Service**: 404 confirmed for all E2E users.
 
 ## Evidence & Milestones (Integrated)
-- **Owner ID**: d10e8e7e-28e6-48fe-8591-4e39f2ff1097
-- **Walker ID**: c4682d04-01bb-443b-8261-ceb7499d8443
-- **Session ID**: b072d047-bdb8-408f-b9ca-18ca7897f4ab
-- **Final URL**: `/petwalker/passeio/b072d047-bdb8-408f-b9ca-18ca7897f4ab`
+- **Owner ID**: 8d0ff9cf-5805-41d1-85b6-10d5196738e9
+- **Walker ID**: 6e46c39d-fa24-49e1-ae42-47249a6a22cc
+- **Session ID**: 30a3cc4f-987c-4850-8791-e64b1ad27f04
+- **Final URL**: `/petwalker/passeio/30a3cc4f-987c-4850-8791-e64b1ad27f04`
 - **Marcador final**: `MATCHING_E2E_COMPLETED`
 
 ## Relevant Files
@@ -44,4 +44,4 @@
 
 ---
 **Phase 3.1 MATCHING CERTIFIED**
-Report generated at 6bb40108c86f4adbcb2323b2bf30c5f688fa4377
+Report generated at 981c5bb2a9b8696f0c078f9851b1d6b25c0d0631

@@ -83,11 +83,13 @@ export async function failClosedCleanup(admin: SupabaseClient, ids: string[], ru
          throw new Error(`[FAIL-CLOSED] Erro fatal na consulta de verificação em ${table}: ${retryError.message}`);
        }
 
-       if (retryData && retryData.length > 0) {
-           throw new Error(`[FAIL-CLOSED] RESÍDUO CONFIRMADO em ${table}: ${retryData.length} registros.`);
+       if (!Array.isArray(retryData) || retryData.length > 0) {
+           throw new Error(`[FAIL-CLOSED] RESÍDUO CONFIRMADO ou resultado ambíguo em ${table}: ${retryData === null ? 'null' : (Array.isArray(retryData) ? retryData.length : 'não-array')} registros.`);
        }
-    } else if (count !== null && count > 0) {
-      throw new Error(`[FAIL-CLOSED] RESÍDUO DETECTADO em ${table}: ${count} registros.`);
+    } else {
+      if (count === null || count === undefined || count !== 0) {
+        throw new Error(`[FAIL-CLOSED] RESÍDUO DETECTADO ou contagem ambígua em ${table}: count=${count}`);
+      }
     }
 
     console.log(`[cleanup] Tabela ${table} confirmada: count=0`);
