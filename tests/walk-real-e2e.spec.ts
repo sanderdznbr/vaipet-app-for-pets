@@ -125,6 +125,9 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
   let oCtx: any, wCtx: any;
   let sessId: string;
 
+  log(`owner_id: ${ownerCreds.id}`);
+  log(`walker_id_esperado: ${walkerCreds.id}`);
+
   try {
     await test.step("0. preflight: pet no banco", async () => {
       const { error } = await admin.from("pets").insert({ owner_id: ownerCreds.id, name: petName, breed: "SRD", is_active: true });
