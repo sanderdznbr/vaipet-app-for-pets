@@ -188,13 +188,13 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("4. owner: select-pet", async () => {
-      // Tenta clicar no ícone da pata ou no texto do pet
-      const petIcon = oCtx.page.locator('div').filter({ hasText: /^PetMatch$/ }).locator('div').first();
-      await expect(petIcon).toBeVisible({ timeout: 10000 });
+      // O screenshot mostra "PetMatch" como texto abaixo de um ícone.
+      // Vamos localizar o elemento que contém o texto exato e clicar nele ou em seu pai imediato.
+      const petText = oCtx.page.getByText(/^PetMatch$/).first();
+      await expect(petText).toBeVisible({ timeout: 10000 });
       
-      // Clicar no centro do container que engloba o ícone e o texto
-      const petContainer = oCtx.page.locator('div').filter({ has: oCtx.page.locator('text=PetMatch') }).nth(-1);
-      await petContainer.click({ force: true });
+      // Clica no texto, o que deve disparar a seleção no componente de PetCard
+      await petText.click({ force: true });
 
       await expect.poll(async () => {
         const btnText = await oCtx.page.locator('button').filter({ hasText: /(Continuar|Selecione)/i }).innerText();
