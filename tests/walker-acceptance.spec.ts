@@ -76,15 +76,16 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
   });
   const page = await context.newPage();
 
-  // Instrumentação de rede para capturar a resposta do accept_walk_request
   let rpcResponse: any = null;
   page.on('response', async (response) => {
     if (response.url().includes('rpc/accept_walk_request')) {
-      rpcResponse = {
-        status: response.status(),
-        body: await response.json().catch(() => ({})),
-      };
-      log(`RPC_RESPONSE: ${JSON.stringify(rpcResponse)}`);
+      try {
+        rpcResponse = {
+          status: response.status(),
+          body: await response.json(),
+        };
+        log(`RPC_RESPONSE: ${JSON.stringify(rpcResponse)}`);
+      } catch (e) {}
     }
   });
 
@@ -126,7 +127,8 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
     await acceptBtn.click();
     
     log("5. Validando navegação...");
-    await expect(page).toHaveURL(/.*petwalker/passeio.*/, { timeout: 20000 });
+    // Regex correto escapando as barras
+    await expect(page).toHaveURL(/\/petwalker\/passeio\/.*/, { timeout: 20000 });
     log(`url_depois: ${page.url()}`);
     
     log("6. Validando banco...");
