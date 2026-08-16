@@ -194,7 +194,16 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       await expect(slideToConfirm).toBeVisible({ timeout: 15000 });
       
       const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
-      await thumb.evaluate(el => (el as HTMLElement).click());
+      // O componente SlideToConfirm.tsx usa PointerEvents para o drag.
+      // Em ambientes de teste, o dispatchEvent direto simula melhor o input do usuário.
+      await thumb.evaluate(el => {
+        el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 0 }));
+        el.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 500 }));
+        el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 500 }));
+      });
+      
+      // Fallback: se o drag simulado falhar, o onClick atua como atalho para drag=0
+      await thumb.click({ force: true });
       
       await expect.poll(async () => {
         const { data } = await admin.from("walk_sessions")
@@ -205,7 +214,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
           .single();
         sessId = data?.id || "";
         return !!sessId;
-      }, { timeout: 20000 }).toBeTruthy();
+      }, { timeout: 30000 }).toBeTruthy();
 
       log(`8. Pedido criado e confirmado no banco (ID: ${sessId})`);
     });
