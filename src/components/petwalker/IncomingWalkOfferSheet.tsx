@@ -94,6 +94,7 @@ export const IncomingWalkOfferSheet = ({
           <Button 
             onClick={onAccept}
             disabled={actionLoading !== null}
+            data-testid="walker-accept-button"
             className="w-full bg-[#31D880] text-ink hover:bg-[#2bc473] h-14 rounded-2xl font-black text-xl shadow-xl active:scale-95 transition-all"
           >
             {actionLoading === 'accepting' ? 'Confirmando...' : 'ACEITAR PASSEIO'}
