@@ -43,27 +43,22 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
     await page.locator('#tour-start-walk').click({ force: true });
     
     log("4. Selecionando Pet");
-    const petLabel = page.locator('p, span').filter({ hasText: new RegExp(`^${petName.slice(0, 6)}`, 'i') }).first();
-    await expect(petLabel).toBeVisible({ timeout: 15000 });
+    // Vamos usar text content direto para achar o botão que envolve o nome.
+    const petText = page.getByText(petName, { exact: false });
+    await expect(petText).toBeVisible({ timeout: 15000 });
     
-    log("4.1 Clique via dispatchEvent");
-    // O clique do mouse pode estar falhando se o elemento for obstruído por camadas de animação do Bottom Sheet.
-    const petContainer = page.locator('div, button').filter({ has: petLabel }).last();
-    await petContainer.evaluate(el => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
+    // O container clicável
+    const petContainer = page.locator('button').filter({ has: petText }).first();
     
-    log("4.2 Validando seleção");
-    const continueBtn = page.locator('button').filter({ hasText: /Continuar/i }).last();
-    
+    log("4.1 Clicando via clique real e retry");
     await expect.poll(async () => {
+        await petContainer.click({ force: true });
+        const continueBtn = page.locator('button').filter({ hasText: /Continuar/i }).last();
         const text = await continueBtn.innerText();
-        if (text.includes('Selecione')) {
-             await petContainer.evaluate(el => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
-             return false;
-        }
-        return true;
-    }, { timeout: 20000 }).toBeTruthy();
+        return !text.includes('Selecione');
+    }, { timeout: 30000, message: "Seleção do pet ativada" }).toBeTruthy();
     
-    await continueBtn.click({ force: true });
+    await page.locator('button').filter({ hasText: /Continuar/i }).last().click({ force: true });
 
     log("5. Selecionando Tipo");
     const typeBtn = page.locator('button').filter({ hasText: /Livre/i }).first();
@@ -74,29 +69,40 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
     await page.locator('button').filter({ hasText: /Continuar/i }).last().click({ force: true });
 
     log("7. Arrastando Slider");
+    // O SlideToConfirm deve estar visível e ter o quote carregado.
     const track = page.locator('[data-testid-track="slide-to-confirm-track"]');
     const handle = page.locator('[data-testid-handle="slide-to-confirm-handle"]');
+    
+    // Aguardar o quote (o preço deve aparecer no resumo acima do slider)
+    log("7.1 Aguardando quote/preço");
+    await expect(page.locator('span').filter({ hasText: /R\$/ })).toBeVisible({ timeout: 15000 });
+    
     await expect(track).toBeVisible({ timeout: 15000 });
     const tBox = await track.boundingBox();
     const hBox = await handle.boundingBox();
     if (!tBox || !hBox) throw new Error("Slider not found");
 
-    // USANDO MOUSE REAL PARA O SLIDER COMO REQUISITADO
+    log("7.2 Realizando arrasto");
     await page.mouse.move(hBox.x + hBox.width/2, hBox.y + hBox.height/2);
     await page.mouse.down();
-    await page.mouse.move(tBox.x + tBox.width - 10, tBox.y + tBox.height/2, { steps: 30 });
+    // Arrastamos com passos menores e aguardamos o final
+    await page.mouse.move(tBox.x + tBox.width - 5, tBox.y + tBox.height/2, { steps: 50 });
     await page.mouse.up();
 
     log("8. Validando criação");
+    let sessId = "";
     await expect.poll(async () => {
       const { data } = await admin.from("walk_sessions").select("id, current_status").eq("customer_id", ownerId).order('created_at', {ascending: false}).limit(1).maybeSingle();
-      if (data) log(`Session criada: ${data.id} Status: ${data.current_status}`);
+      if (data) {
+          sessId = data.id;
+          log(`Session encontrada: ${sessId} Status: ${data.current_status}`);
+      }
       return data?.current_status === "searching";
-    }, { timeout: 30000 }).toBeTruthy();
+    }, { timeout: 30000, message: "Status da sessão deve ser searching" }).toBeTruthy();
 
-    log("MATCHING_E2E_COMPLETED");
+    log(`MATCHING_E2E_COMPLETED SessionId: ${sessId}`);
   } catch (err) {
-    await page.screenshot({ path: '/tmp/failed_isolated_v4.png' });
+    await page.screenshot({ path: '/tmp/failed_isolated_v5.png' });
     throw err;
   } finally {
     await context.close();
