@@ -255,8 +255,6 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       await expect(oCtx.page.locator('text=Buscando|Procurando|Encontrando|Aguardando')).toBeVisible({ timeout: 10000 });
       log("8. Pedido publicado e em busca");
     });
-      log("8. Pedido publicado e em busca");
-    });
 
     let sessId: string;
     await test.step("9. backend: matching-session-created", async () => {
