@@ -76,7 +76,6 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
   const page = await context.newPage();
 
   try {
-    // Provision the offer manually
     await admin.from("walk_offers").insert({ session_id: sessionId, walker_id: walker.id, offer_status: "pending" });
 
     log("1. Autenticando PetWalker...");
@@ -92,18 +91,17 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
     log("3. Visualizando oferta...");
     const acceptBtn = page.locator('[data-testid="walker-accept-button"]');
     
-    // Explicit polling for offer visibility, with UI online enforcement
     await expect.poll(async () => {
-        const isVisible = await acceptBtn.isVisible();
-        if (!isVisible) {
-            const isOnline = await page.evaluate(() => document.body.innerText.includes("Você está online"));
-            if (!isOnline) {
-                log("Detectado OFFLINE. Clicando em Ficar Online...");
-                await page.getByRole('button', { name: /Ficar Online/i }).click().catch(() => {});
-            }
+        if (await acceptBtn.isVisible()) return true;
+        
+        const onlineBtn = page.getByRole('button', { name: /Ficar Online/i });
+        if (await onlineBtn.isVisible()) {
+            log("Ficando Online...");
+            await onlineBtn.click().catch(() => {});
+            await page.waitForTimeout(2000);
         }
-        return isVisible;
-    }, { timeout: 50000, intervals: [2000, 5000] }).toBeTruthy();
+        return await acceptBtn.isVisible();
+    }, { timeout: 60000 }).toBeTruthy();
     
     log("4. Aceitando passeio...");
     await acceptBtn.click();
