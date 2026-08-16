@@ -171,22 +171,22 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     await test.step("5. owner: select-pet-confirm", async () => {
       const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).last();
       await expect(continueBtn).toBeEnabled({ timeout: 10000 });
-      await continueBtn.click({ force: true });
+      await continueBtn.click();
     });
 
     await test.step("6. owner: select-walk-type", async () => {
       const walkTypeBtn = oCtx.page.locator('button').filter({ hasText: /Livre|Coletivo/i }).first();
       await expect(walkTypeBtn).toBeVisible({ timeout: 15000 });
-      await walkTypeBtn.click({ force: true });
+      await walkTypeBtn.click();
       
       const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).last();
-      await continueBtn.click({ force: true });
+      await continueBtn.click();
     });
 
     await test.step("7. owner: select-duration", async () => {
       const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).last();
       await expect(continueBtn).toBeVisible({ timeout: 10000 });
-      await continueBtn.click({ force: true });
+      await continueBtn.click();
     });
 
     await test.step("8. owner: confirm-request", async () => {
