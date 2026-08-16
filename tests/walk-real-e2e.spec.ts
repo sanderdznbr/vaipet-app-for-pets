@@ -173,13 +173,9 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("6. owner: select-walk-type", async () => {
-      // Step 2: Escolher Passeio Livre
-      // O aria-label é "Livre" ou "Coletivo" dependendo do número de pets.
-      // Vamos tentar um seletor mais flexível baseado no texto do span interno se o aria-label falhar.
       const walkTypeBtn = oCtx.page.locator('button').filter({ has: oCtx.page.locator('span').filter({ hasText: /Livre|Coletivo/i }) }).first();
       await expect(walkTypeBtn).toBeVisible({ timeout: 15000 });
       await walkTypeBtn.click({ force: true });
-      
       const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).last();
       await continueBtn.click({ force: true });
     });
@@ -191,15 +187,11 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("8. owner: confirm-request", async () => {
-      // Step 4: Resumo e Confirmação final (SlideToConfirm)
       const slideToConfirm = oCtx.page.locator('[data-testid="slide-to-confirm"]');
       await expect(slideToConfirm).toBeVisible({ timeout: 15000 });
-      
-      // O SlideToConfirm possui um atalho de clique no thumb se drag === 0
       const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
       await thumb.click({ force: true });
-      
-      log("8. Pedido publicado via SlideToConfirm");
+      log("8. Pedido publicado");
     });
 
     await test.step("9. backend: request-searching", async () => {
@@ -229,9 +221,6 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
         walker_lng: -46.7001
       });
       const hasOffer = Array.isArray(offer) && offer.some(o => o.id === sessId);
-      if (!hasOffer) {
-        log(`DIAGNÓSTICO: Walker não elegível para sessId ${sessId}. Ofertas: ${JSON.stringify(offer)}`);
-      }
       expect(hasOffer).toBeTruthy();
       log("10. Walker elegível confirmado");
     });
@@ -245,12 +234,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     await test.step("11. walker: offer-visible", async () => {
       await wCtx.page.goto("/petwalker/painel");
       const acceptBtn = wCtx.page.locator('button:has-text("Aceitar Passeio")');
-      try {
-        await expect(acceptBtn).toBeVisible({ timeout: 30000 });
-      } catch (e) {
-        log(`11. FALHA: Oferta não apareceu na UI. URL: ${wCtx.page.url()}`);
-        throw e;
-      }
+      await expect(acceptBtn).toBeVisible({ timeout: 30000 });
       log("11. Oferta visível no PetWalker");
     });
 
