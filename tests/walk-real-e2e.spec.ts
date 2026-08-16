@@ -248,7 +248,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
         return data?.current_status === "searching";
       }, { message: "walk_session searching confirmada", timeout: 20000 }).toBeTruthy();
       
-      log(`9. walk_session em busca confirmada.`);
+      log(`9. walk_session ${sessId} em busca confirmada.`);
     });
 
     await test.step("10. walker: eligibility", async () => {
