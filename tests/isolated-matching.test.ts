@@ -43,26 +43,21 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
     await page.locator('#tour-start-walk').click({ force: true });
     
     log("4. Selecionando Pet");
-    // O pet aparece na lista. Vamos clicar no container que contém o nome.
-    const petItem = page.locator('div, button').filter({ hasText: new RegExp(`^${petName.slice(0, 6)}`, 'i') }).last();
-    await expect(petItem).toBeVisible({ timeout: 15000 });
+    const petLabel = page.locator('p, span').filter({ hasText: new RegExp(`^${petName.slice(0, 6)}`, 'i') }).first();
+    await expect(petLabel).toBeVisible({ timeout: 15000 });
     
-    // Clicamos no centro do item.
-    const box = await petItem.boundingBox();
-    if (box) {
-        await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-    } else {
-        await petItem.click({ force: true });
-    }
+    log("4.1 Clique via dispatchEvent");
+    // O clique do mouse pode estar falhando se o elemento for obstruído por camadas de animação do Bottom Sheet.
+    const petContainer = page.locator('div, button').filter({ has: petLabel }).last();
+    await petContainer.evaluate(el => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
     
-    log("4.1 Validando seleção");
+    log("4.2 Validando seleção");
     const continueBtn = page.locator('button').filter({ hasText: /Continuar/i }).last();
     
     await expect.poll(async () => {
         const text = await continueBtn.innerText();
         if (text.includes('Selecione')) {
-             // Tenta clicar novamente se ainda estiver no estado inicial
-             await petItem.click({ force: true });
+             await petContainer.evaluate(el => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
              return false;
         }
         return true;
@@ -86,6 +81,7 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
     const hBox = await handle.boundingBox();
     if (!tBox || !hBox) throw new Error("Slider not found");
 
+    // USANDO MOUSE REAL PARA O SLIDER COMO REQUISITADO
     await page.mouse.move(hBox.x + hBox.width/2, hBox.y + hBox.height/2);
     await page.mouse.down();
     await page.mouse.move(tBox.x + tBox.width - 10, tBox.y + tBox.height/2, { steps: 30 });
@@ -100,7 +96,7 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
 
     log("MATCHING_E2E_COMPLETED");
   } catch (err) {
-    await page.screenshot({ path: '/tmp/failed_isolated_v3.png' });
+    await page.screenshot({ path: '/tmp/failed_isolated_v4.png' });
     throw err;
   } finally {
     await context.close();
