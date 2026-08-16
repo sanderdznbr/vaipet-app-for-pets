@@ -268,7 +268,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("11. walker: offer-visible", async () => {
-      await wCtx.page.goto("/petwalker/painel");
+      await wCtx.page.goto("/petwalker");
       const acceptBtn = wCtx.page.locator('button').filter({ hasText: /Aceitar Passeio/i });
       await expect(acceptBtn).toBeVisible({ timeout: 30000 });
       log("11. Oferta visível no PetWalker");
