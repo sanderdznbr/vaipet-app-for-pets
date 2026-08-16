@@ -7,9 +7,9 @@
 - **Status**: **PASS (CERTIFIED)**
 
 ## Test Results Summary
-- **Isolated Matching**: 1 passed (35.6s) | Exit Code: 0
-- **Walker Acceptance**: 1 passed (31.1s) | Exit Code: 0
-- **Integrated Matching**: 1 passed (52.8s) | Exit Code: 0
+- **Isolated Matching**: 1 passed (34.3s) | Exit Code: 0
+- **Walker Acceptance**: 1 passed (36.3s) | Exit Code: 0
+- **Integrated Matching**: 1 passed (55.4s) | Exit Code: 0
 - **Typecheck (TSC)**: Exit Code: 0
 - **Build (Vite)**: Exit Code: 0
 
