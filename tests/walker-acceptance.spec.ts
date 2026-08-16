@@ -54,14 +54,14 @@ async function createOwnerAndRequest(runId: string) {
   }).select().single();
   if (pError) throw pError;
 
-  // Actual schema: current_status, start_time, planned_duration_minutes, request_mode
+  // Schema: current_status, start_time, planned_duration_minutes, request_mode
   const { data: session, error: sError } = await admin.from("walk_sessions").insert({
     customer_id: ownerId, 
     pet_id: pet.id, 
     current_status: "searching",
     walk_type: "individual", 
     planned_duration_minutes: 30,
-    request_mode: "instant",
+    request_mode: "now",
     start_time: new Date().toISOString(),
     meeting_point_geom: `SRID=4326;POINT(-46.7 -23.6)`
   }).select().single();
@@ -99,7 +99,7 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ page }) => {
   log(`Walker ID esperado: ${walker.id}`);
 
   try {
-    // 3. Visualizar a oferta (Provisionando a oferta manualmente)
+    // provisionar a oferta manualmente
     const { error: oError } = await admin.from("walk_offers").insert({ 
       session_id: sessionId, 
       walker_id: walker.id, 
@@ -110,7 +110,6 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ page }) => {
         throw oError;
     }
 
-    // 1. Autenticar o PetWalker pela interface real
     log("1. Autenticando PetWalker...");
     await page.goto("/auth");
     await page.getByPlaceholder("E-mail").fill(walker.email);
@@ -118,11 +117,9 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ page }) => {
     await page.getByRole("button", { name: /^Entrar$/i }).click();
     await expect(page).not.toHaveURL(/.*\/auth.*/, { timeout: 25000 });
 
-    // 2. Navegar para /petwalker
     log("2. Navegando para /petwalker...");
     await page.goto("/petwalker");
     
-    // 3. Visualizar a oferta
     log("3. Visualizando oferta...");
     const acceptBtn = page.locator('[data-testid="walker-accept-button"]');
     await expect(acceptBtn).toBeVisible({ timeout: 20000 });
@@ -130,10 +127,8 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ page }) => {
     const urlBefore = page.url();
     log(`URL antes do aceite: ${urlBefore}`);
 
-    // 4. Aceitar pela interface real
     log("4. Clicando em ACEITAR PASSEIO...");
     
-    // Captura de logs e requests
     page.on('console', msg => log(`[browser-console] ${msg.text()}`));
     page.on('requestfailed', req => log(`[request-failed] ${req.url()} - ${req.failure()?.errorText}`));
     page.on('response', res => {
@@ -142,13 +137,11 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ page }) => {
 
     await acceptBtn.click();
     
-    // 6. Aguardar a resposta real da RPC / Navegação
     log("5. Aguardando navegação para walk-details...");
     await expect(page).toHaveURL(/.*walk-details.*/, { timeout: 25000 });
     const urlAfter = page.url();
     log(`URL depois do aceite: ${urlAfter}`);
     
-    // 7. Confirmar no banco
     log("6. Validando banco...");
     const { data: finalSession } = await admin.from("walk_sessions")
       .select("current_status, walker_id")
