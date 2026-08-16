@@ -152,20 +152,20 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("4. owner: select-pet", async () => {
-      const petText = oCtx.page.locator('span').filter({ hasText: new RegExp(`^${petName}$`) }).first();
-      await expect(petText).toBeVisible({ timeout: 10000 });
-      const petButton = oCtx.page.locator('button').filter({ has: petText }).first();
+      const petLabel = oCtx.page.getByText(petName).first();
+      await expect(petLabel).toBeVisible({ timeout: 15000 });
       
+      const continueBtn = oCtx.page.locator('button').filter({ hasText: /Selecione|Continuar/i }).last();
+
       await expect.poll(async () => {
-        await petButton.evaluate(el => (el as HTMLButtonElement).click());
-        const btn = oCtx.page.locator('button').filter({ hasText: /Continuar|Selecione/i }).last();
-        if (await btn.isVisible()) {
-          const btnText = await btn.innerText();
-          log(`Botão de ação: "${btnText}"`);
-          return btnText.includes('Continuar');
-        }
-        return false;
-      }, { message: "PetMatch deve estar selecionado", timeout: 20000 }).toBeTruthy();
+          const targets = oCtx.page.locator('div, button, span, p').filter({ hasText: petName });
+          const count = await targets.count();
+          for (let i = 0; i < count; i++) {
+              await targets.nth(i).evaluate(el => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
+          }
+          const text = await continueBtn.innerText();
+          return text.includes('Continuar') && !text.includes('Selecione');
+      }, { timeout: 30000, message: "Pet selecionado" }).toBeTruthy();
     });
 
     await test.step("5. owner: select-pet-confirm", async () => {
@@ -190,18 +190,39 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("8. owner: confirm-request", async () => {
-      const slideToConfirm = oCtx.page.locator('[data-testid="slide-to-confirm"]');
-      await expect(slideToConfirm).toBeVisible({ timeout: 15000 });
+      // 7.1 Aguardar quote/preço
+      log("7.1 Aguardando quote/preço antes de arrastar");
+      await expect(oCtx.page.locator('span').filter({ hasText: /R\$/ })).toBeVisible({ timeout: 20000 });
+
+      const track = oCtx.page.locator('[data-testid-track="slide-to-confirm-track"]');
+      const handle = oCtx.page.locator('[data-testid-handle="slide-to-confirm-handle"]');
+      await expect(track).toBeVisible({ timeout: 15000 });
+      await expect(handle).toBeVisible({ timeout: 15000 });
+
+      const handleBox = await handle.boundingBox();
+      const trackBox = await track.boundingBox();
+      if (!handleBox || !trackBox) throw new Error("Slider elements not found");
+
+      log(`8. Confirmando pedido. Estado do slider: disabled=${await handle.isDisabled()}`);
+
+      oCtx.page.on('console', msg => {
+        if (msg.type() === 'error') log(`[browser-error] ${msg.text()}`);
+      });
+      oCtx.page.on('requestfailed', request => {
+        log(`[request-failed] ${request.url()} - ${request.failure()?.errorText}`);
+      });
+      oCtx.page.on('response', response => {
+        if (response.status() >= 400) {
+          log(`[http-error] ${response.url()} - ${response.status()}`);
+        }
+      });
+
+      await oCtx.page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+      await oCtx.page.mouse.down();
+      await oCtx.page.mouse.move(trackBox.x + trackBox.width - 5, trackBox.y + trackBox.height / 2, { steps: 50 });
+      await oCtx.page.mouse.up();
       
-      const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
-      
-      log(`8. Acionando SlideToConfirm via fallback de clique direto (accessibility shortcut).`);
-      
-      // SlideToConfirm tem um onClick que chama end(true) se drag === 0.
-      // Isso é o atalho de acessibilidade ideal para o ambiente headless.
-      await thumb.click({ force: true });
-      
-      log(`8. Clique efetuado. Aguardando criação no banco.`);
+      log(`8. Gesto de arrasto concluído. Aguardando criação no banco.`);
 
       const isRecordCreated = async () => {
         const { data } = await admin.from("walk_sessions")
@@ -216,7 +237,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       await expect.poll(async () => {
         sessId = (await isRecordCreated()) || "";
         return !!sessId;
-      }, { message: "walk_session no banco após clique", timeout: 45000 }).toBeTruthy();
+      }, { message: "walk_session no banco após arrasto", timeout: 20000 }).toBeTruthy();
 
       log(`8. Pedido criado e confirmado no banco (ID: ${sessId})`);
     });
@@ -227,7 +248,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
         return data?.current_status === "searching";
       }, { message: "walk_session searching confirmada", timeout: 20000 }).toBeTruthy();
       
-      log(`9. walk_session em busca confirmada.`);
+      log(`9. walk_session ${sessId} em busca confirmada.`);
     });
 
     await test.step("10. walker: eligibility", async () => {
@@ -247,7 +268,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("11. walker: offer-visible", async () => {
-      await wCtx.page.goto("/petwalker/painel");
+      await wCtx.page.goto("/petwalker");
       const acceptBtn = wCtx.page.locator('button').filter({ hasText: /Aceitar Passeio/i });
       await expect(acceptBtn).toBeVisible({ timeout: 30000 });
       log("11. Oferta visível no PetWalker");
