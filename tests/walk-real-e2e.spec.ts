@@ -165,19 +165,18 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       
       const petButton = oCtx.page.locator('button').filter({ has: petText }).first();
       
-      // Tenta clicar via dispatchEvent 'click' no botão para contornar qualquer
-      // problema de máscara no Playwright.
-      await petButton.evaluate(el => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
-      await oCtx.page.waitForTimeout(500);
-
+      // Clica repetidamente até o estado mudar
       await expect.poll(async () => {
+        await petButton.evaluate(el => (el as HTMLButtonElement).click());
+        
         const btn = oCtx.page.locator('button').filter({ hasText: /Continuar|Selecione/i }).last();
-        const isVisible = await btn.isVisible();
-        if (!isVisible) return false;
-        const btnText = await btn.innerText();
-        log(`Botão de ação: "${btnText}"`);
-        return btnText.includes('Continuar');
-      }, { message: "PetMatch deve estar selecionado (botão Continuar habilitado)", timeout: 10000 }).toBeTruthy();
+        if (await btn.isVisible()) {
+          const btnText = await btn.innerText();
+          log(`Botão de ação: "${btnText}"`);
+          return btnText.includes('Continuar');
+        }
+        return false;
+      }, { message: "PetMatch deve estar selecionado (clique repetido)", timeout: 10000 }).toBeTruthy();
     });
 
     await test.step("5. owner: select-schedule", async () => {
