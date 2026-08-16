@@ -69,23 +69,28 @@ export async function failClosedCleanup(admin: SupabaseClient, ids: string[], ru
   // 5. Verificação de Contagem Zero (Fail-Closed Selects)
   const checkZero = async (table: string, col: string, vals: string[]) => {
     if (vals.length === 0) return;
-    // Em vez de head:true, usamos select count puro para evitar erros 406/404 em tabelas vazias ou com RLS
+    
     const { count, error } = await admin
       .from(table)
       .select("*", { count: 'exact', head: true })
       .in(col, vals);
     
-    // Se der erro, verificamos se é apenas o PostgREST reclamando de resultado vazio
     if (error) {
-       console.warn(`[cleanup] Aviso na verificação de ${table}: ${error.message}. Tentando select simples...`);
-       const { data: retryData } = await admin.from(table).select(col).in(col, vals);
+       console.warn(`[cleanup] Tentando select simples para ${table} devido a erro: ${error.message}`);
+       const { data: retryData, error: retryError } = await admin.from(table).select(col).in(col, vals);
+       
+       if (retryError) {
+         throw new Error(`[FAIL-CLOSED] Erro fatal na consulta de verificação em ${table}: ${retryError.message}`);
+       }
+
        if (retryData && retryData.length > 0) {
            throw new Error(`[FAIL-CLOSED] RESÍDUO CONFIRMADO em ${table}: ${retryData.length} registros.`);
        }
-       return;
+    } else if (count !== null && count > 0) {
+      throw new Error(`[FAIL-CLOSED] RESÍDUO DETECTADO em ${table}: ${count} registros.`);
     }
 
-    if (count !== null && count > 0) throw new Error(`[FAIL-CLOSED] RESÍDUO DETECTADO em ${table}: ${count} registros.`);
+    console.log(`[cleanup] Tabela ${table} confirmada: count=0`);
   };
 
   await checkZero("walker_tracking", "walk_session_id", sIds);
@@ -100,10 +105,21 @@ export async function failClosedCleanup(admin: SupabaseClient, ids: string[], ru
   // 6. Verificação Final do Auth
   for (const id of ids) {
     const { data: u, error: uErr } = await admin.auth.admin.getUserById(id);
-    if (u?.user) throw new Error(`[FAIL-CLOSED] Usuário Auth ${id} ainda existe após deleção.`);
-    if (uErr && !uErr.message.includes("User not found") && uErr.status !== 404) {
-      throw new Error(`[FAIL-CLOSED] Estado ambíguo para usuário Auth ${id}: ${uErr.message}`);
+    
+    if (u?.user) {
+      throw new Error(`[FAIL-CLOSED] Usuário Auth ${id} ainda existe após deleção.`);
     }
+
+    // Aceitamos exclusivamente erro 404 / User not found
+    if (!uErr) {
+      throw new Error(`[FAIL-CLOSED] Resultado ambíguo (data=null, error=null) para usuário Auth ${id}.`);
+    }
+
+    if (!uErr.message.includes("User not found") && uErr.status !== 404) {
+      throw new Error(`[FAIL-CLOSED] Erro inesperado na verificação final de Auth ${id}: ${uErr.message}`);
+    }
+    
+    console.log(`[cleanup] Usuário Auth ${id} confirmado inexistente (404).`);
   }
 
   console.log("Cleanup zero");
