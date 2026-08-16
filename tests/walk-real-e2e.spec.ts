@@ -119,6 +119,7 @@ test.describe.configure({ mode: "serial", retries: 0 });
 
 test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser }) => {
   const runId = `match_${Date.now()}`;
+  const petName = `PetMatch`;
   const ownerCreds = await provisionUser(runId, "pet_owner");
   const walkerCreds = await provisionUser(runId, "petwalker");
   let oCtx: any, wCtx: any;
@@ -126,7 +127,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
 
   try {
     await test.step("0. preflight: pet no banco", async () => {
-      const { error } = await admin.from("pets").insert({ owner_id: ownerCreds.id, name: `PetMatch`, breed: "SRD", is_active: true });
+      const { error } = await admin.from("pets").insert({ owner_id: ownerCreds.id, name: petName, breed: "SRD", is_active: true });
       if (error) throw error;
       log("0. Pet criado no banco");
     });
@@ -151,7 +152,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("4. owner: select-pet", async () => {
-      const petText = oCtx.page.locator('span').filter({ hasText: /^PetMatch$/ }).first();
+      const petText = oCtx.page.locator('span').filter({ hasText: new RegExp(`^${petName}$`) }).first();
       await expect(petText).toBeVisible({ timeout: 10000 });
       const petButton = oCtx.page.locator('button').filter({ has: petText }).first();
       
@@ -168,14 +169,12 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("5. owner: select-pet-confirm", async () => {
-      // O Pet já foi selecionado no step 4, aqui apenas confirmamos e avançamos.
       const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).last();
       await expect(continueBtn).toBeEnabled({ timeout: 10000 });
       await continueBtn.click({ force: true });
     });
 
     await test.step("6. owner: select-walk-type", async () => {
-      // Step 2: Seleção de tipo (Livre/Coletivo ou Local)
       const walkTypeBtn = oCtx.page.locator('button').filter({ hasText: /Livre|Coletivo/i }).first();
       await expect(walkTypeBtn).toBeVisible({ timeout: 15000 });
       await walkTypeBtn.click({ force: true });
@@ -185,28 +184,18 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("7. owner: select-duration", async () => {
-      // Step 3: Duração e Preço
       const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).last();
       await expect(continueBtn).toBeVisible({ timeout: 10000 });
       await continueBtn.click({ force: true });
-    });
-
-    await test.step("7. owner: select-duration", async () => {
-      await expect(oCtx.page.locator('text=Duração').first()).toBeVisible({ timeout: 15000 });
-      const confirmBtn = oCtx.page.locator('button').filter({ hasText: /Confirmar|Continuar/i }).last();
-      await confirmBtn.click({ force: true });
     });
 
     await test.step("8. owner: confirm-request", async () => {
       const slideToConfirm = oCtx.page.locator('[data-testid="slide-to-confirm"]');
       await expect(slideToConfirm).toBeVisible({ timeout: 15000 });
       
-      // O componente SlideToConfirm tem um onClick que chama end(true) se drag === 0
-      // Vamos tentar o click simples primeiro para ser mais resiliente no sandbox
       const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
       await thumb.click({ force: true });
       
-      // Se o click não funcionar (ex: drag não é 0), tentamos o drag novamente mas com coordenadas relativas ao box
       try {
         await expect(oCtx.page).toHaveURL(/.*search-walk.*/, { timeout: 8000 });
       } catch (e) {
@@ -224,15 +213,12 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("9. backend: request-searching", async () => {
-      // Tenta capturar o sessId da URL ou de logs de rede se necessário, 
-      // mas primeiro garante que a navegação para /search-walk ocorreu.
       await expect(oCtx.page).toHaveURL(/.*search-walk.*/, { timeout: 20000 });
       
       await expect.poll(async () => {
         const url = new URL(oCtx.page.url());
         sessId = url.searchParams.get("resume") || "";
         if (!sessId) {
-          // Fallback: busca a sessão mais recente do owner no banco
           const { data } = await admin.from("walk_sessions")
             .select("id")
             .eq("customer_id", ownerCreds.id)
@@ -258,7 +244,6 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       expect(profile?.availability_status).toBe("available");
       expect(profile?.is_accepting_requests).toBe(true);
       
-      // Busca as ofertas diretamente na tabela walk_offers para evitar dependência do cálculo geográfico da RPC complexa durante o teste
       const { data: offers } = await admin.from("walk_offers").select("*").eq("session_id", sessId).eq("walker_id", walkerCreds.id);
       const hasOffer = Array.isArray(offers) && offers.length > 0;
       
@@ -280,18 +265,16 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
 
     await test.step("11. walker: offer-visible", async () => {
       await wCtx.page.goto("/petwalker/painel");
-      const acceptBtn = wCtx.page.locator('button:has-text("Aceitar Passeio")');
+      const acceptBtn = wCtx.page.locator('button').filter({ hasText: /Aceitar Passeio/i });
       await expect(acceptBtn).toBeVisible({ timeout: 30000 });
       log("11. Oferta visível no PetWalker");
     });
 
     await test.step("12. walker: accept-via-ui", async () => {
-      // O botão "Aceitar Passeio" está dentro do IncomingWalkOfferSheet
       const acceptBtn = wCtx.page.locator('button').filter({ hasText: /Aceitar Passeio/i });
       await expect(acceptBtn).toBeVisible({ timeout: 15000 });
       await acceptBtn.click({ force: true });
       
-      // O aceite redireciona para walk-details ou altera o status
       await expect(wCtx.page).toHaveURL(/.*walk-details.*/, { timeout: 20000 });
       log("12. Aceite realizado pela interface");
     });
@@ -299,7 +282,8 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     await test.step("13. backend: acceptance-confirmed", async () => {
       await expect.poll(async () => {
         const { data } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessId).single();
-        return data?.current_status === "walker_assigned" && data?.walker_id === walkerCreds.id;
+        // O status deve ser 'accepted' de acordo com a migration 20260813200000
+        return data?.current_status === "accepted" && data?.walker_id === walkerCreds.id;
       }, { message: "Confirmando walker_id e status no banco", timeout: 20000 }).toBeTruthy();
       log("13. Banco confirmado");
     });
