@@ -168,7 +168,9 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("5. owner: select-schedule", async () => {
+      // Step 1 -> Step 2
       const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).last();
+      await expect(continueBtn).toBeEnabled({ timeout: 10000 });
       await continueBtn.click({ force: true });
     });
 
@@ -190,14 +192,28 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       const slideToConfirm = oCtx.page.locator('[data-testid="slide-to-confirm"]');
       await expect(slideToConfirm).toBeVisible({ timeout: 15000 });
       
-      // Aumenta o timeout para garantir que os cálculos de preço (quote) terminaram
+      // Aumenta o timeout para garantir que os cálculos de preço (quote) terminaram e o botão habilitou
       await oCtx.page.waitForTimeout(3000);
 
-      // Tenta clicar no SlideToConfirm para disparar o onConfirm (atalho tap)
-      // Se o clique falhar em disparar o onConfirm, o polling do sessId falhará.
-      await slideToConfirm.click({ force: true, position: { x: 30, y: 30 } });
+      // Simula o arrasto (drag) real via coordenadas para garantir o disparo do evento onPointerUp -> end(true)
+      const box = await slideToConfirm.boundingBox();
+      if (!box) throw new Error("SlideToConfirm box not found");
       
-      log("8. Pedido publicado via clique no SlideToConfirm");
+      const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
+      const tBox = await thumb.boundingBox();
+      if (!tBox) throw new Error("Thumb box not found");
+
+      // Ponto inicial: centro do thumb
+      const startX = tBox.x + tBox.width / 2;
+      const startY = tBox.y + tBox.height / 2;
+      
+      await oCtx.page.mouse.move(startX, startY);
+      await oCtx.page.mouse.down();
+      // Arrasta até o final do trilho (e um pouco além para garantir ratio > 0.85)
+      await oCtx.page.mouse.move(box.x + box.width - 5, startY, { steps: 20 });
+      await oCtx.page.mouse.up();
+      
+      log("8. Pedido publicado via drag simulado (mouse events)");
     });
 
     await test.step("9. backend: request-searching", async () => {
