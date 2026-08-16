@@ -190,20 +190,21 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       const slideToConfirm = oCtx.page.locator('[data-testid="slide-to-confirm"]');
       await expect(slideToConfirm).toBeVisible({ timeout: 15000 });
       
+      // Aumenta o timeout para garantir que os cálculos de preço (quote) terminaram
+      await oCtx.page.waitForTimeout(2000);
+
       // Simula o arrasto (drag) manualmente para garantir o gatilho.
-      // 1. Pega a caixa do trilho
       const box = await slideToConfirm.boundingBox();
       if (!box) throw new Error("SlideToConfirm box not found");
       
-      // 2. Localiza o thumb
       const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
       const tBox = await thumb.boundingBox();
       if (!tBox) throw new Error("Thumb box not found");
 
-      // 3. Executa o drag
       await oCtx.page.mouse.move(tBox.x + tBox.width / 2, tBox.y + tBox.height / 2);
       await oCtx.page.mouse.down();
-      await oCtx.page.mouse.move(box.x + box.width - 20, tBox.y + tBox.height / 2, { steps: 10 });
+      // Arrastamos para o final do track
+      await oCtx.page.mouse.move(box.x + box.width - 10, tBox.y + tBox.height / 2, { steps: 20 });
       await oCtx.page.mouse.up();
       
       log("8. Pedido publicado via drag simulado");
