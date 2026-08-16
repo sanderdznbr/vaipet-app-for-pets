@@ -163,16 +163,11 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       const petText = oCtx.page.locator('span').filter({ hasText: /^PetMatch$/ }).first();
       await expect(petText).toBeVisible({ timeout: 10000 });
       
-      // No SearchWalk.tsx o button tem a classe "active:scale-95 transition-transform"
-      // e o onClick está nele.
       const petButton = oCtx.page.locator('button').filter({ has: petText }).first();
       
-      // Tenta várias abordagens de clique no botão
-      await petButton.click({ force: true });
+      // Tenta clicar via evaluate para disparar o evento DOM diretamente
+      await petButton.evaluate(el => (el as HTMLButtonElement).click());
       await oCtx.page.waitForTimeout(500);
-      
-      // Se não funcionou, tenta clicar diretamente no span
-      await petText.click({ force: true });
 
       await expect.poll(async () => {
         const btn = oCtx.page.locator('button').filter({ hasText: /Continuar|Selecione/i }).last();
