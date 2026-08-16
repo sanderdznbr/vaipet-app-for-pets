@@ -61,6 +61,7 @@ test("matching: OWNER_REQUEST_E2E_COMPLETED", async ({ browser }) => {
 
 
 
+
     log("5. Selecionando Tipo");
     await page.locator('button').filter({ hasText: /Livre/i }).first().click();
     await page.locator('button').filter({ hasText: /^Continuar$/ }).last().click();
