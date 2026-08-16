@@ -165,18 +165,25 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       
       const petButton = oCtx.page.locator('button').filter({ has: petText }).first();
       
-      // Clica repetidamente até o estado mudar
+      // Tenta várias abordagens de clique no botão
+      await petButton.click({ force: true });
+      await oCtx.page.waitForTimeout(500);
+      
+      // Se não funcionou, tenta clicar diretamente no span
+      await petText.click({ force: true });
+      await oCtx.page.waitForTimeout(500);
+
+      // Tenta via dispatchEvent 'click' no botão
+      await petButton.evaluate(el => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
+
       await expect.poll(async () => {
-        await petButton.evaluate(el => (el as HTMLButtonElement).click());
-        
         const btn = oCtx.page.locator('button').filter({ hasText: /Continuar|Selecione/i }).last();
-        if (await btn.isVisible()) {
-          const btnText = await btn.innerText();
-          log(`Botão de ação: "${btnText}"`);
-          return btnText.includes('Continuar');
-        }
-        return false;
-      }, { message: "PetMatch deve estar selecionado (clique repetido)", timeout: 10000 }).toBeTruthy();
+        const isVisible = await btn.isVisible();
+        if (!isVisible) return false;
+        const btnText = await btn.innerText();
+        log(`Botão de ação: "${btnText}"`);
+        return btnText.includes('Continuar');
+      }, { message: "PetMatch deve estar selecionado (botão Continuar habilitado)", timeout: 10000 }).toBeTruthy();
     });
 
     await test.step("5. owner: select-schedule", async () => {
