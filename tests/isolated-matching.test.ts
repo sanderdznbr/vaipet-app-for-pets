@@ -23,8 +23,9 @@ test("matching: OWNER_REQUEST_E2E_COMPLETED", async ({ browser }) => {
   });
   if (uErr) throw uErr;
   const ownerId = uData.user!.id;
-  await admin.from("profiles").upsert({ id: ownerId, full_name: "E2E Isolated", onboarding_completed: true });
+  await admin.from("profiles").upsert({ id: ownerId, full_name: "E2E Isolated", onboarding_completed: true, phone: "(11) 99999-9999", age: 30 });
   await admin.from("pets").insert({ owner_id: ownerId, name: petName, breed: "SRD", is_active: true });
+
 
   const context = await browser.newContext({
     viewport: { width: 430, height: 900 },

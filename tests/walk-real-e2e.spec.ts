@@ -68,7 +68,7 @@ async function provisionUser(runId: string, kind: "pet_owner" | "petwalker") {
   if (error) throw error;
   const id = data.user!.id;
   
-  await admin.from("profiles").upsert({ id, full_name: `E2E ${kind}`, onboarding_completed: true });
+  await admin.from("profiles").upsert({ id, full_name: `E2E ${kind}`, onboarding_completed: true, phone: "(11) 96666-6666", age: 32 });
   
   if (kind === "petwalker") {
     await admin.from("user_roles").insert({ user_id: id, role: "petwalker" });

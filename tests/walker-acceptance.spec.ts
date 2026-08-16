@@ -22,7 +22,7 @@ async function provisionWalker(runId: string) {
   });
   if (error) throw error;
   const id = data.user!.id;
-  await admin.from("profiles").upsert({ id, full_name: "Walker E2E", onboarding_completed: true });
+  await admin.from("profiles").upsert({ id, full_name: "Walker E2E", onboarding_completed: true, phone: "(11) 98888-8888", age: 25 });
   await admin.from("user_roles").upsert({ user_id: id, role: "petwalker" });
   await admin.from("petwalker_profiles").upsert({
     user_id: id, approval_status: "approved", profile_completed: true, availability_status: "available",
@@ -36,7 +36,7 @@ async function createOwnerAndRequest(runId: string) {
   const email = `e2e.owner.${runId}@e2e.vaipet.invalid`;
   const { data } = await admin.auth.admin.createUser({ email, password: "Pass!", email_confirm: true, user_metadata: { e2e_test: true, e2e_run_id: runId } });
   const ownerId = data.user!.id;
-  await admin.from("profiles").upsert({ id: ownerId, onboarding_completed: true });
+  await admin.from("profiles").upsert({ id: ownerId, onboarding_completed: true, phone: "(11) 97777-7777", age: 28 });
   const { data: pet } = await admin.from("pets").insert({ owner_id: ownerId, name: "DiagPet", breed: "SRD", is_active: true }).select().single();
   const { data: session } = await admin.from("walk_sessions").insert({
     customer_id: ownerId, pet_id: pet.id, current_status: "searching",
