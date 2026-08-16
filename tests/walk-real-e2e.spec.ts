@@ -180,28 +180,93 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       }
     });
 
-    await test.step("3. owner: open-request-flow", async () => {
+    await test.step("3. owner: bottom-sheet-open", async () => {
       await oCtx.page.locator('#tour-start-walk').click();
-      // O fluxo de abertura pode levar a uma nova rota ou modal
-      await expect(oCtx.page.locator('button:has-text("30 minutos"), h2:has-text("solicitação"), h1:has-text("solicitação")').first()).toBeVisible({ timeout: 10000 });
+      const bottomSheet = oCtx.page.locator('[role="dialog"], .fixed.bottom-0').filter({ hasText: /INICIAR O PASSEIO/i });
+      await expect(bottomSheet).toBeVisible({ timeout: 10000 });
+      await expect(bottomSheet.locator('text=QUAL PET?')).toBeVisible({ timeout: 10000 });
     });
 
-    await test.step("4. owner: select-duration", async () => {
-      const durationBtn = oCtx.page.getByRole('button', { name: /30 minutos/i });
-      await expect(durationBtn).toBeVisible({ timeout: 10000 });
+    await test.step("4. owner: select-pet", async () => {
+      const bottomSheet = oCtx.page.locator('[role="dialog"], .fixed.bottom-0').filter({ hasText: /INICIAR O PASSEIO/i });
+      const petCard = bottomSheet.locator('div').filter({ hasText: /^PetMatch$/ }).first();
+      await expect(petCard).toBeVisible({ timeout: 10000 });
+      
+      // Verificar se já está selecionado via algum atributo comum de UI (aria-checked, data-state, ou classe específica)
+      const isSelected = await petCard.evaluate(el => 
+        el.getAttribute('aria-checked') === 'true' || 
+        el.getAttribute('data-state') === 'checked' ||
+        el.classList.contains('border-primary') ||
+        el.classList.contains('ring-2')
+      );
+
+      if (!isSelected) {
+        await petCard.click();
+      }
+
+      // Validar seleção real
+      await expect.poll(async () => {
+        return await petCard.evaluate(el => 
+          el.getAttribute('aria-checked') === 'true' || 
+          el.getAttribute('data-state') === 'checked' ||
+          el.classList.contains('border-primary') ||
+          el.classList.contains('ring-2')
+        );
+      }, { message: "PetMatch deve estar visualmente selecionado", timeout: 10000 }).toBeTruthy();
+    });
+
+    await test.step("5. owner: select-schedule", async () => {
+      const bottomSheet = oCtx.page.locator('[role="dialog"], .fixed.bottom-0').filter({ hasText: /INICIAR O PASSEIO/i });
+      const agoraOption = bottomSheet.locator('button, div').filter({ hasText: /^Agora$/ }).first();
+      await agoraOption.click();
+      
+      await expect.poll(async () => {
+        return await agoraOption.evaluate(el => 
+          el.getAttribute('aria-pressed') === 'true' || 
+          el.getAttribute('data-state') === 'on' ||
+          el.classList.contains('bg-primary') ||
+          el.classList.contains('text-white')
+        );
+      }, { message: "Opção 'Agora' deve estar selecionada", timeout: 10000 }).toBeTruthy();
+    });
+
+    await test.step("6. owner: continue-to-duration", async () => {
+      const bottomSheet = oCtx.page.locator('[role="dialog"], .fixed.bottom-0').filter({ hasText: /INICIAR O PASSEIO/i });
+      const continueBtn = bottomSheet.getByRole('button', { name: /Continuar/i });
+      await continueBtn.click();
+      await expect(bottomSheet.locator('text=30 minutos')).toBeVisible({ timeout: 10000 });
+    });
+
+    await test.step("7. owner: select-duration", async () => {
+      const bottomSheet = oCtx.page.locator('[role="dialog"], .fixed.bottom-0').filter({ hasText: /INICIAR O PASSEIO/i });
+      const durationBtn = bottomSheet.locator('button').filter({ hasText: /^30 minutos$/ }).first();
       await durationBtn.click();
+      
+      await expect.poll(async () => {
+        return await durationBtn.evaluate(el => 
+          el.getAttribute('aria-pressed') === 'true' || 
+          el.getAttribute('data-state') === 'on' ||
+          el.classList.contains('border-primary')
+        );
+      }, { message: "Duração '30 minutos' deve estar selecionada", timeout: 10000 }).toBeTruthy();
     });
 
-    await test.step("5. owner: confirm-request", async () => {
-      const confirmBtn = oCtx.page.getByRole('button', { name: /confirmar/i });
+    await test.step("8. owner: confirm-request", async () => {
+      const bottomSheet = oCtx.page.locator('[role="dialog"], .fixed.bottom-0').filter({ hasText: /INICIAR O PASSEIO/i });
+      // Pode ser "Confirmar", "Pedir Agora", etc.
+      const confirmBtn = bottomSheet.getByRole('button', { name: /(confirmar|pedir|solicitar)/i });
       await confirmBtn.click();
+      
+      // Confirmar transição para busca
       await expect(oCtx.page).toHaveURL(/.*search-walk.*/, { timeout: 15000 });
-      log("5. Pedido publicado");
+      await expect(oCtx.page.locator('text=Buscando|Procurando|Encontrando')).toBeVisible({ timeout: 10000 });
+      log("8. Pedido publicado e em busca");
     });
 
     let sessId: string;
-    await test.step("6. backend: matching-session-created", async () => {
-      sessId = new URL(oCtx.page.url()).searchParams.get("resume") || "";
+    await test.step("9. backend: matching-session-created", async () => {
+      const url = new URL(oCtx.page.url());
+      sessId = url.searchParams.get("resume") || "";
       expect(sessId).toBeTruthy();
 
       await expect.poll(async () => {
