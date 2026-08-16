@@ -194,27 +194,49 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       await expect(slideToConfirm).toBeVisible({ timeout: 15000 });
       
       const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
-      // O componente SlideToConfirm.tsx usa PointerEvents para o drag.
-      // Em ambientes de teste, o dispatchEvent direto simula melhor o input do usuário.
-      await thumb.evaluate(el => {
-        el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 0 }));
-        el.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 500 }));
-        el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 500 }));
-      });
+      const rail = slideToConfirm.first();
       
-      // Fallback: se o drag simulado falhar, o onClick atua como atalho para drag=0
-      await thumb.click({ force: true }).catch(() => {});
+      const thumbBox = await thumb.boundingBox();
+      const railBox = await rail.boundingBox();
       
+      if (!thumbBox || !railBox) throw new Error("Não foi possível obter boundingBox do SlideToConfirm");
+      
+      log(`8. BoundingBox: thumb=${JSON.stringify(thumbBox)}, rail=${JSON.stringify(railBox)}`);
+      
+      // PARTE 3 — SLIDER (Uso de coordenadas absolutas via page.mouse para bypass de camadas)
+      const startX = thumbBox.x + thumbBox.width / 2;
+      const startY = thumbBox.y + thumbBox.height / 2;
+      const endX = railBox.x + railBox.width - 20;
+
+      await oCtx.page.mouse.move(startX, startY);
+      await oCtx.page.mouse.down();
+      
+      // Movimento progressivo para gatilhos React
+      const steps = 15;
+      for (let i = 1; i <= steps; i++) {
+        const curX = startX + (endX - startX) * (i / steps);
+        await oCtx.page.mouse.move(curX, startY);
+        await oCtx.page.waitForTimeout(20);
+      }
+      
+      await oCtx.page.mouse.up();
+      
+      log(`8. Mouse drag real concluído. Aguardando criação no banco.`);
+
+      // Polling agressivo com log de progresso
       await expect.poll(async () => {
-        const { data } = await admin.from("walk_sessions")
+        const { data, error } = await admin.from("walk_sessions")
           .select("id")
           .eq("customer_id", ownerCreds.id)
           .order("created_at", { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
+        
+        if (error) log(`8. Erro no polling: ${error.message}`);
         sessId = data?.id || "";
+        if (sessId) log(`8. Sessão encontrada no banco: ${sessId}`);
         return !!sessId;
-      }, { timeout: 30000 }).toBeTruthy();
+      }, { message: "walk_session no banco", timeout: 45000 }).toBeTruthy();
 
       log(`8. Pedido criado e confirmado no banco (ID: ${sessId})`);
     });
