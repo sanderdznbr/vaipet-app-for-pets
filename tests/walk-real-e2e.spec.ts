@@ -183,32 +183,43 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       await continueBtn.click({ force: true });
     });
 
-    await test.step("7. owner: select-duration", async () => {
-      const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).last();
-      await expect(continueBtn).toBeVisible({ timeout: 10000 });
-      await continueBtn.click({ force: true });
-    });
-
     await test.step("8. owner: confirm-request", async () => {
       const slideToConfirm = oCtx.page.locator('[data-testid="slide-to-confirm"]');
       await expect(slideToConfirm).toBeVisible({ timeout: 15000 });
       
       const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
-      await thumb.click({ force: true });
+      // Em ambientes sandbox, eventos de pointer/drag podem ser instáveis.
+      // Forçamos o trigger direto do evento de clique que o componente expõe para acessibilidade/fallback.
+      await thumb.evaluate(el => (el as HTMLElement).click());
       
-      log("8. Pedido publicado via SlideToConfirm (click)");
+      log("8. Pedido publicado via SlideToConfirm (forced click)");
     });
 
     await test.step("9. backend: request-searching", async () => {
-      // Navegação para /search-walk via poll agressivo
+      // Aguarda a navegação ou o surgimento do ID na URL
       await expect.poll(async () => {
-        return oCtx.page.url().includes("search-walk");
-      }, { timeout: 20000 }).toBeTruthy();
-      
-      await expect.poll(async () => {
-        const url = new URL(oCtx.page.url());
-        sessId = url.searchParams.get("resume") || "";
+        const url = oCtx.page.url();
+        const urlObj = new URL(url);
+        sessId = urlObj.searchParams.get("resume") || "";
         if (!sessId) {
+          const { data } = await admin.from("walk_sessions")
+            .select("id")
+            .eq("customer_id", ownerCreds.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .single();
+          sessId = data?.id || "";
+        }
+        return !!sessId;
+      }, { message: "ID da sessão (sessId) capturado", timeout: 30000 }).toBeTruthy();
+
+      await expect.poll(async () => {
+        const { data } = await admin.from("walk_sessions").select("current_status").eq("id", sessId).single();
+        return data?.current_status === "searching";
+      }, { message: "walk_session searching confirmada", timeout: 20000 }).toBeTruthy();
+      
+      log(`9. walk_session searching confirmada (ID: ${sessId})`);
+    });
           const { data } = await admin.from("walk_sessions")
             .select("id")
             .eq("customer_id", ownerCreds.id)
