@@ -97,6 +97,7 @@ export const SlideToConfirm: React.FC<SlideToConfirmProps> = ({
   return (
     <div
       data-testid="slide-to-confirm"
+      data-testid-track="slide-to-confirm-track"
       ref={trackRef}
       className="relative w-full h-[62px] overflow-hidden select-none touch-none"
       style={{
@@ -139,6 +140,7 @@ export const SlideToConfirm: React.FC<SlideToConfirmProps> = ({
 
       {/* thumb */}
       <div
+        data-testid-handle="slide-to-confirm-handle"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

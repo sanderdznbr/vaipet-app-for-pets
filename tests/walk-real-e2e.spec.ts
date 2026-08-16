@@ -190,18 +190,42 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("8. owner: confirm-request", async () => {
-      const slideToConfirm = oCtx.page.locator('[data-testid="slide-to-confirm"]');
-      await expect(slideToConfirm).toBeVisible({ timeout: 15000 });
+      const track = oCtx.page.locator('[data-testid-track="slide-to-confirm-track"]');
+      const handle = oCtx.page.locator('[data-testid-handle="slide-to-confirm-handle"]');
+      await expect(track).toBeVisible({ timeout: 15000 });
+      await expect(handle).toBeVisible({ timeout: 15000 });
+
+      const petName = await oCtx.page.locator('span').filter({ text: /PetMatch/ }).first().innerText();
+      log(`8. Confirmando pedido para ${petName}. Estado do slider: disabled=${await handle.isDisabled()}`);
+
+      const trackBox = await track.boundingBox();
+      const handleBox = await handle.boundingBox();
+      if (!trackBox || !handleBox) throw new Error("SlideToConfirm elements not found for dragging");
+
+      const startX = handleBox.x + handleBox.width / 2;
+      const startY = handleBox.y + handleBox.height / 2;
+      const endX = trackBox.x + trackBox.width - 20;
+
+      oCtx.page.on('console', msg => {
+        if (msg.type() === 'error') log(`[browser-error] ${msg.text()}`);
+      });
+
+      oCtx.page.on('requestfailed', request => {
+        log(`[request-failed] ${request.url()} - ${request.failure()?.errorText}`);
+      });
+
+      oCtx.page.on('response', response => {
+        if (response.status() >= 400) {
+          log(`[http-error] ${response.url()} - ${response.status()}`);
+        }
+      });
+
+      await oCtx.page.mouse.move(startX, startY);
+      await oCtx.page.mouse.down();
+      await oCtx.page.mouse.move(endX, startY, { steps: 20 });
+      await oCtx.page.mouse.up();
       
-      const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
-      
-      log(`8. Acionando SlideToConfirm via fallback de clique direto (accessibility shortcut).`);
-      
-      // SlideToConfirm tem um onClick que chama end(true) se drag === 0.
-      // Isso é o atalho de acessibilidade ideal para o ambiente headless.
-      await thumb.click({ force: true });
-      
-      log(`8. Clique efetuado. Aguardando criação no banco.`);
+      log(`8. Gesto de arrasto concluído. Aguardando criação no banco.`);
 
       const isRecordCreated = async () => {
         const { data } = await admin.from("walk_sessions")
@@ -216,7 +240,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       await expect.poll(async () => {
         sessId = (await isRecordCreated()) || "";
         return !!sessId;
-      }, { message: "walk_session no banco após clique", timeout: 45000 }).toBeTruthy();
+      }, { message: "walk_session no banco após arrasto", timeout: 20000 }).toBeTruthy();
 
       log(`8. Pedido criado e confirmado no banco (ID: ${sessId})`);
     });
