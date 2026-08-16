@@ -43,66 +43,56 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
     await page.locator('#tour-start-walk').click({ force: true });
     
     log("4. Selecionando Pet");
-    // Vamos usar text content direto para achar o botão que envolve o nome.
-    const petText = page.getByText(petName, { exact: false });
-    await expect(petText).toBeVisible({ timeout: 15000 });
+    const petLabel = page.getByText(petName).first();
+    await expect(petLabel).toBeVisible({ timeout: 15000 });
     
-    // O container clicável
-    const petContainer = page.locator('button').filter({ has: petText }).first();
-    
-    log("4.1 Clicando via clique real e retry");
+    log("4.1 Clique via coordenadas e retry");
+    const continueBtn = page.locator('button').filter({ hasText: /Continuar/i }).last();
+
     await expect.poll(async () => {
-        await petContainer.click({ force: true });
-        const continueBtn = page.locator('button').filter({ hasText: /Continuar/i }).last();
+        const box = await petLabel.boundingBox();
+        if (box) {
+            // Clicamos um pouco acima do texto onde fica o avatar/ícone
+            await page.mouse.click(box.x + box.width / 2, box.y - 20);
+        }
         const text = await continueBtn.innerText();
         return !text.includes('Selecione');
     }, { timeout: 30000, message: "Seleção do pet ativada" }).toBeTruthy();
     
-    await page.locator('button').filter({ hasText: /Continuar/i }).last().click({ force: true });
+    await continueBtn.click({ force: true });
 
     log("5. Selecionando Tipo");
-    const typeBtn = page.locator('button').filter({ hasText: /Livre/i }).first();
-    await typeBtn.click({ force: true });
+    await page.locator('button').filter({ hasText: /Livre/i }).first().click({ force: true });
     await page.locator('button').filter({ hasText: /Continuar/i }).last().click({ force: true });
 
     log("6. Selecionando Duração");
     await page.locator('button').filter({ hasText: /Continuar/i }).last().click({ force: true });
 
     log("7. Arrastando Slider");
-    // O SlideToConfirm deve estar visível e ter o quote carregado.
-    const track = page.locator('[data-testid-track="slide-to-confirm-track"]');
-    const handle = page.locator('[data-testid-handle="slide-to-confirm-handle"]');
-    
-    // Aguardar o quote (o preço deve aparecer no resumo acima do slider)
-    log("7.1 Aguardando quote/preço");
+    // Aguardar quote
     await expect(page.locator('span').filter({ hasText: /R\$/ })).toBeVisible({ timeout: 15000 });
     
+    const track = page.locator('[data-testid-track="slide-to-confirm-track"]');
+    const handle = page.locator('[data-testid-handle="slide-to-confirm-handle"]');
     await expect(track).toBeVisible({ timeout: 15000 });
     const tBox = await track.boundingBox();
     const hBox = await handle.boundingBox();
     if (!tBox || !hBox) throw new Error("Slider not found");
 
-    log("7.2 Realizando arrasto");
     await page.mouse.move(hBox.x + hBox.width/2, hBox.y + hBox.height/2);
     await page.mouse.down();
-    // Arrastamos com passos menores e aguardamos o final
     await page.mouse.move(tBox.x + tBox.width - 5, tBox.y + tBox.height/2, { steps: 50 });
     await page.mouse.up();
 
     log("8. Validando criação");
-    let sessId = "";
     await expect.poll(async () => {
       const { data } = await admin.from("walk_sessions").select("id, current_status").eq("customer_id", ownerId).order('created_at', {ascending: false}).limit(1).maybeSingle();
-      if (data) {
-          sessId = data.id;
-          log(`Session encontrada: ${sessId} Status: ${data.current_status}`);
-      }
       return data?.current_status === "searching";
-    }, { timeout: 30000, message: "Status da sessão deve ser searching" }).toBeTruthy();
+    }, { timeout: 30000 }).toBeTruthy();
 
-    log(`MATCHING_E2E_COMPLETED SessionId: ${sessId}`);
+    log("MATCHING_E2E_COMPLETED");
   } catch (err) {
-    await page.screenshot({ path: '/tmp/failed_isolated_v5.png' });
+    await page.screenshot({ path: '/tmp/failed_isolated_v6.png' });
     throw err;
   } finally {
     await context.close();
