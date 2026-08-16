@@ -188,37 +188,31 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       await expect(slideToConfirm).toBeVisible({ timeout: 15000 });
       
       const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
-      // Em ambientes sandbox, eventos de pointer/drag podem ser instáveis.
-      // Forçamos o trigger direto do evento de clique que o componente expõe para acessibilidade/fallback.
+      // Forçamos o trigger direto do evento de clique e aguardamos a resposta da RPC no banco
       await thumb.evaluate(el => (el as HTMLElement).click());
       
-      log("8. Pedido publicado via SlideToConfirm (forced click)");
+      // Aguarda o banco processar a criação antes de tentar capturar o ID
+      await expect.poll(async () => {
+        const { data } = await admin.from("walk_sessions")
+          .select("id")
+          .eq("customer_id", ownerCreds.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+        sessId = data?.id || "";
+        return !!sessId;
+      }, { timeout: 20000 }).toBeTruthy();
+
+      log(`8. Pedido criado e confirmado no banco (ID: ${sessId})`);
     });
 
     await test.step("9. backend: request-searching", async () => {
-      // Aguarda a navegação ou o surgimento do ID na URL
-      await expect.poll(async () => {
-        const url = oCtx.page.url();
-        const urlObj = new URL(url);
-        sessId = urlObj.searchParams.get("resume") || "";
-        if (!sessId) {
-          const { data } = await admin.from("walk_sessions")
-            .select("id")
-            .eq("customer_id", ownerCreds.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .single();
-          sessId = data?.id || "";
-        }
-        return !!sessId;
-      }, { message: "ID da sessão (sessId) capturado", timeout: 30000 }).toBeTruthy();
-
       await expect.poll(async () => {
         const { data } = await admin.from("walk_sessions").select("current_status").eq("id", sessId).single();
         return data?.current_status === "searching";
       }, { message: "walk_session searching confirmada", timeout: 20000 }).toBeTruthy();
       
-      log(`9. walk_session searching confirmada (ID: ${sessId})`);
+      log(`9. walk_session em busca confirmada.`);
     });
           const { data } = await admin.from("walk_sessions")
             .select("id")
