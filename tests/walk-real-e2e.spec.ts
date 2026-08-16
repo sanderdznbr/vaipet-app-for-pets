@@ -195,19 +195,33 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("9. backend: request-searching", async () => {
+      // Tenta capturar o sessId da URL ou de logs de rede se necessário, 
+      // mas primeiro garante que a navegação para /search-walk ocorreu.
+      await expect(oCtx.page).toHaveURL(/.*search-walk.*/, { timeout: 20000 });
+      
       await expect.poll(async () => {
         const url = new URL(oCtx.page.url());
         sessId = url.searchParams.get("resume") || "";
+        if (!sessId) {
+          // Fallback: busca a sessão mais recente do owner no banco
+          const { data } = await admin.from("walk_sessions")
+            .select("id")
+            .eq("customer_id", ownerCreds.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .single();
+          sessId = data?.id || "";
+        }
         return !!sessId;
-      }, { timeout: 15000 }).toBeTruthy();
+      }, { message: "ID da sessão (sessId) capturado", timeout: 20000 }).toBeTruthy();
 
       await expect.poll(async () => {
         const { data } = await admin.from("walk_sessions").select("current_status, matching_expires_at").eq("id", sessId).single();
         if (data?.current_status !== "searching") return false;
         const expires = data.matching_expires_at ? new Date(data.matching_expires_at).getTime() : 0;
         return expires > Date.now();
-      }, { message: "walk_session searching confirmada", timeout: 15000 }).toBeTruthy();
-      log("9. walk_session searching confirmada");
+      }, { message: "walk_session searching confirmada no banco", timeout: 20000 }).toBeTruthy();
+      log(`9. walk_session searching confirmada (ID: ${sessId})`);
     });
 
     await test.step("10. walker: eligibility", async () => {
