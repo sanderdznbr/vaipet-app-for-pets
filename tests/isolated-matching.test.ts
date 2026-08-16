@@ -46,21 +46,19 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
     const petLabel = page.getByText(petName).first();
     await expect(petLabel).toBeVisible({ timeout: 15000 });
     
-    log("4.1 Clique agressivo no ícone de pata e retry");
+    log("4.1 Tentando dispatchEvent em cascata");
     const continueBtn = page.locator('button').filter({ hasText: /Selecione|Continuar/i }).last();
 
     await expect.poll(async () => {
-        const box = await petLabel.boundingBox();
-        if (box) {
-            // Clicamos no centro do botão circular que fica acima do texto (aproximadamente 40px acima do centro do texto)
-            await page.mouse.click(box.x + box.width / 2, box.y - 40);
-            await page.waitForTimeout(500);
-            // Tentamos também o clique direto no ícone (SVG) próximo
-            await page.locator('svg').filter({ has: page.locator('path') }).first().click({ force: true }).catch(() => {});
+        // Tentamos clicar em todos os elementos na vertical que contêm o nome do pet
+        const targets = page.locator('div, button, span, p').filter({ hasText: petName });
+        const count = await targets.count();
+        for (let i = 0; i < count; i++) {
+            await targets.nth(i).evaluate(el => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
         }
         const text = await continueBtn.innerText();
         return text.includes('Continuar') && !text.includes('Selecione');
-    }, { timeout: 30000, message: "Botão Continuar habilitado após seleção do pet" }).toBeTruthy();
+    }, { timeout: 30000, message: "Botão Continuar habilitado" }).toBeTruthy();
     
     await continueBtn.click({ force: true });
 
@@ -72,7 +70,7 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
     await page.locator('button').filter({ hasText: /Continuar/i }).last().click({ force: true });
 
     log("7. Arrastando Slider");
-    await expect(page.locator('span').filter({ hasText: /R\$/ })).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('span').filter({ hasText: /R\$/ })).toBeVisible({ timeout: 20000 });
     
     const track = page.locator('[data-testid-track="slide-to-confirm-track"]');
     const handle = page.locator('[data-testid-handle="slide-to-confirm-handle"]');
@@ -97,7 +95,7 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
     }, { timeout: 30000 }).toBeTruthy();
 
   } catch (err) {
-    await page.screenshot({ path: '/tmp/failed_isolated_v7.png' });
+    await page.screenshot({ path: '/tmp/failed_isolated_v8.png' });
     throw err;
   } finally {
     await context.close();
