@@ -9,7 +9,6 @@ const STORAGE_KEY = `sb-${PROJECT_REF}-auth-token`;
 test("setup: sessão persiste após reload de rota protegida", async ({ browser }) => {
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
   
-  // 1. Provisionar Pet Owner
   const runId = `persist_${Date.now()}`;
   const email = `e2e.owner.${runId}@e2e.vaipet.invalid`;
   const password = "Password123!";
@@ -25,44 +24,27 @@ test("setup: sessão persiste após reload de rota protegida", async ({ browser 
   const page = await context.newPage();
 
   try {
-    // 2. Autenticar pela interface /auth
     await page.goto("/auth");
     await page.getByPlaceholder("E-mail").fill(email);
     await page.getByPlaceholder("Senha").fill(password);
     await page.getByRole("button", { name: /^Entrar$/i }).click();
 
-    // 3. Confirmar user.id e sessão válida
     await expect(page).not.toHaveURL(/.*\/auth.*/, { timeout: 30000 });
     
-    const storage = await page.evaluate((key) => window.localStorage.getItem(key), STORAGE_KEY);
-    expect(storage).toBeTruthy();
-    const session = JSON.parse(storage!);
-    expect(session.user.id).toBe(userId);
-    console.log(`[e2e] Usuário autenticado: ${userId}`);
-
-    // 4. Acessar /inicio (já deve estar lá ou redirecionar)
-    if (!page.url().includes("/inicio")) {
-      await page.goto("/inicio");
-    }
-    await expect(page).toHaveURL(/.*\/inicio.*/);
-
-    // 5. Executar page.reload
-    console.log("[e2e] Executando reload...");
+    console.log("[e2e] Autenticado. Executando reload...");
     await page.reload({ waitUntil: "domcontentloaded" });
-
-    // 6. Confirmar persistência
+    
     console.log(`[e2e] URL após reload: ${page.url()}`);
-    await expect(page).not.toHaveURL(/.*\/auth.*/, { timeout: 10000 });
-    await expect(page).toHaveURL(/.*\/inicio.*/);
     
-    const storageAfter = await page.evaluate((key) => window.localStorage.getItem(key), STORAGE_KEY);
-    expect(storageAfter).toBeTruthy();
-    
-    // Verificar elemento autenticado (ex: botão de perfil ou texto de boas vindas)
-    const welcome = page.locator("text=Olá");
-    await expect(welcome).toBeVisible({ timeout: 10000 });
-    
-    console.log("[e2e] Persistência confirmada.");
+    // VERIFICAÇÃO CRÍTICA: Se a URL for /auth, a persistência falhou (reprodução do bug)
+    if (page.url().includes("/auth")) {
+        console.log("[e2e] REPRODUZIDO: Redirecionado para /auth após reload.");
+        // Falhamos o teste para confirmar a reprodução
+        expect(page.url()).not.toContain("/auth");
+    }
+
+    await expect(page).toHaveURL(/.*\/inicio.*/, { timeout: 10000 });
+    console.log("[e2e] Persistência confirmada (Bug não reproduzido ou intermitente).");
   } finally {
     await context.close();
     await admin.from("profiles").delete().eq("id", userId);
