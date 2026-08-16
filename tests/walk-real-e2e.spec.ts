@@ -190,39 +190,36 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("8. owner: confirm-request", async () => {
+      // 7.1 Aguardar quote/preço
+      log("7.1 Aguardando quote/preço antes de arrastar");
+      await expect(oCtx.page.locator('span').filter({ hasText: /R\$/ })).toBeVisible({ timeout: 20000 });
+
       const track = oCtx.page.locator('[data-testid-track="slide-to-confirm-track"]');
       const handle = oCtx.page.locator('[data-testid-handle="slide-to-confirm-handle"]');
       await expect(track).toBeVisible({ timeout: 15000 });
       await expect(handle).toBeVisible({ timeout: 15000 });
 
-      const petName = await oCtx.page.locator('span').filter({ text: /PetMatch/ }).first().innerText();
-      log(`8. Confirmando pedido para ${petName}. Estado do slider: disabled=${await handle.isDisabled()}`);
-
-      const trackBox = await track.boundingBox();
       const handleBox = await handle.boundingBox();
-      if (!trackBox || !handleBox) throw new Error("SlideToConfirm elements not found for dragging");
+      const trackBox = await track.boundingBox();
+      if (!handleBox || !trackBox) throw new Error("Slider elements not found");
 
-      const startX = handleBox.x + handleBox.width / 2;
-      const startY = handleBox.y + handleBox.height / 2;
-      const endX = trackBox.x + trackBox.width - 20;
+      log(`8. Confirmando pedido. Estado do slider: disabled=${await handle.isDisabled()}`);
 
       oCtx.page.on('console', msg => {
         if (msg.type() === 'error') log(`[browser-error] ${msg.text()}`);
       });
-
       oCtx.page.on('requestfailed', request => {
         log(`[request-failed] ${request.url()} - ${request.failure()?.errorText}`);
       });
-
       oCtx.page.on('response', response => {
         if (response.status() >= 400) {
           log(`[http-error] ${response.url()} - ${response.status()}`);
         }
       });
 
-      await oCtx.page.mouse.move(startX, startY);
+      await oCtx.page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
       await oCtx.page.mouse.down();
-      await oCtx.page.mouse.move(endX, startY, { steps: 20 });
+      await oCtx.page.mouse.move(trackBox.x + trackBox.width - 5, trackBox.y + trackBox.height / 2, { steps: 50 });
       await oCtx.page.mouse.up();
       
       log(`8. Gesto de arrasto concluído. Aguardando criação no banco.`);
