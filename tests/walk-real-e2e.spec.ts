@@ -214,16 +214,15 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("5. owner: select-schedule", async () => {
-      const bottomSheet = oCtx.page.locator('[role="dialog"], .fixed.bottom-0').filter({ hasText: /INICIAR O PASSEIO/i });
-      const agoraOption = bottomSheet.locator('button, div').filter({ hasText: /^Agora$/ }).first();
+      const agoraOption = oCtx.page.locator('div, button').filter({ hasText: /^Agora$/ }).first();
       await agoraOption.click();
       
       await expect.poll(async () => {
         return await agoraOption.evaluate(el => 
           el.getAttribute('aria-pressed') === 'true' || 
           el.getAttribute('data-state') === 'on' ||
-          el.classList.contains('bg-primary') ||
-          el.classList.contains('text-white')
+          el.classList.contains('bg-white') ||
+          el.querySelector('.shadow-md') !== null
         );
       }, { message: "Opção 'Agora' deve estar selecionada", timeout: 10000 }).toBeTruthy();
     });
