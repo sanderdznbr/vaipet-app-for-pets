@@ -42,17 +42,17 @@ test("matching: OWNER_REQUEST_E2E_COMPLETED", async ({ browser }) => {
     await page.getByRole("button", { name: "Entrar" }).click();
     await expect(page).toHaveURL(/.*\/inicio.*/, { timeout: 30000 });
 
-    log("3. Iniciando fluxo de pedido");
-    const startWalkBtn = page.locator('#tour-start-walk');
-    await expect(startWalkBtn).toBeVisible({ timeout: 15000 });
-    await startWalkBtn.click();
+    log("3. Iniciando fluxo de pedido via Navbar");
+    const navWalkBtn = page.locator('#tour-nav-walk');
+    await expect(navWalkBtn).toBeVisible({ timeout: 15000 });
+    await navWalkBtn.click();
+    await expect(page).toHaveURL(/.*\/search-walk.*/, { timeout: 15000 });
 
     log("4. Selecionando Pet e Avançando (Step 1)");
     const petLabel = page.getByText(petName).first();
     await expect(petLabel).toBeVisible({ timeout: 15000 });
     await petLabel.click();
     
-    // Agora is selected by default, but we click it to ensure focus/state hydration
     await page.getByLabel("Agora").click();
     
     const continueBtnS1 = page.locator('button').filter({ hasText: /^Continuar$/ }).last();
@@ -96,7 +96,7 @@ test("matching: OWNER_REQUEST_E2E_COMPLETED", async ({ browser }) => {
     }, { timeout: 30000 }).toBeTruthy();
 
   } catch (err) {
-    await page.screenshot({ path: '/tmp/failed_isolated_v9.png' });
+    await page.screenshot({ path: '/tmp/failed_isolated_v10.png' });
     throw err;
   } finally {
     await context.close();
