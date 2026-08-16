@@ -165,8 +165,9 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       
       const petButton = oCtx.page.locator('button').filter({ has: petText }).first();
       
-      // Tenta clicar via evaluate para disparar o evento DOM diretamente
-      await petButton.evaluate(el => (el as HTMLButtonElement).click());
+      // Tenta clicar no <div> que contém o avatar/ícone (irmão do span no DOM do SearchWalk)
+      const petIcon = petButton.locator('div').first();
+      await petIcon.click({ force: true });
       await oCtx.page.waitForTimeout(500);
 
       await expect.poll(async () => {
