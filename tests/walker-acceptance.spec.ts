@@ -126,7 +126,7 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
     await acceptBtn.click();
     
     log("5. Validando navegação...");
-    await expect(page).toHaveURL(/.*walk-details.*/, { timeout: 20000 });
+    await expect(page).toHaveURL(/.*petwalker/passeio.*/, { timeout: 20000 });
     log(`url_depois: ${page.url()}`);
     
     log("6. Validando banco...");
