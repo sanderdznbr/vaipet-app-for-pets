@@ -1,11 +1,15 @@
 import { test, expect, type SupabaseClient } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
+/**
+ * PARTE 2 — TESTE ISOLADO DO ACEITE (walker-acceptance:)
+ */
+
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const PROJECT_REF = SUPABASE_URL.replace(/^https?:\/\//, "").split(".")[0];
 
-const log = (msg: string) => console.log(`[${new Date().toISOString()}] [walker-diag] ${msg}`);
+const log = (msg: string) => console.log(`[${new Date().toISOString()}] [walker-acceptance] ${msg}`);
 
 let admin: SupabaseClient;
 
@@ -46,12 +50,30 @@ async function createOwnerAndRequest(runId: string) {
   return { ownerId, sessionId: session.id };
 }
 
-test("walker-acceptance: DIAGNOSTICO", async ({ page }) => {
-  const runId = `diag_${Date.now()}`;
+async function quickCleanup(ids: string[]) {
+  if (!ids.length) return;
+  const { data: sessions } = await admin.from("walk_sessions").select("id").or(`customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})`);
+  if (sessions?.length) {
+    const sIds = sessions.map(s => s.id);
+    await admin.from("walker_tracking").delete().in("walk_session_id", sIds);
+    await admin.from("walk_offers").delete().in("session_id", sIds);
+    await admin.from("petwalker_earnings").delete().in("walk_session_id", sIds);
+    await admin.from("walk_sessions").delete().in("id", sIds);
+  }
+  await admin.from("pets").delete().in("owner_id", ids);
+  await admin.from("petwalker_profiles").delete().in("user_id", ids);
+  await admin.from("user_roles").delete().in("user_id", ids);
+  await admin.from("profiles").delete().in("id", ids);
+  for (const id of ids) await admin.auth.admin.deleteUser(id);
+}
+
+test("walker-acceptance: ACEITE ISOLADO", async ({ page }) => {
+  const runId = `acc_${Date.now()}`;
   const walker = await provisionWalker(runId);
   const { ownerId, sessionId } = await createOwnerAndRequest(runId);
   
   try {
+    // Provision the offer manually
     await admin.from("walk_offers").insert({ session_id: sessionId, walker_id: walker.id, offer_status: "pending" });
 
     log("1. Autenticando PetWalker...");
@@ -64,42 +86,36 @@ test("walker-acceptance: DIAGNOSTICO", async ({ page }) => {
     log("2. Navegando para /petwalker...");
     await page.goto("/petwalker");
     
-    log("3. Aguardando estabilização...");
-    await page.waitForTimeout(5000);
+    log("3. Visualizando oferta (polling loop)...");
+    const acceptBtn = page.locator('[data-testid="walker-accept-button"]');
     
-    const state = await page.evaluate(async () => {
-        const buttons = Array.from(document.querySelectorAll('button')).map(b => b.innerText);
-        const textContent = document.body.innerText;
-        return { buttons, textContent };
-    });
-    log(`Botoes visiveis: ${state.buttons.join(", ")}`);
-    
-    // Check if the walker is online
-    const isOnlineText = state.textContent.includes("Você está online");
-    log(`Status Online no UI: ${isOnlineText}`);
-
-    if (!isOnlineText) {
-        log("Tentando colocar Walker ONLINE via UI...");
-        const onlineBtn = page.getByRole('button', { name: /Ficar Online/i }).or(page.getByText(/Ficar Online/i));
-        if (await onlineBtn.count() > 0) {
-            await onlineBtn.first().click();
-            await page.waitForTimeout(3000);
+    // Polling because the offer might take time to load via Supabase Realtime or Polling
+    await expect.poll(async () => {
+        const isVisible = await acceptBtn.isVisible();
+        if (!isVisible) {
+            // Check if we need to stay online (the UI might reset availability if GPS fails in sandbox)
+            const onlineText = await page.innerText('body');
+            if (onlineText.includes('Você está offline')) {
+                log("Detectado OFFLINE no UI. Forçando ONLINE...");
+                await page.getByRole('button', { name: /Ficar Online/i }).click().catch(() => {});
+            }
         }
-    }
-
-    log("Check RPC directly via browser context...");
-    const rpcResult = await page.evaluate(async () => {
-        const { supabase } = (window as any);
-        if (!supabase) return "Supabase client not found in window";
-        const { data, error } = await supabase.rpc('get_available_walk_offers');
-        return { data, error };
-    });
-    log(`RPC Result: ${JSON.stringify(rpcResult)}`);
-
-    await page.screenshot({ path: "/tmp/browser/offer_debug.png" });
+        return isVisible;
+    }, { timeout: 45000, message: "Oferta visível no UI" }).toBeTruthy();
     
+    log("4. Clicando em ACEITAR PASSEIO...");
+    await acceptBtn.click();
+    
+    log("5. Aguardando navegação para walk-details...");
+    await expect(page).toHaveURL(/.*walk-details.*/, { timeout: 30000 });
+    
+    log("6. Validando banco...");
+    const { data: finalSession } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessionId).single();
+    expect(finalSession?.current_status).toBe("accepted");
+    expect(finalSession?.walker_id).toBe(walker.id);
+    
+    log("walker-acceptance: PASS");
   } finally {
-    await admin.auth.admin.deleteUser(walker.id);
-    await admin.auth.admin.deleteUser(ownerId);
+    await quickCleanup([walker.id, ownerId]);
   }
 });
