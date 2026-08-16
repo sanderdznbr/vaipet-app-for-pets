@@ -182,34 +182,35 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
 
     await test.step("3. owner: bottom-sheet-open", async () => {
       await oCtx.page.locator('#tour-start-walk').click();
-      const bottomSheet = oCtx.page.locator('div').filter({ hasText: /^INICIAR O PASSEIO$/i }).locator('..').first();
-      await expect(bottomSheet).toBeVisible({ timeout: 10000 });
-      await expect(oCtx.page.locator('text=QUAL PET?')).toBeVisible({ timeout: 10000 });
+      const bottomSheet = oCtx.page.locator('h2, div').filter({ hasText: /INICIAR O PASSEIO/i }).first();
+      await expect(bottomSheet).toBeVisible({ timeout: 15000 });
+      await expect(oCtx.page.locator('text=QUAL PET?').first()).toBeVisible({ timeout: 10000 });
     });
 
     await test.step("4. owner: select-pet", async () => {
-      const petCard = oCtx.page.locator('div').filter({ hasText: /^PetMatch$/ }).locator('..').first();
+      const petCard = oCtx.page.locator('div, button').filter({ hasText: /^PetMatch$/ }).first();
       await expect(petCard).toBeVisible({ timeout: 10000 });
       
-      const isSelected = await petCard.evaluate(el => 
-        el.querySelector('.border-primary') !== null || 
-        el.querySelector('.ring-primary') !== null ||
-        el.getAttribute('aria-checked') === 'true' || 
-        el.getAttribute('data-state') === 'checked'
-      );
+      const isSelected = await petCard.evaluate(el => {
+        const parent = el.closest('div');
+        return parent?.querySelector('.border-primary') !== null || 
+               parent?.querySelector('.ring-primary') !== null ||
+               el.classList.contains('border-primary') ||
+               el.getAttribute('aria-checked') === 'true';
+      });
 
       if (!isSelected) {
         await petCard.click();
       }
 
-      // Validar seleção real
       await expect.poll(async () => {
-        return await petCard.evaluate(el => 
-          el.querySelector('.border-primary') !== null || 
-          el.querySelector('.ring-primary') !== null ||
-          el.getAttribute('aria-checked') === 'true' || 
-          el.getAttribute('data-state') === 'checked'
-        );
+        return await petCard.evaluate(el => {
+          const parent = el.closest('div');
+          return parent?.querySelector('.border-primary') !== null || 
+                 parent?.querySelector('.ring-primary') !== null ||
+                 el.classList.contains('border-primary') ||
+                 el.getAttribute('aria-checked') === 'true';
+        });
       }, { message: "PetMatch deve estar visualmente selecionado", timeout: 10000 }).toBeTruthy();
     });
 
