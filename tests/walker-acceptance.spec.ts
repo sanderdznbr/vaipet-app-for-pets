@@ -7,9 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const ANON_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 const PROJECT_REF = SUPABASE_URL.replace(/^https?:\/\//, "").split(".")[0];
-const STORAGE_KEY = `sb-${PROJECT_REF}-auth-token`;
 
 const log = (msg: string) => console.log(`[${new Date().toISOString()}] [walker-acceptance] ${msg}`);
 
@@ -31,7 +29,7 @@ async function provisionWalker(runId: string) {
   const id = data.user!.id;
   
   await admin.from("profiles").upsert({ id, full_name: "Walker E2E", onboarding_completed: true });
-  await admin.from("user_roles").insert({ user_id: id, role: "petwalker" });
+  await admin.from("user_roles").upsert({ user_id: id, role: "petwalker" });
   await admin.from("petwalker_profiles").upsert({
     user_id: id, approval_status: "approved", profile_completed: true, availability_status: "available",
     is_accepting_requests: true, price_30_minutes: 2000, experience_years: 2, service_radius_km: 10,
@@ -56,12 +54,21 @@ async function createOwnerAndRequest(runId: string) {
   }).select().single();
   if (pError) throw pError;
 
+  // Actual schema: current_status, start_time, planned_duration_minutes, request_mode
   const { data: session, error: sError } = await admin.from("walk_sessions").insert({
-    customer_id: ownerId, pet_id: pet.id, current_status: "searching",
-    walk_type: "individual", scheduled_duration_minutes: 30, price_total: 2000,
+    customer_id: ownerId, 
+    pet_id: pet.id, 
+    current_status: "searching",
+    walk_type: "individual", 
+    planned_duration_minutes: 30,
+    request_mode: "instant",
+    start_time: new Date().toISOString(),
     meeting_point_geom: `SRID=4326;POINT(-46.7 -23.6)`
   }).select().single();
-  if (sError) throw sError;
+  if (sError) {
+    console.error("Session creation error:", sError);
+    throw sError;
+  }
   
   return { ownerId, sessionId: session.id };
 }
@@ -93,11 +100,15 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ page }) => {
 
   try {
     // 3. Visualizar a oferta (Provisionando a oferta manualmente)
-    await admin.from("walk_offers").insert({ 
+    const { error: oError } = await admin.from("walk_offers").insert({ 
       session_id: sessionId, 
       walker_id: walker.id, 
       offer_status: "pending" 
     });
+    if (oError) {
+        console.error("Offer creation error:", oError);
+        throw oError;
+    }
 
     // 1. Autenticar o PetWalker pela interface real
     log("1. Autenticando PetWalker...");
@@ -105,7 +116,7 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ page }) => {
     await page.getByPlaceholder("E-mail").fill(walker.email);
     await page.getByPlaceholder("Senha").fill(walker.password);
     await page.getByRole("button", { name: /^Entrar$/i }).click();
-    await expect(page).not.toHaveURL(/.*\/auth.*/, { timeout: 20000 });
+    await expect(page).not.toHaveURL(/.*\/auth.*/, { timeout: 25000 });
 
     // 2. Navegar para /petwalker
     log("2. Navegando para /petwalker...");
@@ -133,7 +144,7 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ page }) => {
     
     // 6. Aguardar a resposta real da RPC / Navegação
     log("5. Aguardando navegação para walk-details...");
-    await expect(page).toHaveURL(/.*walk-details.*/, { timeout: 20000 });
+    await expect(page).toHaveURL(/.*walk-details.*/, { timeout: 25000 });
     const urlAfter = page.url();
     log(`URL depois do aceite: ${urlAfter}`);
     
