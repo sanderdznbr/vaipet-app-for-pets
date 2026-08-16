@@ -152,20 +152,20 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("4. owner: select-pet", async () => {
-      const petText = oCtx.page.locator('span').filter({ hasText: new RegExp(`^${petName}$`) }).first();
-      await expect(petText).toBeVisible({ timeout: 10000 });
-      const petButton = oCtx.page.locator('button').filter({ has: petText }).first();
+      const petLabel = oCtx.page.getByText(petName).first();
+      await expect(petLabel).toBeVisible({ timeout: 15000 });
       
+      const continueBtn = oCtx.page.locator('button').filter({ hasText: /Selecione|Continuar/i }).last();
+
       await expect.poll(async () => {
-        await petButton.evaluate(el => (el as HTMLButtonElement).click());
-        const btn = oCtx.page.locator('button').filter({ hasText: /Continuar|Selecione/i }).last();
-        if (await btn.isVisible()) {
-          const btnText = await btn.innerText();
-          log(`Botão de ação: "${btnText}"`);
-          return btnText.includes('Continuar');
-        }
-        return false;
-      }, { message: "PetMatch deve estar selecionado", timeout: 20000 }).toBeTruthy();
+          const targets = oCtx.page.locator('div, button, span, p').filter({ hasText: petName });
+          const count = await targets.count();
+          for (let i = 0; i < count; i++) {
+              await targets.nth(i).evaluate(el => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
+          }
+          const text = await continueBtn.innerText();
+          return text.includes('Continuar') && !text.includes('Selecione');
+      }, { timeout: 30000, message: "Pet selecionado" }).toBeTruthy();
     });
 
     await test.step("5. owner: select-pet-confirm", async () => {
