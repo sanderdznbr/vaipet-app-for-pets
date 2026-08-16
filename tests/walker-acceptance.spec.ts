@@ -29,41 +29,29 @@ async function provisionWalker(runId: string) {
   return { id, email, password };
 }
 
-test("walker-acceptance: GPS_ONLINE_DIAG", async ({ browser }) => {
-  const runId = `diag_${Date.now()}`;
+test("walker-acceptance: AVAILABILITY_RPC_DIAG", async ({ page }) => {
+  const runId = `rpc_${Date.now()}`;
   const walker = await provisionWalker(runId);
-  const context = await browser.newContext({
-    viewport: { width: 430, height: 900 },
-    permissions: ["geolocation"],
-    geolocation: { longitude: -46.7, latitude: -23.6 },
-  });
-  const page = await context.newPage();
-
   try {
     await page.goto("/auth");
     await page.getByPlaceholder("E-mail").fill(walker.email);
     await page.getByPlaceholder("Senha").fill(walker.password);
     await page.getByRole("button", { name: /^Entrar$/i }).click();
     await expect(page).not.toHaveURL(/.*\/auth.*/);
+    
+    // Check initial status
+    const { data: profile } = await admin.from("petwalker_profiles").select("availability_status").eq("user_id", walker.id).single();
+    console.log("Initial DB status:", profile?.availability_status);
+
     await page.goto("/petwalker");
-    
-    // Diagnostic: Wait for GPS status sync or error
     await page.waitForTimeout(5000);
-    const diag = await page.evaluate(() => {
-        const body = document.body.innerText;
-        const onlineBtn = !!document.querySelector('button:has-text("Ficar Online")');
-        const offlineBtn = !!document.querySelector('button:has-text("Ficar offline")');
-        return { body: body.substring(0, 500), onlineBtn, offlineBtn };
-    });
-    console.log("UI DIAG:", diag);
     
-    // If there's a GPS error, we'll see it in body text
-    if (diag.body.includes("Ative sua localização")) {
-        console.log("GPS PERMISSION/LOCK FAILED IN SANDBOX");
-    }
+    const uiStatus = await page.evaluate(() => {
+        return document.body.innerText.includes("Você está online") ? "online" : "offline";
+    });
+    console.log("UI reported status:", uiStatus);
 
   } finally {
-    await context.close();
     await admin.auth.admin.deleteUser(walker.id);
   }
 });
