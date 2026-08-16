@@ -43,6 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Tables<'profiles'> | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [authStatus, setAuthStatus] = useState<AuthStatus>('initializing');
+  const [initialized, setInitialized] = useState(false);
   const [profileStatus, setProfileStatus] = useState<ProfileStatus>('idle');
   const [rolesStatus, setRolesStatus] = useState<RolesStatus>('idle');
   const [petwalkerApplication, setPetwalkerApplication] = useState<Tables<'petwalker_applications'> | null>(null);
@@ -194,33 +195,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let mounted = true;
     const initAuth = async () => {
       try {
-        const { data: { session } } = await Promise.race([
-          supabase.auth.getSession(),
-          new Promise<{ data: { session: null }; error: Error }>((_, reject) => 
-            setTimeout(() => reject(new Error('Auth Timeout')), 10000)
-          )
-        ]);
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        
         if (mounted) {
-          if (session) {
-            setSession(session);
-            setUser(session.user);
+          if (error) {
+            setAuthError(new Error(error.message));
+            setAuthStatus('error');
+          } else if (initialSession) {
+            setSession(initialSession);
+            setUser(initialSession.user);
             setAuthStatus('authenticated');
           } else {
             setAuthStatus('unauthenticated');
           }
+          setInitialized(true);
         }
       } catch (e: unknown) {
-        if (mounted) setAuthStatus('error');
+        if (mounted) {
+          setAuthStatus('error');
+          setInitialized(true);
+        }
       }
     };
     initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      if (!mounted) return;
+      
       if (currentSession) {
         setSession(currentSession);
         setUser(currentSession.user);
         setAuthStatus('authenticated');
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         setSession(null);
         setUser(null);
         setProfile(null);
@@ -231,13 +237,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRolesStatus('idle');
         setApplicationStatus('idle');
       }
+      
+      if (!initialized && event === 'INITIAL_SESSION') {
+        setInitialized(true);
+      }
     });
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [initialized]);
 
   useEffect(() => {
     currentUserIdRef.current = user?.id || null;
@@ -352,7 +362,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signupIntent: profile?.signup_intent || null,
     petwalkerApplication,
     applicationStatus,
-    loading: authStatus === 'initializing' || (authStatus === 'authenticated' && (profileStatus === 'loading' || rolesStatus === 'loading')),
+    loading: !initialized || (authStatus === 'authenticated' && (profileStatus === 'loading' || rolesStatus === 'loading')),
     authStatus,
     profileStatus,
     rolesStatus,

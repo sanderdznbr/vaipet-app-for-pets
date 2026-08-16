@@ -1,15 +1,12 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+ 
+ /**
+  * E2E OPERACIONAL REAL — Fase 3.1 (Patch Mínimo)
+  */
+ 
+ test.setTimeout(240000); 
 
-/**
- * E2E OPERACIONAL REAL — Fase 3.1 (Patch Mínimo)
- * 
- * Este teste utiliza contextos isolados para simular a jornada real do PetWalker
- * e do Dono, validando matching, tracking, segurança e conclusão.
- */
-
-
-test.setTimeout(240000); 
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -149,6 +146,10 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
   let oCtx: any, wCtx: any;
 
   try {
+    // 3. Criar pet no banco antes das autenticações paralelas
+    await admin.from("pets").insert({ owner_id: ownerCreds.id, name: `PetMatch`, breed: "SRD", is_active: true });
+    log("0. Pet criado no banco");
+
     [oCtx, wCtx] = await Promise.all([
       createAuthedContext(browser, ownerCreds, { lng: -46.7, lat: -23.6 }),
       createAuthedContext(browser, walkerCreds, { lng: -46.7001, lat: -23.6001 })
@@ -156,10 +157,12 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     log("2. Pet Owner autenticado");
     log("7. PetWalker autenticado");
 
-    await admin.from("pets").insert({ owner_id: ownerCreds.id, name: `PetMatch`, breed: "SRD", is_active: true });
-
-    await oCtx.page.goto("/inicio");
-    await oCtx.page.locator('#tour-start-walk').click();
+    // 4. Fluxo do Dono (já está autenticado, não precisa de goto redundante)
+    await expect(oCtx.page).toHaveURL(/.*\/inicio.*/);
+    const startWalkBtn = oCtx.page.locator('#tour-start-walk');
+    await expect(startWalkBtn).toBeVisible({ timeout: 15000 });
+    
+    await startWalkBtn.click();
     await oCtx.page.click('button:has-text("30 minutos")');
     await oCtx.page.click('button:has-text("Confirmar")');
     
