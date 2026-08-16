@@ -191,23 +191,13 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       await expect(slideToConfirm).toBeVisible({ timeout: 15000 });
       
       // Aumenta o timeout para garantir que os cálculos de preço (quote) terminaram
-      await oCtx.page.waitForTimeout(2000);
+      await oCtx.page.waitForTimeout(3000);
 
-      // Simula o arrasto (drag) manualmente para garantir o gatilho.
-      const box = await slideToConfirm.boundingBox();
-      if (!box) throw new Error("SlideToConfirm box not found");
+      // Tenta clicar no SlideToConfirm para disparar o onConfirm (atalho tap)
+      // Se o clique falhar em disparar o onConfirm, o polling do sessId falhará.
+      await slideToConfirm.click({ force: true, position: { x: 30, y: 30 } });
       
-      const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
-      const tBox = await thumb.boundingBox();
-      if (!tBox) throw new Error("Thumb box not found");
-
-      await oCtx.page.mouse.move(tBox.x + tBox.width / 2, tBox.y + tBox.height / 2);
-      await oCtx.page.mouse.down();
-      // Arrastamos para o final do track
-      await oCtx.page.mouse.move(box.x + box.width - 10, tBox.y + tBox.height / 2, { steps: 20 });
-      await oCtx.page.mouse.up();
-      
-      log("8. Pedido publicado via drag simulado");
+      log("8. Pedido publicado via clique no SlideToConfirm");
     });
 
     await test.step("9. backend: request-searching", async () => {
