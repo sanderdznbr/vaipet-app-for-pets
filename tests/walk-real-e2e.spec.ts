@@ -1,5 +1,7 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { failClosedCleanup } from "./helpers/cleanup";
+
  
  /**
   * E2E OPERACIONAL REAL — Fase 3.1 (Instrumentação Fail-Fast PetWalker)
@@ -50,22 +52,10 @@ async function preflightCleanup() {
   log("1. preflightCleanup concluído");
 }
 
-async function quickCleanup(ids: string[]) {
-  if (!ids.length) return;
-  const { data: sessions } = await admin.from("walk_sessions").select("id").or(`customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})`);
-  if (sessions?.length) {
-    const sIds = sessions.map(s => s.id);
-    await admin.from("walker_tracking").delete().in("walk_session_id", sIds);
-    await admin.from("walk_offers").delete().in("session_id", sIds);
-    await admin.from("petwalker_earnings").delete().in("walk_session_id", sIds);
-    await admin.from("walk_sessions").delete().in("id", sIds);
-  }
-  await admin.from("pets").delete().in("owner_id", ids);
-  await admin.from("petwalker_profiles").delete().in("user_id", ids);
-  await admin.from("user_roles").delete().in("user_id", ids);
-  await admin.from("profiles").delete().in("id", ids);
-  for (const id of ids) await admin.auth.admin.deleteUser(id);
+async function quickCleanup(ids: string[], runId?: string) {
+  await failClosedCleanup(admin, ids, runId);
 }
+
 
 async function provisionUser(runId: string, kind: "pet_owner" | "petwalker") {
   const email = `e2e.${kind}.${runId}.${Math.random().toString(36).slice(2, 6)}@e2e.vaipet.invalid`;
@@ -318,7 +308,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("14. final-certification", async () => {
-      log("MATCHING_E2E_COMPLETED");
+      log("OWNER_REQUEST_E2E_COMPLETED");
       expect(true).toBeTruthy();
     });
 

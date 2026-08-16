@@ -1,5 +1,7 @@
 import { test, expect, type SupabaseClient } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { failClosedCleanup } from "./helpers/cleanup";
+
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -44,22 +46,10 @@ async function createOwnerAndRequest(runId: string) {
   return { ownerId, sessionId: session.id };
 }
 
-async function quickCleanup(ids: string[]) {
-  if (!ids.length) return;
-  const { data: sessions } = await admin.from("walk_sessions").select("id").or(`customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})`);
-  if (sessions?.length) {
-    const sIds = sessions.map(s => s.id);
-    await admin.from("walker_tracking").delete().in("walk_session_id", sIds);
-    await admin.from("walk_offers").delete().in("session_id", sIds);
-    await admin.from("petwalker_earnings").delete().in("walk_session_id", sIds);
-    await admin.from("walk_sessions").delete().in("id", sIds);
-  }
-  await admin.from("pets").delete().in("owner_id", ids);
-  await admin.from("petwalker_profiles").delete().in("user_id", ids);
-  await admin.from("user_roles").delete().in("user_id", ids);
-  await admin.from("profiles").delete().in("id", ids);
-  for (const id of ids) await admin.auth.admin.deleteUser(id);
+async function quickCleanup(ids: string[], runId?: string) {
+  await failClosedCleanup(admin, ids, runId);
 }
+
 
 test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
   const runId = `acc_${Date.now()}`;

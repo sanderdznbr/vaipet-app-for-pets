@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { failClosedCleanup } from "./helpers/cleanup";
+
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -7,7 +9,7 @@ const log = (msg: string) => console.log(`[${new Date().toISOString()}] [e2e-iso
 
 test.setTimeout(180000);
 
-test("matching: cenário curto de pedido isolado", async ({ browser }) => {
+test("matching: OWNER_REQUEST_E2E_COMPLETED", async ({ browser }) => {
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
   const runId = `iso_${Date.now()}`;
   const petName = `Pet_${runId.slice(-4)}`;
@@ -40,34 +42,25 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
     await expect(page).toHaveURL(/.*\/inicio.*/, { timeout: 30000 });
 
     log("3. Iniciando fluxo de pedido");
-    await page.locator('#tour-start-walk').click({ force: true });
+    await page.locator('#tour-start-walk').click();
     
     log("4. Selecionando Pet");
     const petLabel = page.getByText(petName).first();
     await expect(petLabel).toBeVisible({ timeout: 15000 });
     
-    log("4.1 Tentando dispatchEvent em cascata");
-    const continueBtn = page.locator('button').filter({ hasText: /Selecione|Continuar/i }).last();
+    await petLabel.click();
+    const continueBtn = page.locator('button').filter({ hasText: /^Continuar$/ }).last();
+    await expect(continueBtn).toBeEnabled({ timeout: 10000 });
+    await continueBtn.click();
 
-    await expect.poll(async () => {
-        // Tentamos clicar em todos os elementos na vertical que contêm o nome do pet
-        const targets = page.locator('div, button, span, p').filter({ hasText: petName });
-        const count = await targets.count();
-        for (let i = 0; i < count; i++) {
-            await targets.nth(i).evaluate(el => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
-        }
-        const text = await continueBtn.innerText();
-        return text.includes('Continuar') && !text.includes('Selecione');
-    }, { timeout: 30000, message: "Botão Continuar habilitado" }).toBeTruthy();
-    
-    await continueBtn.click({ force: true });
 
     log("5. Selecionando Tipo");
-    await page.locator('button').filter({ hasText: /Livre/i }).first().click({ force: true });
-    await page.locator('button').filter({ hasText: /Continuar/i }).last().click({ force: true });
+    await page.locator('button').filter({ hasText: /Livre/i }).first().click();
+    await page.locator('button').filter({ hasText: /^Continuar$/ }).last().click();
 
     log("6. Selecionando Duração");
-    await page.locator('button').filter({ hasText: /Continuar/i }).last().click({ force: true });
+    await page.locator('button').filter({ hasText: /^Continuar$/ }).last().click();
+
 
     log("7. Arrastando Slider");
     await expect(page.locator('span').filter({ hasText: /R\$/ })).toBeVisible({ timeout: 20000 });
@@ -88,7 +81,7 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
     await expect.poll(async () => {
       const { data } = await admin.from("walk_sessions").select("id, current_status").eq("customer_id", ownerId).order('created_at', {ascending: false}).limit(1).maybeSingle();
       if (data?.current_status === "searching") {
-          log(`MATCHING_E2E_COMPLETED SessionId: ${data.id}`);
+          log(`OWNER_REQUEST_E2E_COMPLETED SessionId: ${data.id}`);
           return true;
       }
       return false;
@@ -99,10 +92,7 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
     throw err;
   } finally {
     await context.close();
-    await admin.from("walk_sessions").delete().eq("customer_id", ownerId);
-    await admin.from("pets").delete().eq("owner_id", ownerId);
-    await admin.from("profiles").delete().eq("id", ownerId);
-    await admin.auth.admin.deleteUser(ownerId);
-    log("Cleanup zero finalizado");
+    await failClosedCleanup(admin, [ownerId], runId);
   }
 });
+
