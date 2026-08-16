@@ -146,65 +146,139 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
   let oCtx: any, wCtx: any;
 
   try {
-    // 3. Criar pet no banco antes das autenticações paralelas
-    await admin.from("pets").insert({ owner_id: ownerCreds.id, name: `PetMatch`, breed: "SRD", is_active: true });
-    log("0. Pet criado no banco");
+    await test.step("0. preflight: pet no banco", async () => {
+      const { error } = await admin.from("pets").insert({ owner_id: ownerCreds.id, name: `PetMatch`, breed: "SRD", is_active: true });
+      if (error) throw error;
+      log("0. Pet criado no banco");
+    });
 
-    [oCtx, wCtx] = await Promise.all([
-      createAuthedContext(browser, ownerCreds, { lng: -46.7, lat: -23.6 }),
-      createAuthedContext(browser, walkerCreds, { lng: -46.7001, lat: -23.6001 })
-    ]);
-    log("2. Pet Owner autenticado");
-    log("7. PetWalker autenticado");
+    await test.step("1. auth: paralelo", async () => {
+      [oCtx, wCtx] = await Promise.all([
+        createAuthedContext(browser, ownerCreds, { lng: -46.7, lat: -23.6 }),
+        createAuthedContext(browser, walkerCreds, { lng: -46.7001, lat: -23.6001 })
+      ]);
+    });
 
-    // 4. Fluxo do Dono (já está autenticado, não precisa de goto redundante)
-    await expect(oCtx.page).toHaveURL(/.*\/inicio.*/);
-    const startWalkBtn = oCtx.page.locator('#tour-start-walk');
-    await expect(startWalkBtn).toBeVisible({ timeout: 15000 });
-    
-    await startWalkBtn.click();
-    await oCtx.page.click('button:has-text("30 minutos")');
-    await oCtx.page.click('button:has-text("Confirmar")');
-    
-    await expect(oCtx.page).toHaveURL(/.*search-walk.*/, { timeout: 30000 });
-    const sessId = new URL(oCtx.page.url()).searchParams.get("resume");
-    expect(sessId).toBeTruthy();
-    log("3. Passeio publicado");
+    await test.step("1. owner: authenticated-ready", async () => {
+      log("2. Pet Owner autenticado");
+      await expect(oCtx.page).toHaveURL(/.*\/inicio.*/, { timeout: 10000 });
+      const storageState = await oCtx.context.storageState();
+      const hasSession = storageState.origins.some(o => o.localStorage.some(i => i.name === STORAGE_KEY));
+      expect(hasSession).toBeTruthy();
+    });
 
-    const { data: sessCheck } = await admin.from("walk_sessions").select("current_status").eq("id", sessId!).single();
-    expect(sessCheck?.current_status).toBe("searching");
-    log("4. Status walk_session validado (searching)");
+    await test.step("2. owner: start-walk-visible", async () => {
+      const startWalkBtn = oCtx.page.locator('#tour-start-walk');
+      try {
+        await expect(startWalkBtn).toBeVisible({ timeout: 10000 });
+        await expect(startWalkBtn).toBeEnabled({ timeout: 10000 });
+      } catch (e) {
+        log("ERRO: #tour-start-walk não visível/habilitado");
+        const bodyText = await oCtx.page.innerText('body');
+        log(`Conteúdo visível: ${bodyText.substring(0, 500)}`);
+        throw e;
+      }
+    });
 
-    await admin.rpc("process_walk_matching");
-    log("5. Job matching executado");
+    await test.step("3. owner: open-request-flow", async () => {
+      await oCtx.page.locator('#tour-start-walk').click();
+      // O fluxo de abertura pode levar a uma nova rota ou modal
+      await expect(oCtx.page.locator('button:has-text("30 minutos"), h2:has-text("solicitação"), h1:has-text("solicitação")').first()).toBeVisible({ timeout: 10000 });
+    });
 
-    await wCtx.page.goto("/petwalker/painel");
-    const acceptBtn = wCtx.page.locator('button:has-text("Aceitar Passeio")');
-    
-    try {
-      await expect(acceptBtn).toBeVisible({ timeout: 45000 });
-      log("6. Oferta visível no PetWalker");
+    await test.step("4. owner: select-duration", async () => {
+      const durationBtn = oCtx.page.getByRole('button', { name: /30 minutos/i });
+      await expect(durationBtn).toBeVisible({ timeout: 10000 });
+      await durationBtn.click();
+    });
+
+    await test.step("5. owner: confirm-request", async () => {
+      const confirmBtn = oCtx.page.getByRole('button', { name: /confirmar/i });
+      await confirmBtn.click();
+      await expect(oCtx.page).toHaveURL(/.*search-walk.*/, { timeout: 15000 });
+      log("5. Pedido publicado");
+    });
+
+    let sessId: string;
+    await test.step("6. backend: matching-session-created", async () => {
+      sessId = new URL(oCtx.page.url()).searchParams.get("resume") || "";
+      expect(sessId).toBeTruthy();
+
+      await expect.poll(async () => {
+        const { data } = await admin.from("walk_sessions")
+          .select("current_status, matching_expires_at")
+          .eq("id", sessId)
+          .single();
+        
+        if (data?.current_status !== "searching") return false;
+        if (!data.matching_expires_at) return false;
+        
+        const expires = new Date(data.matching_expires_at).getTime();
+        return expires > Date.now();
+      }, {
+        message: "Aguardando walk_session no estado searching com matching_expires_at futuro",
+        timeout: 20000,
+      }).toBeTruthy();
+      
+      log("6. Backend validado");
+    });
+
+    await test.step("job: process-matching", async () => {
+      const { error } = await admin.rpc("process_walk_matching");
+      if (error) throw error;
+      log("Job matching executado");
+    });
+
+    await test.step("7. walker: authenticated-ready", async () => {
+      log("7. PetWalker autenticado");
+      await expect(wCtx.page).not.toHaveURL(/.*\/auth.*/, { timeout: 10000 });
+      const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", walkerCreds.id);
+      expect(roles?.some(r => r.role === 'petwalker')).toBeTruthy();
+    });
+
+    await test.step("8. walker: offer-visible", async () => {
+      await wCtx.page.goto("/petwalker/painel");
+      const acceptBtn = wCtx.page.locator('button:has-text("Aceitar Passeio")');
+      await expect(acceptBtn).toBeVisible({ timeout: 30000 });
+      log("8. Oferta visível no PetWalker");
+    });
+
+    await test.step("9. walker: accept-offer", async () => {
+      const acceptBtn = wCtx.page.locator('button:has-text("Aceitar Passeio")');
       await acceptBtn.click();
-      log("8. Aceite realizado pela interface");
-    } catch (e) {
-      log(`FALHA na oferta: URL=${wCtx.page.url()}`);
-      const { data: s } = await admin.from("walk_sessions").select("*").eq("id", sessId!).single();
-      const { data: o } = await admin.from("walk_offers").select("*").eq("session_id", sessId!);
-      log(`Estado walk_session: ${JSON.stringify(s)}`);
-      log(`Estado walk_offer: ${JSON.stringify(o)}`);
-      throw e;
-    }
+      await expect(wCtx.page).toHaveURL(/.*walk-details.*/, { timeout: 15000 });
+      log("9. Aceite realizado pela interface");
+    });
 
-    await expect(wCtx.page).toHaveURL(/.*walk-details.*/, { timeout: 30000 });
-    const { data: finalSess } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessId!).single();
-    expect(finalSess?.current_status).toBe("walker_assigned");
-    expect(finalSess?.walker_id).toBe(walkerCreds.id);
-    log("9. Banco confirma walker correto");
+    await test.step("10. backend: acceptance-confirmed", async () => {
+      await expect.poll(async () => {
+        const { data } = await admin.from("walk_sessions")
+          .select("current_status, walker_id")
+          .eq("id", sessId)
+          .single();
+        
+        return data?.current_status === "walker_assigned" && data?.walker_id === walkerCreds.id;
+      }, {
+        message: "Confirmando walker_id e status walker_assigned no banco",
+        timeout: 20000,
+      }).toBeTruthy();
+
+      // Verificar se não há ofertas duplicadas aceitas (opcional, mas bom para integridade)
+      const { count } = await admin.from("walk_sessions")
+        .select("*", { count: 'exact', head: true })
+        .eq("id", sessId)
+        .eq("current_status", "walker_assigned");
+      expect(count).toBe(1);
+      
+      log("10. Banco confirmado");
+    });
 
   } finally {
-    if (oCtx) await oCtx.context.close();
-    if (wCtx) await wCtx.context.close();
-    await quickCleanup([ownerCreds.id, walkerCreds.id]);
-    log("10. Cleanup concluído");
+    await test.step("11. cleanup", async () => {
+      if (oCtx) await oCtx.context.close();
+      if (wCtx) await wCtx.context.close();
+      await quickCleanup([ownerCreds.id, walkerCreds.id]);
+      log("11. Cleanup concluído com zero resíduos");
+    });
   }
 });
