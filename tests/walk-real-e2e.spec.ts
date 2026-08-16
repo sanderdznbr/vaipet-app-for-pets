@@ -194,27 +194,60 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       await expect(slideToConfirm).toBeVisible({ timeout: 15000 });
       
       const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
-      // O componente SlideToConfirm.tsx usa PointerEvents para o drag.
-      // Em ambientes de teste, o dispatchEvent direto simula melhor o input do usuário.
-      await thumb.evaluate(el => {
-        el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 0 }));
-        el.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 500 }));
-        el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 500 }));
-      });
+      const rail = slideToConfirm.first();
       
-      // Fallback: se o drag simulado falhar, o onClick atua como atalho para drag=0
-      await thumb.click({ force: true });
+      const thumbBox = await thumb.boundingBox();
+      const railBox = await rail.boundingBox();
       
+      if (!thumbBox || !railBox) throw new Error("Não foi possível obter boundingBox do SlideToConfirm");
+      
+      log(`8. BoundingBox: thumb=${JSON.stringify(thumbBox)}, rail=${JSON.stringify(railBox)}`);
+      
+      // PARTE 2 — ARRASTO REAL DO SLIDER
+      const startX = thumbBox.x + thumbBox.width / 2;
+      const startY = thumbBox.y + thumbBox.height / 2;
+      const endX = railBox.x + railBox.width - (thumbBox.width / 2);
+
+      await oCtx.page.mouse.move(startX, startY);
+      await oCtx.page.mouse.down();
+      
+      // Movimento progressivo em múltiplos steps
+      const steps = 10;
+      for (let i = 1; i <= steps; i++) {
+        const currentX = startX + (endX - startX) * (i / steps);
+        await oCtx.page.mouse.move(currentX, startY);
+      }
+      
+      await oCtx.page.mouse.up();
+      
+      const startedAt = new Date().toISOString();
+      log(`8. Slider arrastado. Buscando sessão criada após ${startedAt}`);
+
+      // PARTE 3 — CAPTURA DETERMINÍSTICA DA SESSÃO
       await expect.poll(async () => {
-        const { data } = await admin.from("walk_sessions")
+        const { data, error } = await admin.from("walk_sessions")
           .select("id")
           .eq("customer_id", ownerCreds.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
-        sessId = data?.id || "";
-        return !!sessId;
-      }, { timeout: 30000 }).toBeTruthy();
+          .gte("created_at", startedAt)
+          .order("created_at", { ascending: false });
+        
+        if (error) {
+          log(`Erro ao consultar sessão: ${error.message}`);
+          return false;
+        }
+
+        if (data && data.length === 1) {
+          sessId = data[0].id;
+          return true;
+        } else if (data && data.length > 1) {
+          throw new Error(`Múltiplas sessões encontradas (${data.length}) para o mesmo owner e timestamp.`);
+        }
+        
+        return false;
+      }, { 
+        message: "Aguardando criação de exatamente UMA sessão no banco", 
+        timeout: 20000 
+      }).toBeTruthy();
 
       log(`8. Pedido criado e confirmado no banco (ID: ${sessId})`);
     });
