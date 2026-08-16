@@ -228,10 +228,9 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("6. owner: continue-to-duration", async () => {
-      const bottomSheet = oCtx.page.locator('[role="dialog"], .fixed.bottom-0').filter({ hasText: /INICIAR O PASSEIO/i });
-      const continueBtn = bottomSheet.getByRole('button', { name: /Continuar/i });
+      const continueBtn = oCtx.page.getByRole('button', { name: /^Continuar$/i });
       await continueBtn.click();
-      await expect(bottomSheet.locator('text=30 minutos')).toBeVisible({ timeout: 10000 });
+      await expect(oCtx.page.locator('text=30 minutos')).toBeVisible({ timeout: 10000 });
     });
 
     await test.step("7. owner: select-duration", async () => {
