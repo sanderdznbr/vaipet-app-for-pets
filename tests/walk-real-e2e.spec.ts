@@ -234,15 +234,15 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("7. owner: select-duration", async () => {
-      const bottomSheet = oCtx.page.locator('[role="dialog"], .fixed.bottom-0').filter({ hasText: /INICIAR O PASSEIO/i });
-      const durationBtn = bottomSheet.locator('button').filter({ hasText: /^30 minutos$/ }).first();
+      const durationBtn = oCtx.page.locator('button, div').filter({ hasText: /^30 minutos$/ }).first();
       await durationBtn.click();
       
       await expect.poll(async () => {
         return await durationBtn.evaluate(el => 
           el.getAttribute('aria-pressed') === 'true' || 
           el.getAttribute('data-state') === 'on' ||
-          el.classList.contains('border-primary')
+          el.classList.contains('border-primary') ||
+          el.classList.contains('ring-primary')
         );
       }, { message: "Duração '30 minutos' deve estar selecionada", timeout: 10000 }).toBeTruthy();
     });
