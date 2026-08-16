@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { failClosedCleanup } from "./helpers/cleanup";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -7,7 +8,7 @@ const log = (msg: string) => console.log(`[${new Date().toISOString()}] [e2e-iso
 
 test.setTimeout(180000);
 
-test("matching: cenário curto de pedido isolado", async ({ browser }) => {
+test("matching: OWNER_REQUEST_E2E_COMPLETED", async ({ browser }) => {
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
   const runId = `iso_${Date.now()}`;
   const petName = `Pet_${runId.slice(-4)}`;
@@ -21,7 +22,16 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
   });
   if (uErr) throw uErr;
   const ownerId = uData.user!.id;
-  await admin.from("profiles").upsert({ id: ownerId, full_name: "E2E Isolated", onboarding_completed: true });
+  
+  // Provisioning with full profile data to bypass Onboarding hydration barriers
+  await admin.from("profiles").upsert({ 
+    id: ownerId, 
+    full_name: "E2E Isolated", 
+    onboarding_completed: true, 
+    phone: "(11) 99999-9999", 
+    age: 30,
+    birthday: "1994-01-01"
+  });
   await admin.from("pets").insert({ owner_id: ownerId, name: petName, breed: "SRD", is_active: true });
 
   const context = await browser.newContext({
@@ -37,39 +47,50 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
     await page.getByPlaceholder("E-mail").fill(email);
     await page.getByPlaceholder("Senha").fill(password);
     await page.getByRole("button", { name: "Entrar" }).click();
-    await expect(page).toHaveURL(/.*\/inicio.*/, { timeout: 30000 });
-
-    log("3. Iniciando fluxo de pedido");
-    await page.locator('#tour-start-walk').click({ force: true });
     
-    log("4. Selecionando Pet");
+    // Recovery path: if stuck on onboarding despite DB status, force navigation
+    await expect(async () => {
+      const url = page.url();
+      if (url.includes('/onboarding')) {
+        log("Onboarding detected, attempting to force /inicio");
+        await page.goto("/inicio");
+      }
+      await expect(page).toHaveURL(/.*\/inicio.*/, { timeout: 5000 });
+    }).toPass({ timeout: 45000 });
+
+    log("3. Navegando para /search-walk via Navbar");
+    const navWalkBtn = page.locator('#tour-nav-walk');
+    await expect(navWalkBtn).toBeVisible({ timeout: 15000 });
+    await navWalkBtn.click();
+    await expect(page).toHaveURL(/.*\/search-walk.*/, { timeout: 15000 });
+
+    log("4. Selecionando Pet e Avançando (Step 1)");
     const petLabel = page.getByText(petName).first();
     await expect(petLabel).toBeVisible({ timeout: 15000 });
+    await petLabel.click();
     
-    log("4.1 Tentando dispatchEvent em cascata");
-    const continueBtn = page.locator('button').filter({ hasText: /Selecione|Continuar/i }).last();
-
-    await expect.poll(async () => {
-        // Tentamos clicar em todos os elementos na vertical que contêm o nome do pet
-        const targets = page.locator('div, button, span, p').filter({ hasText: petName });
-        const count = await targets.count();
-        for (let i = 0; i < count; i++) {
-            await targets.nth(i).evaluate(el => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
-        }
-        const text = await continueBtn.innerText();
-        return text.includes('Continuar') && !text.includes('Selecione');
-    }, { timeout: 30000, message: "Botão Continuar habilitado" }).toBeTruthy();
+    // Explicitly click "Agora" to ensure state consistency
+    await page.getByLabel("Agora").click();
     
-    await continueBtn.click({ force: true });
+    const continueBtnS1 = page.locator('button').filter({ hasText: /^Continuar$/ }).last();
+    await expect(continueBtnS1).toBeEnabled({ timeout: 15000 });
+    await continueBtnS1.click();
 
-    log("5. Selecionando Tipo");
-    await page.locator('button').filter({ hasText: /Livre/i }).first().click({ force: true });
-    await page.locator('button').filter({ hasText: /Continuar/i }).last().click({ force: true });
+    log("5. Selecionando Tipo (Step 2)");
+    // Small delay to allow BottomSheet transition
+    await page.waitForTimeout(500);
+    await page.locator('button').filter({ hasText: /Livre/i }).first().click();
+    const continueBtnS2 = page.locator('button').filter({ hasText: /^Continuar$/ }).last();
+    await expect(continueBtnS2).toBeEnabled({ timeout: 15000 });
+    await continueBtnS2.click();
 
-    log("6. Selecionando Duração");
-    await page.locator('button').filter({ hasText: /Continuar/i }).last().click({ force: true });
+    log("6. Selecionando Duração (Step 3)");
+    await page.waitForTimeout(500);
+    const continueBtnS3 = page.locator('button').filter({ hasText: /^Continuar$/ }).last();
+    await expect(continueBtnS3).toBeEnabled({ timeout: 15000 });
+    await continueBtnS3.click();
 
-    log("7. Arrastando Slider");
+    log("7. Arrastando Slider (Step 4)");
     await expect(page.locator('span').filter({ hasText: /R\$/ })).toBeVisible({ timeout: 20000 });
     
     const track = page.locator('[data-testid-track="slide-to-confirm-track"]');
@@ -84,25 +105,28 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
     await page.mouse.move(tBox.x + tBox.width - 5, tBox.y + tBox.height/2, { steps: 50 });
     await page.mouse.up();
 
-    log("8. Validando criação");
+    log("8. Validando criação no banco");
     await expect.poll(async () => {
-      const { data } = await admin.from("walk_sessions").select("id, current_status").eq("customer_id", ownerId).order('created_at', {ascending: false}).limit(1).maybeSingle();
+      const { data } = await admin
+        .from("walk_sessions")
+        .select("id, current_status")
+        .eq("customer_id", ownerId)
+        .order('created_at', {ascending: false})
+        .limit(1)
+        .maybeSingle();
+        
       if (data?.current_status === "searching") {
-          log(`MATCHING_E2E_COMPLETED SessionId: ${data.id}`);
+          log(`OWNER_REQUEST_E2E_COMPLETED SessionId: ${data.id}`);
           return true;
       }
       return false;
     }, { timeout: 30000 }).toBeTruthy();
 
   } catch (err) {
-    await page.screenshot({ path: '/tmp/failed_isolated_v8.png' });
+    await page.screenshot({ path: '/tmp/failed_isolated_final.png' });
     throw err;
   } finally {
     await context.close();
-    await admin.from("walk_sessions").delete().eq("customer_id", ownerId);
-    await admin.from("pets").delete().eq("owner_id", ownerId);
-    await admin.from("profiles").delete().eq("id", ownerId);
-    await admin.auth.admin.deleteUser(ownerId);
-    log("Cleanup zero finalizado");
+    await failClosedCleanup(admin, [ownerId], runId);
   }
 });

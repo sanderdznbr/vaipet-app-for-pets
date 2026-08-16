@@ -15,9 +15,9 @@ interface SlideToConfirmProps {
 /**
  * iOS-style "slide to confirm" button. The draggable thumb shows the
  * selected pet's photo. Sliding all the way to the right triggers
- * `onConfirm`. Falls back to a regular click as a tap shortcut so it stays
- * accessible on desktop / for users that don't realise it's a slider.
+ * `onConfirm`.
  */
+
 export const SlideToConfirm: React.FC<SlideToConfirmProps> = ({
   label,
   onConfirm,
@@ -145,7 +145,16 @@ export const SlideToConfirm: React.FC<SlideToConfirmProps> = ({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        onClick={() => { if (!disabled && !confirmed && drag === 0) end(true); }}
+        onKeyDown={(e) => {
+          if (!disabled && !confirmed && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            end(true);
+          }
+        }}
+        tabIndex={disabled || confirmed ? -1 : 0}
+        aria-label={label}
+        role="button"
+
         className="absolute top-1 left-1 flex items-center justify-center cursor-grab active:cursor-grabbing group shadow-sm active:shadow-md"
         style={{
           width: THUMB,
