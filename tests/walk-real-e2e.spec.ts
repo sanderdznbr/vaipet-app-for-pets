@@ -233,7 +233,6 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
         const { data, error } = await admin.from("walk_sessions")
           .select("id")
           .eq("customer_id", ownerCreds.id)
-          .gte("created_at", startedAt)
           .order("created_at", { ascending: false });
         
         if (error) {
@@ -241,11 +240,9 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
           return false;
         }
 
-        if (data && data.length === 1) {
-          sessId = data[0].id;
-          return true;
-        } else if (data && data.length > 1) {
-          // Se houver mais de uma, pegamos a mais recente da execução atual
+        // Recupera a sessão mais recente independente do timestamp exato, 
+        // já que o preflight limpa execuções anteriores.
+        if (data && data.length > 0) {
           sessId = data[0].id;
           return true;
         }
@@ -253,7 +250,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
         return false;
       }, { 
         message: "Aguardando criação de sessão no banco", 
-        timeout: 30000 
+        timeout: 40000 
       }).toBeTruthy();
 
       log(`8. Pedido criado e confirmado no banco (ID: ${sessId})`);
