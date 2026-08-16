@@ -173,9 +173,11 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("6. owner: select-walk-type", async () => {
-      const walkTypeLivre = oCtx.page.locator('button').filter({ hasText: /Passeio Livre/i }).first();
-      await expect(walkTypeLivre).toBeVisible({ timeout: 15000 });
-      await walkTypeLivre.click({ force: true });
+      // Step 2: Escolher Passeio Livre
+      const walkTypeBtn = oCtx.page.locator('button[aria-label="Livre"], button[aria-label="Coletivo"]').first();
+      await expect(walkTypeBtn).toBeVisible({ timeout: 15000 });
+      await walkTypeBtn.click({ force: true });
+      
       const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).last();
       await continueBtn.click({ force: true });
     });
