@@ -46,18 +46,21 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
     const petLabel = page.getByText(petName).first();
     await expect(petLabel).toBeVisible({ timeout: 15000 });
     
-    log("4.1 Clique via coordenadas e retry");
-    const continueBtn = page.locator('button').filter({ hasText: /Continuar/i }).last();
+    log("4.1 Clique agressivo no ícone de pata e retry");
+    const continueBtn = page.locator('button').filter({ hasText: /Selecione|Continuar/i }).last();
 
     await expect.poll(async () => {
         const box = await petLabel.boundingBox();
         if (box) {
-            // Clicamos um pouco acima do texto onde fica o avatar/ícone
-            await page.mouse.click(box.x + box.width / 2, box.y - 20);
+            // Clicamos no centro do botão circular que fica acima do texto (aproximadamente 40px acima do centro do texto)
+            await page.mouse.click(box.x + box.width / 2, box.y - 40);
+            await page.waitForTimeout(500);
+            // Tentamos também o clique direto no ícone (SVG) próximo
+            await page.locator('svg').filter({ has: page.locator('path') }).first().click({ force: true }).catch(() => {});
         }
         const text = await continueBtn.innerText();
-        return !text.includes('Selecione');
-    }, { timeout: 30000, message: "Seleção do pet ativada" }).toBeTruthy();
+        return text.includes('Continuar') && !text.includes('Selecione');
+    }, { timeout: 30000, message: "Botão Continuar habilitado após seleção do pet" }).toBeTruthy();
     
     await continueBtn.click({ force: true });
 
@@ -69,7 +72,6 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
     await page.locator('button').filter({ hasText: /Continuar/i }).last().click({ force: true });
 
     log("7. Arrastando Slider");
-    // Aguardar quote
     await expect(page.locator('span').filter({ hasText: /R\$/ })).toBeVisible({ timeout: 15000 });
     
     const track = page.locator('[data-testid-track="slide-to-confirm-track"]');
@@ -87,12 +89,15 @@ test("matching: cenário curto de pedido isolado", async ({ browser }) => {
     log("8. Validando criação");
     await expect.poll(async () => {
       const { data } = await admin.from("walk_sessions").select("id, current_status").eq("customer_id", ownerId).order('created_at', {ascending: false}).limit(1).maybeSingle();
-      return data?.current_status === "searching";
+      if (data?.current_status === "searching") {
+          log(`MATCHING_E2E_COMPLETED SessionId: ${data.id}`);
+          return true;
+      }
+      return false;
     }, { timeout: 30000 }).toBeTruthy();
 
-    log("MATCHING_E2E_COMPLETED");
   } catch (err) {
-    await page.screenshot({ path: '/tmp/failed_isolated_v6.png' });
+    await page.screenshot({ path: '/tmp/failed_isolated_v7.png' });
     throw err;
   } finally {
     await context.close();
