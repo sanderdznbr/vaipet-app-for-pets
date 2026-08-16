@@ -188,18 +188,23 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("4. owner: select-pet", async () => {
-      // Localiza o texto exato do pet.
-      const petText = oCtx.page.getByText(/^PetMatch$/).first();
+      // O SearchWalk.tsx usa um array de pets mapeados para botões que
+      // mostram o nome do pet em um <span> abaixo de um <div> circular.
+      const petText = oCtx.page.locator('span').filter({ hasText: /^PetMatch$/ }).first();
       await expect(petText).toBeVisible({ timeout: 10000 });
       
-      // Encontra o container clicável mais próximo.
-      const petCard = oCtx.page.locator('div, button').filter({ has: petText }).last();
-      await petCard.click({ force: true });
+      // O botão é o pai do span (ou o span em si é clicável, mas o clique no pai é mais seguro)
+      const petButton = oCtx.page.locator('button').filter({ has: petText }).first();
+      await petButton.click();
 
+      // O SearchWalk.tsx atualiza o texto do botão de ação principal:
+      // {pets.length === 0 ? 'Cadastre um pet primeiro' : (selectedPets.length > 0 ? 'Continuar' : 'Selecione pelo menos um pet')}
       await expect.poll(async () => {
-        const btn = oCtx.page.locator('button').filter({ hasText: /Continuar/i });
+        const btn = oCtx.page.locator('button').filter({ hasText: /Continuar/i }).first();
+        const isVisible = await btn.isVisible();
+        if (!isVisible) return false;
         const btnText = await btn.innerText();
-        return btnText.includes('Continuar') && !btnText.includes('Selecione');
+        return btnText.trim() === 'Continuar';
       }, { message: "PetMatch deve estar selecionado (botão Continuar habilitado)", timeout: 10000 }).toBeTruthy();
     });
 
