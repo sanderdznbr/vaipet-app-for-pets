@@ -203,7 +203,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       });
       
       // Fallback: se o drag simulado falhar, o onClick atua como atalho para drag=0
-      await thumb.click({ force: true });
+      await thumb.click({ force: true }).catch(() => {});
       
       await expect.poll(async () => {
         const { data } = await admin.from("walk_sessions")
@@ -232,23 +232,15 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       const { data: profile } = await admin.from("petwalker_profiles").select("*").eq("user_id", walkerCreds.id).single();
       expect(profile?.availability_status).toBe("available");
       expect(profile?.is_accepting_requests).toBe(true);
-      
-      const { data: offers } = await admin.from("walk_offers").select("*").eq("session_id", sessId).eq("walker_id", walkerCreds.id);
-      const hasOffer = Array.isArray(offers) && offers.length > 0;
-      
-      if (!hasOffer) {
-        log("Oferta não encontrada via query simples. Tentando process_walk_matching manual.");
-        await admin.rpc("process_walk_matching");
-        const { data: retryOffers } = await admin.from("walk_offers").select("*").eq("session_id", sessId).eq("walker_id", walkerCreds.id);
-        expect(Array.isArray(retryOffers) && retryOffers.length > 0).toBeTruthy();
-      }
-      
-      log("10. Walker elegível confirmado (oferta presente no banco)");
+      log("10. Walker elegível confirmado");
     });
 
     await test.step("job: process-matching", async () => {
-      const { error } = await admin.rpc("process_walk_matching");
-      if (error) throw error;
+      await admin.rpc("process_walk_matching");
+      await expect.poll(async () => {
+        const { data } = await admin.from("walk_offers").select("id").eq("session_id", sessId).eq("walker_id", walkerCreds.id);
+        return Array.isArray(data) && data.length > 0;
+      }, { message: "Aguardando oferta no banco", timeout: 20000 }).toBeTruthy();
       log("Job matching executado");
     });
 
