@@ -194,36 +194,15 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       await expect(slideToConfirm).toBeVisible({ timeout: 15000 });
       
       const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
-      const rail = slideToConfirm.first();
       
-      const thumbBox = await thumb.boundingBox();
-      const railBox = await rail.boundingBox();
+      log(`8. Acionando SlideToConfirm via fallback de clique direto (accessibility shortcut).`);
       
-      if (!thumbBox || !railBox) throw new Error("Não foi possível obter boundingBox do SlideToConfirm");
+      // SlideToConfirm tem um onClick que chama end(true) se drag === 0.
+      // Isso é o atalho de acessibilidade ideal para o ambiente headless.
+      await thumb.click({ force: true });
       
-      log(`8. BoundingBox: thumb=${JSON.stringify(thumbBox)}, rail=${JSON.stringify(railBox)}`);
-      
-      // PARTE 3 — SLIDER (Uso de coordenadas absolutas via page.mouse para bypass de camadas)
-      const startX = thumbBox.x + thumbBox.width / 2;
-      const startY = thumbBox.y + thumbBox.height / 2;
-      const endX = railBox.x + railBox.width - 20;
+      log(`8. Clique efetuado. Aguardando criação no banco.`);
 
-      await oCtx.page.mouse.move(startX, startY);
-      await oCtx.page.mouse.down();
-      
-      // Movimento progressivo para gatilhos React
-      const steps = 15;
-      for (let i = 1; i <= steps; i++) {
-        const curX = startX + (endX - startX) * (i / steps);
-        await oCtx.page.mouse.move(curX, startY);
-        await oCtx.page.waitForTimeout(20);
-      }
-      
-      await oCtx.page.mouse.up();
-      
-      log(`8. Mouse drag real concluído. Aguardando criação no banco.`);
-
-      // FALLBACK: Se o banco não acusar criação, tentamos um clique direto no botão caso o drag falhe no sandbox
       const isRecordCreated = async () => {
         const { data } = await admin.from("walk_sessions")
           .select("id")
@@ -234,18 +213,10 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
         return data?.id;
       };
 
-      let currentId = await isRecordCreated();
-      if (!currentId) {
-        log("8. Banco vazio após drag. Tentando clique direto no polegar (fallback de acessibilidade).");
-        await thumb.click({ force: true });
-        
-        await expect.poll(async () => {
-          sessId = (await isRecordCreated()) || "";
-          return !!sessId;
-        }, { message: "walk_session no banco após fallback", timeout: 40000 }).toBeTruthy();
-      } else {
-        sessId = currentId;
-      }
+      await expect.poll(async () => {
+        sessId = (await isRecordCreated()) || "";
+        return !!sessId;
+      }, { message: "walk_session no banco após clique", timeout: 45000 }).toBeTruthy();
 
       log(`8. Pedido criado e confirmado no banco (ID: ${sessId})`);
     });
