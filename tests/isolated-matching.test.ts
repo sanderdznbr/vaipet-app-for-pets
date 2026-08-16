@@ -47,33 +47,30 @@ test("matching: OWNER_REQUEST_E2E_COMPLETED", async ({ browser }) => {
     await expect(startWalkBtn).toBeVisible({ timeout: 15000 });
     await startWalkBtn.click();
 
-    
-    log("4. Selecionando Pet");
+    log("4. Selecionando Pet e Avançando (Step 1)");
     const petLabel = page.getByText(petName).first();
     await expect(petLabel).toBeVisible({ timeout: 15000 });
-    
     await petLabel.click();
-    const continueBtn = page.locator('button').filter({ hasText: /^Continuar$/ }).last();
     
-    await expect.poll(async () => {
-        const text = await continueBtn.innerText();
-        return text.includes('Continuar') && !text.includes('Selecione');
-    }, { timeout: 30000, message: "Botão Continuar habilitado" }).toBeTruthy();
+    // Agora is selected by default, but we click it to ensure focus/state hydration
+    await page.getByLabel("Agora").click();
     
-    await continueBtn.click();
+    const continueBtnS1 = page.locator('button').filter({ hasText: /^Continuar$/ }).last();
+    await expect(continueBtnS1).toBeEnabled({ timeout: 15000 });
+    await continueBtnS1.click();
 
-
-
-
-    log("5. Selecionando Tipo");
+    log("5. Selecionando Tipo (Step 2)");
     await page.locator('button').filter({ hasText: /Livre/i }).first().click();
-    await page.locator('button').filter({ hasText: /^Continuar$/ }).last().click();
+    const continueBtnS2 = page.locator('button').filter({ hasText: /^Continuar$/ }).last();
+    await expect(continueBtnS2).toBeEnabled({ timeout: 15000 });
+    await continueBtnS2.click();
 
-    log("6. Selecionando Duração");
-    await page.locator('button').filter({ hasText: /^Continuar$/ }).last().click();
+    log("6. Selecionando Duração (Step 3)");
+    const continueBtnS3 = page.locator('button').filter({ hasText: /^Continuar$/ }).last();
+    await expect(continueBtnS3).toBeEnabled({ timeout: 15000 });
+    await continueBtnS3.click();
 
-
-    log("7. Arrastando Slider");
+    log("7. Arrastando Slider (Step 4)");
     await expect(page.locator('span').filter({ hasText: /R\$/ })).toBeVisible({ timeout: 20000 });
     
     const track = page.locator('[data-testid-track="slide-to-confirm-track"]');
@@ -99,11 +96,10 @@ test("matching: OWNER_REQUEST_E2E_COMPLETED", async ({ browser }) => {
     }, { timeout: 30000 }).toBeTruthy();
 
   } catch (err) {
-    await page.screenshot({ path: '/tmp/failed_isolated_v8.png' });
+    await page.screenshot({ path: '/tmp/failed_isolated_v9.png' });
     throw err;
   } finally {
     await context.close();
     await failClosedCleanup(admin, [ownerId], runId);
   }
 });
-
