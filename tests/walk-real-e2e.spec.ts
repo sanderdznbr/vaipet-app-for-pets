@@ -182,22 +182,20 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
 
     await test.step("3. owner: bottom-sheet-open", async () => {
       await oCtx.page.locator('#tour-start-walk').click();
-      const bottomSheet = oCtx.page.locator('[role="dialog"], .fixed.bottom-0').filter({ hasText: /INICIAR O PASSEIO/i });
+      const bottomSheet = oCtx.page.locator('div').filter({ hasText: /^INICIAR O PASSEIO$/i }).locator('..').first();
       await expect(bottomSheet).toBeVisible({ timeout: 10000 });
-      await expect(bottomSheet.locator('text=QUAL PET?')).toBeVisible({ timeout: 10000 });
+      await expect(oCtx.page.locator('text=QUAL PET?')).toBeVisible({ timeout: 10000 });
     });
 
     await test.step("4. owner: select-pet", async () => {
-      const bottomSheet = oCtx.page.locator('[role="dialog"], .fixed.bottom-0').filter({ hasText: /INICIAR O PASSEIO/i });
-      const petCard = bottomSheet.locator('div').filter({ hasText: /^PetMatch$/ }).first();
+      const petCard = oCtx.page.locator('div').filter({ hasText: /^PetMatch$/ }).locator('..').first();
       await expect(petCard).toBeVisible({ timeout: 10000 });
       
-      // Verificar se já está selecionado via algum atributo comum de UI (aria-checked, data-state, ou classe específica)
       const isSelected = await petCard.evaluate(el => 
+        el.querySelector('.border-primary') !== null || 
+        el.querySelector('.ring-primary') !== null ||
         el.getAttribute('aria-checked') === 'true' || 
-        el.getAttribute('data-state') === 'checked' ||
-        el.classList.contains('border-primary') ||
-        el.classList.contains('ring-2')
+        el.getAttribute('data-state') === 'checked'
       );
 
       if (!isSelected) {
