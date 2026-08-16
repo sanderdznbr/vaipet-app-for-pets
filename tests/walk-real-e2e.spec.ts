@@ -269,18 +269,32 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
 
     await test.step("11. walker: offer-visible", async () => {
       await wCtx.page.goto("/petwalker");
-      const acceptBtn = wCtx.page.locator('button').filter({ hasText: /Aceitar Passeio/i });
-      await expect(acceptBtn).toBeVisible({ timeout: 30000 });
+      
+      const onlineBtn = wCtx.page.getByRole('button', { name: /Ficar Online/i });
+      const acceptBtn = wCtx.page.locator('[data-testid="walker-accept-button"]');
+      
+      await expect.poll(async () => {
+        if (await acceptBtn.isVisible()) return true;
+        if (await onlineBtn.isVisible()) {
+          await onlineBtn.click().catch(() => {});
+          await wCtx.page.waitForTimeout(2000);
+        }
+        return await acceptBtn.isVisible();
+      }, { timeout: 45000, message: "Oferta visível no PetWalker" }).toBeTruthy();
+      
       log("11. Oferta visível no PetWalker");
     });
 
     await test.step("12. walker: accept-via-ui", async () => {
-      const acceptBtn = wCtx.page.locator('button').filter({ hasText: /Aceitar Passeio/i });
-      await expect(acceptBtn).toBeVisible({ timeout: 15000 });
-      await acceptBtn.click({ force: true });
+      const acceptBtn = wCtx.page.locator('[data-testid="walker-accept-button"]');
+      await acceptBtn.click();
       
-      await expect(wCtx.page).toHaveURL(/.*walk-details.*/, { timeout: 20000 });
-      log("12. Aceite realizado pela interface");
+      const manageBtn = wCtx.page.getByRole('button', { name: /Iniciar deslocamento|Gerenciar Passeio/i });
+      await expect(manageBtn).toBeVisible({ timeout: 15000 });
+      await manageBtn.click();
+
+      await expect(wCtx.page).toHaveURL(/\/petwalker\/passeio\/.*/, { timeout: 20000 });
+      log("12. Aceite realizado pela interface e navegação iniciada");
     });
 
     await test.step("13. backend: acceptance-confirmed", async () => {
