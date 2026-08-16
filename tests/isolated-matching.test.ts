@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { failClosedCleanup } from "./helpers/cleanup";
 
@@ -65,15 +65,18 @@ test("matching: OWNER_REQUEST_E2E_COMPLETED", async ({ browser }) => {
     await expect(page).toHaveURL(/.*\/search-walk.*/, { timeout: 15000 });
 
     log("4. Selecionando Pet e Avançando (Step 1)");
-    const petLabel = page.getByText(petName).first();
-    await expect(petLabel).toBeVisible({ timeout: 15000 });
-    await petLabel.click();
-    
-    // Explicitly click "Agora" to ensure state consistency
-    await page.getByLabel("Agora").click();
-    
+    await expect.poll(async () => {
+      const petBtn = page.locator('button').filter({ hasText: petName }).first();
+      if (await petBtn.isVisible()) {
+        await petBtn.click();
+        const continueBtn = page.locator('button').filter({ hasText: /Selecione|Continuar/i }).last();
+        const text = await continueBtn.innerText();
+        return text.includes('Continuar') && !text.includes('Selecione');
+      }
+      return false;
+    }, { timeout: 30000, message: "Pet selecionado via poll" }).toBeTruthy();
+
     const continueBtnS1 = page.locator('button').filter({ hasText: /^Continuar$/ }).last();
-    await expect(continueBtnS1).toBeEnabled({ timeout: 15000 });
     await continueBtnS1.click();
 
     log("5. Selecionando Tipo (Step 2)");

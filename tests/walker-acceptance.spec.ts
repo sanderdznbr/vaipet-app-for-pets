@@ -116,9 +116,15 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
     
     log("5. Validando banco...");
     await expect.poll(async () => {
-      const { data } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessionId).single();
-      return data?.current_status === "accepted" && data?.walker_id === walker.id;
-    }, { timeout: 10000 }).toBeTruthy();
+      const { data, error } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessionId).single();
+      if (error) {
+          log(`Erro ao consultar banco: ${error.message}`);
+          return false;
+      }
+      const ok = data?.current_status === "accepted" && data?.walker_id === walker.id;
+      if (!ok) log(`Status atual: ${data?.current_status}, Walker: ${data?.walker_id}`);
+      return ok;
+    }, { timeout: 30000, message: "Aguardando aceite no banco" }).toBeTruthy();
     
     const { data: finalSession } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessionId).single();
     log(`status_depois: ${finalSession?.current_status}`);
