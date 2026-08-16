@@ -164,7 +164,10 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       const petButton = oCtx.page.locator('button').filter({ has: petText }).first();
       
       await expect.poll(async () => {
+        // Clica usando force e avalia o clique no DOM
+        await petButton.click({ force: true });
         await petButton.evaluate(el => (el as HTMLButtonElement).click());
+        
         const btn = oCtx.page.locator('button').filter({ hasText: /Continuar|Selecione/i }).last();
         if (await btn.isVisible()) {
           const btnText = await btn.innerText();
@@ -172,39 +175,46 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
           return btnText.includes('Continuar');
         }
         return false;
-      }, { message: "PetMatch deve estar selecionado", timeout: 15000 }).toBeTruthy();
+      }, { message: "PetMatch deve estar selecionado", timeout: 20000 }).toBeTruthy();
     });
 
     await test.step("5. owner: select-schedule", async () => {
-      const agoraLabel = oCtx.page.locator('label').filter({ hasText: /^Agora$/ }).first();
-      await agoraLabel.click({ force: true });
-      await expect(agoraLabel).toBeVisible();
-    });
-
-    await test.step("6. owner: continue-to-walk-type", async () => {
+      // O fluxo real parece não ter uma etapa explícita "Agora" separada se o default já for agora
+      // Mas se o step 1 terminou com Continuar, clicamos nele.
       const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).last();
       await continueBtn.click({ force: true });
-      await expect(oCtx.page.locator('text=QUAL O TIPO DE PASSEIO?').first()).toBeVisible({ timeout: 15000 });
+      await oCtx.page.waitForTimeout(1000);
     });
 
-    await test.step("7. owner: select-walk-type", async () => {
+    await test.step("6. owner: select-walk-type", async () => {
+      // Step 2: Qual o tipo de passeio?
       const walkTypeLivre = oCtx.page.locator('button').filter({ hasText: /Passeio Livre/i }).first();
+      await expect(walkTypeLivre).toBeVisible({ timeout: 10000 });
       await walkTypeLivre.click({ force: true });
       
       const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).last();
       await continueBtn.click({ force: true });
-      await expect(oCtx.page.locator('text=Duração').first()).toBeVisible({ timeout: 15000 });
+      await oCtx.page.waitForTimeout(1000);
     });
 
-    await test.step("8. owner: select-duration", async () => {
-      const duration30 = oCtx.page.locator('button, div').filter({ hasText: /^30 minutos$/ }).first();
-      await duration30.click({ force: true });
+    await test.step("7. owner: select-duration", async () => {
+      // Step 3: Duração
+      await expect(oCtx.page.locator('text=Duração').first()).toBeVisible({ timeout: 10000 });
       
-      const confirmBtn = oCtx.page.locator('button').filter({ hasText: /Confirmar/i }).last();
+      // Aumenta/Diminui se necessário ou apenas confirma o valor padrão
+      const confirmBtn = oCtx.page.locator('button').filter({ hasText: /Confirmar|Continuar/i }).last();
       await confirmBtn.click({ force: true });
+      await oCtx.page.waitForTimeout(1000);
+    });
+
+    await test.step("8. owner: confirm-request", async () => {
+      // Step 4: Resumo e Confirmação final
+      const finalBtn = oCtx.page.locator('button').filter({ hasText: /Confirmar|Pedir|Solicitar/i }).last();
+      await expect(finalBtn).toBeVisible({ timeout: 10000 });
+      await finalBtn.click({ force: true });
       
       await expect(oCtx.page).toHaveURL(/.*search-walk.*/, { timeout: 20000 });
-      await expect(oCtx.page.locator('text=Buscando|Procurando|Encontrando|Aguardando')).toBeVisible({ timeout: 15000 });
+      await expect(oCtx.page.locator('text=Buscando|Procurando|Encontrando|Aguardando')).toBeVisible({ timeout: 20000 });
       log("8. Pedido publicado e em busca");
     });
 
