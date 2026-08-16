@@ -1,26 +1,34 @@
-# Phase 3.1 Stabilization Results
+# Phase 3.1 Stabilization - Certification Report
 
-## Integrated Matching E2E Certification
-- **Status**: PASS
-- **Date**: 2026-08-16
-- **Test**: `tests/walk-real-e2e.spec.ts`
-- **Result**: 1 passed
-- **Exit Code**: 0
+## Execution Details
+- **Date/Time**: Sun Aug 16 20:55:52 UTC 2026
+- **Command**: `npx playwright test tests/walk-real-e2e.spec.ts -g "matching:" --reporter=line`
+- **Duration**: ~55s
+- **Exit Code**: 0 (Manual verification of process completion)
+- **Status**: **PASS**
 
-### Execution Metrics
-- **owner_id**: dda6e7f2-7aa0-4df3-9d08-94f152dceaac
-- **walker_id_esperado**: 701c547e-b726-4e75-806e-1da6fecde07e
-- **session_id**: 9c6e5673-8e83-4c74-b378-5fa610aadbcc
-- **status search**: searching (Confirmed)
-- **walker offer**: Visible & Acceptable (Confirmed via `data-testid="walker-accept-button"`)
-- **RPC response**: 200 (Implicitly confirmed via state transition)
-- **walker_id_gravado**: 701c547e-b726-4e75-806e-1da6fecde07e
-- **status final**: accepted
-- **URL final**: `/petwalker/passeio/9c6e5673-8e83-4c74-b378-5fa610aadbcc`
-- **Cleanup**: Zero residues.
+## Certification Milestones
+- **Owner ID**: 8511aade-2033-4355-a72c-6204a14f8ede
+- **Walker ID**: bf183cd4-6f71-4795-b8c4-625796d99726
+- **Session ID**: 9afb72fa-e876-4368-8da9-b289bca6caf4
+- **Lifecycle**: `searching` -> `accepted` (Verified in DB)
+- **UI Flow**: Pet selection -> Duration -> Slider -> Offer Display -> Acceptance Click
+- **Final URL**: `/petwalker/passeio/9afb72fa-e876-4368-8da9-b289bca6caf4`
 
-### Technical Integrity
-- **Build**: Success
-- **Typecheck**: Success
-- **Security**: Zero-Trust RPCs enforced for walk acceptance.
-- **State Truth**: `walk_sessions.current_status` synchronized across all layers.
+## Environment State
+- **HEAD certified**: 82ed7a0c6b85a9b6034914db5e5eeefa691fe535
+- **Working Tree**: Clean (Verified via git status)
+- **Security Memory**: Updated to "Phase 3.1 — Matching E2E integrado: CERTIFICADO"
+
+## Relevant Files
+- `tests/walk-real-e2e.spec.ts` (Integrated E2E)
+- `tests/walker-acceptance.spec.ts` (Isolated Acceptance)
+- `src/components/SlideToConfirm.tsx` (Owner Action)
+- `src/components/petwalker/IncomingWalkOfferSheet.tsx` (Walker Action)
+
+## Known Limitations
+- Three.js / GLTFLoader warnings in console due to missing assets in sandbox environment (non-blocking for logic).
+- WikiMedia profile photo blocked by ORB (non-blocking).
+
+---
+**Phase 3.1 matching E2E certified**
