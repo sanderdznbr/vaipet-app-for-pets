@@ -174,7 +174,9 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
 
     await test.step("6. owner: select-walk-type", async () => {
       // Step 2: Escolher Passeio Livre
-      const walkTypeBtn = oCtx.page.locator('button[aria-label="Livre"], button[aria-label="Coletivo"]').first();
+      // O aria-label é "Livre" ou "Coletivo" dependendo do número de pets.
+      // Vamos tentar um seletor mais flexível baseado no texto do span interno se o aria-label falhar.
+      const walkTypeBtn = oCtx.page.locator('button').filter({ has: oCtx.page.locator('span').filter({ hasText: /Livre|Coletivo/i }) }).first();
       await expect(walkTypeBtn).toBeVisible({ timeout: 15000 });
       await walkTypeBtn.click({ force: true });
       
