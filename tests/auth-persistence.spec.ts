@@ -2,14 +2,14 @@ import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
-const ANON_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const STORAGE_KEY = \`sb-\${SUPABASE_URL.replace(/^https?:\/\//, "").split(".")[0]}-auth-token\`;
 
 test("auth-persistence: verify session survives reload", async ({ browser }) => {
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
-  const email = \`e2e.persistence.\${Date.now()}@e2e.vaipet.invalid\`;
+  const email = `e2e.persistence.${Date.now()}@e2e.vaipet.invalid`;
   const password = "TestPassword123!";
+  const PROJECT_REF = SUPABASE_URL.replace(/^https?:\/\//, "").split(".")[0];
+  const STORAGE_KEY = `sb-${PROJECT_REF}-auth-token`;
   
   const { data: { user }, error: createError } = await admin.auth.admin.createUser({
     email, password, email_confirm: true,
