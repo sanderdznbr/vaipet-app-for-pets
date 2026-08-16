@@ -3,8 +3,6 @@ import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const PROJECT_REF = SUPABASE_URL.replace(/^https?:\/\//, "").split(".")[0];
-
 const log = (msg: string) => console.log(`[${new Date().toISOString()}] [walker-acceptance] ${msg}`);
 
 let admin: SupabaseClient;
@@ -67,6 +65,7 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
   const runId = `acc_${Date.now()}`;
   const walker = await provisionWalker(runId);
   const { ownerId, sessionId } = await createOwnerAndRequest(runId);
+  const startTime = Date.now();
   
   const context = await browser.newContext({
     viewport: { width: 430, height: 900 },
@@ -75,8 +74,24 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
   });
   const page = await context.newPage();
 
+  let rpcResponse: any = null;
+  page.on('response', async (response) => {
+    if (response.url().includes('rpc/accept_walk_request')) {
+      try {
+        rpcResponse = {
+          status: response.status(),
+          body: await response.json(),
+        };
+        log(`RPC_RESPONSE: ${JSON.stringify(rpcResponse)}`);
+      } catch (e) {}
+    }
+  });
+
   try {
     await admin.from("walk_offers").insert({ session_id: sessionId, walker_id: walker.id, offer_status: "pending" });
+
+    log(`session_id: ${sessionId}`);
+    log(`walker_id_esperado: ${walker.id}`);
 
     log("1. Autenticando PetWalker...");
     await page.goto("/auth");
@@ -93,7 +108,6 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
     
     await expect.poll(async () => {
         if (await acceptBtn.isVisible()) return true;
-        
         const onlineBtn = page.getByRole('button', { name: /Ficar Online/i });
         if (await onlineBtn.isVisible()) {
             log("Ficando Online...");
@@ -101,22 +115,43 @@ test("walker-acceptance: ACEITE ISOLADO", async ({ browser }) => {
             await page.waitForTimeout(2000);
         }
         return await acceptBtn.isVisible();
-    }, { timeout: 60000 }).toBeTruthy();
+    }, { timeout: 45000 }).toBeTruthy();
     
+    const { data: statusAntes } = await admin.from("walk_sessions").select("current_status").eq("id", sessionId).single();
+    log(`status_antes: ${statusAntes?.current_status}`);
+    log(`url_antes: ${page.url()}`);
+
     log("4. Aceitando passeio...");
     await acceptBtn.click();
     
-    log("5. Validando navegação...");
-    await expect(page).toHaveURL(/.*walk-details.*/, { timeout: 30000 });
+    log("5. Validando banco...");
+    await expect.poll(async () => {
+      const { data } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessionId).single();
+      return data?.current_status === "accepted" && data?.walker_id === walker.id;
+    }, { timeout: 10000 }).toBeTruthy();
     
-    log("6. Validando banco...");
     const { data: finalSession } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessionId).single();
-    expect(finalSession?.current_status).toBe("accepted");
+    log(`status_depois: ${finalSession?.current_status}`);
+    log(`walker_id_gravado: ${finalSession?.walker_id}`);
+
     expect(finalSession?.walker_id).toBe(walker.id);
+    expect(statusAntes?.current_status).toBe("searching");
+    expect(finalSession?.current_status).toBe("accepted");
+
+    log("6. Clicando no ActiveWalkSheet para navegar...");
+    const manageBtn = page.getByRole('button', { name: /Iniciar deslocamento|Gerenciar Passeio/i });
+    await expect(manageBtn).toBeVisible({ timeout: 15000 });
+    await manageBtn.click();
+
+    log("7. Validando navegação final...");
+    await expect(page).toHaveURL(/\/petwalker\/passeio\/.*/, { timeout: 20000 });
+    log(`url_depois: ${page.url()}`);
     
+    log(`Duração: ${(Date.now() - startTime) / 1000}s`);
     log("walker-acceptance: PASS");
   } finally {
     await context.close();
     await quickCleanup([walker.id, ownerId]);
+    log("Cleanup concluído.");
   }
 });
