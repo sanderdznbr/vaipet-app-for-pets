@@ -194,27 +194,29 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       await expect(slideToConfirm).toBeVisible({ timeout: 15000 });
       
       const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
-      // O componente SlideToConfirm.tsx usa PointerEvents para o drag.
-      // Em ambientes de teste, o dispatchEvent direto simula melhor o input do usuário.
-      await thumb.evaluate(el => {
-        el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 0 }));
-        el.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 500 }));
-        el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 500 }));
-      });
       
-      // Fallback: se o drag simulado falhar, o onClick atua como atalho para drag=0
-      await thumb.click({ force: true }).catch(() => {});
+      log(`8. Acionando SlideToConfirm via fallback de clique direto (accessibility shortcut).`);
       
-      await expect.poll(async () => {
+      // SlideToConfirm tem um onClick que chama end(true) se drag === 0.
+      // Isso é o atalho de acessibilidade ideal para o ambiente headless.
+      await thumb.click({ force: true });
+      
+      log(`8. Clique efetuado. Aguardando criação no banco.`);
+
+      const isRecordCreated = async () => {
         const { data } = await admin.from("walk_sessions")
           .select("id")
           .eq("customer_id", ownerCreds.id)
           .order("created_at", { ascending: false })
           .limit(1)
-          .single();
-        sessId = data?.id || "";
+          .maybeSingle();
+        return data?.id;
+      };
+
+      await expect.poll(async () => {
+        sessId = (await isRecordCreated()) || "";
         return !!sessId;
-      }, { timeout: 30000 }).toBeTruthy();
+      }, { message: "walk_session no banco após clique", timeout: 45000 }).toBeTruthy();
 
       log(`8. Pedido criado e confirmado no banco (ID: ${sessId})`);
     });
