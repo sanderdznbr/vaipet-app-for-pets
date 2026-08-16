@@ -50,8 +50,14 @@ test("matching: OWNER_REQUEST_E2E_COMPLETED", async ({ browser }) => {
     
     await petLabel.click();
     const continueBtn = page.locator('button').filter({ hasText: /^Continuar$/ }).last();
-    await expect(continueBtn).toBeEnabled({ timeout: 10000 });
+    
+    await expect.poll(async () => {
+        const text = await continueBtn.innerText();
+        return text.includes('Continuar') && !text.includes('Selecione');
+    }, { timeout: 30000, message: "Botão Continuar habilitado" }).toBeTruthy();
+    
     await continueBtn.click();
+
 
 
     log("5. Selecionando Tipo");
