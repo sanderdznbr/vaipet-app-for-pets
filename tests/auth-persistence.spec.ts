@@ -3,8 +3,6 @@ import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const PROJECT_REF = SUPABASE_URL.replace(/^https?:\/\//, "").split(".")[0];
-const STORAGE_KEY = `sb-${PROJECT_REF}-auth-token`;
 
 test("setup: sessão persiste após reload de rota protegida", async ({ browser }) => {
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
@@ -24,30 +22,31 @@ test("setup: sessão persiste após reload de rota protegida", async ({ browser 
   const page = await context.newPage();
 
   try {
+    // 1. Acesso inicial para garantir cache do navegador/Vite
     await page.goto("/auth");
     await page.getByPlaceholder("E-mail").fill(email);
     await page.getByPlaceholder("Senha").fill(password);
     await page.getByRole("button", { name: /^Entrar$/i }).click();
+    await expect(page).toHaveURL(/.*\/inicio.*/, { timeout: 30000 });
 
-    await expect(page).not.toHaveURL(/.*\/auth.*/, { timeout: 30000 });
+    // 2. Simulamos o travamento do AuthProvider forçando um reload rápido que pegue o RedirectIndex
+    // antes que a sessão seja restabelecida (Race condition)
+    console.log("[e2e] Autenticado. Executando reload com alta frequência...");
     
-    console.log("[e2e] Autenticado. Executando reload...");
-    await page.reload({ waitUntil: "domcontentloaded" });
+    // Acessar diretamente uma rota profunda
+    await page.goto("/inicio", { waitUntil: "commit" });
+    await page.reload({ waitUntil: "commit" });
+
+    console.log(`[e2e] URL final: ${page.url()}`);
     
-    console.log(`[e2e] URL após reload: ${page.url()}`);
-    
-    // VERIFICAÇÃO CRÍTICA: Se a URL for /auth, a persistência falhou (reprodução do bug)
     if (page.url().includes("/auth")) {
-        console.log("[e2e] REPRODUZIDO: Redirecionado para /auth após reload.");
-        // Falhamos o teste para confirmar a reprodução
+        console.log("[e2e] REPRODUZIDO: Redirecionado para /auth.");
         expect(page.url()).not.toContain("/auth");
     }
 
     await expect(page).toHaveURL(/.*\/inicio.*/, { timeout: 10000 });
-    console.log("[e2e] Persistência confirmada (Bug não reproduzido ou intermitente).");
   } finally {
     await context.close();
-    await admin.from("profiles").delete().eq("id", userId);
     await admin.auth.admin.deleteUser(userId);
   }
 });
