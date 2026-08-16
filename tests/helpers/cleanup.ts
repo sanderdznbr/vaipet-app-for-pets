@@ -1,61 +1,109 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+/**
+ * Realiza a limpeza de dados de teste E2E seguindo o princípio Fail-Closed.
+ * @param admin Cliente Supabase com privilégios de service_role.
+ * @param ids Lista de IDs de usuários a serem removidos.
+ * @param runId Opcional: ID da execução para validação extra.
+ */
 export async function failClosedCleanup(admin: SupabaseClient, ids: string[], runId?: string) {
-  if (!ids.length) return;
+  if (!ids || ids.length === 0) return;
   
-  console.log(`[cleanup] Iniciando fail-closed cleanup para IDs: ${ids.join(', ')}`);
+  console.log(`[cleanup] Iniciando fail-closed cleanup para ${ids.length} IDs.`);
 
-  // 1. Exclusão de sessões e dependências
+  // 1. Auditoria e Validação de Segurança
+  for (const id of ids) {
+    const { data: u, error: uErr } = await admin.auth.admin.getUserById(id);
+    
+    if (uErr) {
+      if (uErr.message.includes("User not found") || uErr.status === 404) continue;
+      throw new Error(`[FAIL-CLOSED] Erro ao auditar usuário ${id}: ${uErr.message}`);
+    }
+    
+    if (!u || !u.user) throw new Error(`[FAIL-CLOSED] Resultado ambíguo para usuário ${id}.`);
+
+    const meta = u.user.user_metadata || {};
+    if (meta.e2e_test !== true) {
+      throw new Error(`[SECURITY ALERT] Tentativa de deletar usuário REAL: ${u.user.email} (ID: ${id}). Marcador e2e_test ausente.`);
+    }
+    
+    if (runId && meta.e2e_run_id !== runId) {
+      throw new Error(`[SECURITY ALERT] RunID mismatch para ${id}: esperado ${runId}, encontrado ${meta.e2e_run_id}.`);
+    }
+  }
+
+  // 2. Coleta de IDs de sessões para deleção em cascata manual
   const { data: sessions, error: sErr } = await admin
     .from("walk_sessions")
     .select("id")
     .or(`customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})`);
   
-  if (sErr) throw new Error(`Erro ao buscar sessões para cleanup: ${sErr.message}`);
+  if (sErr) throw new Error(`[FAIL-CLOSED] Erro ao coletar sessões: ${sErr.message}`);
+  const sIds = sessions?.map(s => s.id) || [];
 
-  if (sessions && sessions.length > 0) {
-    const sIds = sessions.map(s => s.id);
-    await admin.from("walker_tracking").delete().in("walk_session_id", sIds);
-    await admin.from("walk_offers").delete().in("session_id", sIds);
-    await admin.from("petwalker_earnings").delete().in("walk_session_id", sIds);
-    const { error: delErr } = await admin.from("walk_sessions").delete().in("id", sIds);
-    if (delErr) throw new Error(`Erro ao deletar sessões: ${delErr.message}`);
-  }
+  // 3. Operações de Exclusão com Validação Individual
+  const runOp = async (table: string, col: string, vals: string[]) => {
+    if (vals.length === 0) return;
+    const { error } = await admin.from(table).delete().in(col, vals);
+    if (error) throw new Error(`[FAIL-CLOSED] Erro ao deletar de ${table}: ${error.message}`);
+  };
 
-  // 2. Exclusão de pets
-  const { error: pErr } = await admin.from("pets").delete().in("owner_id", ids);
-  if (pErr) throw new Error(`Erro ao deletar pets: ${pErr.message}`);
+  // Ordem de integridade referencial
+  await runOp("walker_tracking", "walk_session_id", sIds);
+  await runOp("walk_offers", "session_id", sIds);
+  await runOp("petwalker_earnings", "walk_session_id", sIds);
+  await runOp("walk_sessions", "id", sIds);
+  await runOp("pets", "owner_id", ids);
+  await runOp("petwalker_profiles", "user_id", ids);
+  await runOp("user_roles", "user_id", ids);
+  await runOp("profiles", "id", ids);
 
-  // 3. Exclusão de perfis petwalker
-  const { error: pwErr } = await admin.from("petwalker_profiles").delete().in("user_id", ids);
-  if (pwErr) throw new Error(`Erro ao deletar perfis walker: ${pwErr.message}`);
-
-  // 4. Exclusão de roles
-  const { error: rErr } = await admin.from("user_roles").delete().in("user_id", ids);
-  if (rErr) throw new Error(`Erro ao deletar roles: ${rErr.message}`);
-
-  // 5. Exclusão de perfis
-  const { error: profErr } = await admin.from("profiles").delete().in("id", ids);
-  if (profErr) throw new Error(`Erro ao deletar perfis: ${profErr.message}`);
-
-  // 6. Exclusão de usuários Auth
+  // 4. Deleção no Auth Service
   for (const id of ids) {
     const { error: authErr } = await admin.auth.admin.deleteUser(id);
-    if (authErr && !authErr.message.includes("User not found")) {
-      throw new Error(`Erro ao deletar usuário ${id}: ${authErr.message}`);
+    if (authErr && !authErr.message.includes("User not found") && authErr.status !== 404) {
+      throw new Error(`[FAIL-CLOSED] Erro ao deletar usuário Auth ${id}: ${authErr.message}`);
     }
   }
 
-  // 7. Validações finais de integridade
-  const { data: remainSessions } = await admin.from("walk_sessions").select("id").or(`customer_id.in.(${ids.join(",")}),walker_id.in.(${ids.join(",")})`);
-  if (remainSessions?.length) throw new Error(`Resíduo detectado em walk_sessions: ${remainSessions.length}`);
+  // 5. Verificação de Contagem Zero (Fail-Closed Selects)
+  const checkZero = async (table: string, col: string, vals: string[]) => {
+    if (vals.length === 0) return;
+    // Em vez de head:true, usamos select count puro para evitar erros 406/404 em tabelas vazias ou com RLS
+    const { count, error } = await admin
+      .from(table)
+      .select("*", { count: 'exact', head: true })
+      .in(col, vals);
+    
+    // Se der erro, verificamos se é apenas o PostgREST reclamando de resultado vazio
+    if (error) {
+       console.warn(`[cleanup] Aviso na verificação de ${table}: ${error.message}. Tentando select simples...`);
+       const { data: retryData } = await admin.from(table).select(col).in(col, vals);
+       if (retryData && retryData.length > 0) {
+           throw new Error(`[FAIL-CLOSED] RESÍDUO CONFIRMADO em ${table}: ${retryData.length} registros.`);
+       }
+       return;
+    }
 
-  const { data: remainPets } = await admin.from("pets").select("id").in("owner_id", ids);
-  if (remainPets?.length) throw new Error(`Resíduo detectado em pets: ${remainPets.length}`);
+    if (count !== null && count > 0) throw new Error(`[FAIL-CLOSED] RESÍDUO DETECTADO em ${table}: ${count} registros.`);
+  };
 
+  await checkZero("walker_tracking", "walk_session_id", sIds);
+  await checkZero("walk_offers", "session_id", sIds);
+  await checkZero("petwalker_earnings", "walk_session_id", sIds);
+  await checkZero("walk_sessions", "id", sIds);
+  await checkZero("pets", "owner_id", ids);
+  await checkZero("petwalker_profiles", "user_id", ids);
+  await checkZero("user_roles", "user_id", ids);
+  await checkZero("profiles", "id", ids);
+
+  // 6. Verificação Final do Auth
   for (const id of ids) {
-    const { data: u } = await admin.auth.admin.getUserById(id);
-    if (u.user) throw new Error(`Usuário Auth ${id} ainda existe após exclusão`);
+    const { data: u, error: uErr } = await admin.auth.admin.getUserById(id);
+    if (u?.user) throw new Error(`[FAIL-CLOSED] Usuário Auth ${id} ainda existe após deleção.`);
+    if (uErr && !uErr.message.includes("User not found") && uErr.status !== 404) {
+      throw new Error(`[FAIL-CLOSED] Estado ambíguo para usuário Auth ${id}: ${uErr.message}`);
+    }
   }
 
   console.log("Cleanup zero");

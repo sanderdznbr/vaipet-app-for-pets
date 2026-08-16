@@ -308,7 +308,7 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("14. final-certification", async () => {
-      log("OWNER_REQUEST_E2E_COMPLETED");
+      log("MATCHING_E2E_COMPLETED");
       expect(true).toBeTruthy();
     });
 
