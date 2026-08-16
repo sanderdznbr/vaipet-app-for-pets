@@ -183,15 +183,19 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       await continueBtn.click({ force: true });
     });
 
+    await test.step("7. owner: select-duration", async () => {
+      const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).last();
+      await expect(continueBtn).toBeVisible({ timeout: 10000 });
+      await continueBtn.click({ force: true });
+    });
+
     await test.step("8. owner: confirm-request", async () => {
       const slideToConfirm = oCtx.page.locator('[data-testid="slide-to-confirm"]');
       await expect(slideToConfirm).toBeVisible({ timeout: 15000 });
       
       const thumb = slideToConfirm.locator('div').filter({ has: oCtx.page.locator('img, svg') }).first();
-      // Forçamos o trigger direto do evento de clique e aguardamos a resposta da RPC no banco
       await thumb.evaluate(el => (el as HTMLElement).click());
       
-      // Aguarda o banco processar a criação antes de tentar capturar o ID
       await expect.poll(async () => {
         const { data } = await admin.from("walk_sessions")
           .select("id")
@@ -213,25 +217,6 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       }, { message: "walk_session searching confirmada", timeout: 20000 }).toBeTruthy();
       
       log(`9. walk_session em busca confirmada.`);
-    });
-          const { data } = await admin.from("walk_sessions")
-            .select("id")
-            .eq("customer_id", ownerCreds.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .single();
-          sessId = data?.id || "";
-        }
-        return !!sessId;
-      }, { message: "ID da sessão (sessId) capturado", timeout: 20000 }).toBeTruthy();
-
-      await expect.poll(async () => {
-        const { data } = await admin.from("walk_sessions").select("current_status, matching_expires_at").eq("id", sessId).single();
-        if (data?.current_status !== "searching") return false;
-        const expires = data.matching_expires_at ? new Date(data.matching_expires_at).getTime() : 0;
-        return expires > Date.now();
-      }, { message: "walk_session searching confirmada no banco", timeout: 20000 }).toBeTruthy();
-      log(`9. walk_session searching confirmada (ID: ${sessId})`);
     });
 
     await test.step("10. walker: eligibility", async () => {
@@ -277,7 +262,6 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     await test.step("13. backend: acceptance-confirmed", async () => {
       await expect.poll(async () => {
         const { data } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessId).single();
-        // O status deve ser 'accepted' de acordo com a migration 20260813200000
         return data?.current_status === "accepted" && data?.walker_id === walkerCreds.id;
       }, { message: "Confirmando walker_id e status no banco", timeout: 20000 }).toBeTruthy();
       log("13. Banco confirmado");
@@ -289,11 +273,11 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
   } finally {
-    await test.step("11. cleanup", async () => {
+    await test.step("cleanup", async () => {
       if (oCtx) await oCtx.context.close();
       if (wCtx) await wCtx.context.close();
       await quickCleanup([ownerCreds.id, walkerCreds.id]);
-      log("11. Cleanup concluído com zero resíduos");
+      log("Cleanup concluído com zero resíduos");
     });
   }
 });
