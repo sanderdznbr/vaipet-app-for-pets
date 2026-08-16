@@ -301,10 +301,19 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("13. backend: acceptance-confirmed", async () => {
+      let walkerIdGravado = "";
+      let statusDepois = "";
       await expect.poll(async () => {
         const { data } = await admin.from("walk_sessions").select("current_status, walker_id").eq("id", sessId).single();
-        return data?.current_status === "accepted" && data?.walker_id === walkerCreds.id;
+        statusDepois = data?.current_status || "";
+        walkerIdGravado = data?.walker_id || "";
+        return statusDepois === "accepted" && walkerIdGravado === walkerCreds.id;
       }, { message: "Confirmando walker_id e status no banco", timeout: 20000 }).toBeTruthy();
+      
+      log(`session_id: ${sessId}`);
+      log(`status_depois: ${statusDepois}`);
+      log(`walker_id_gravado: ${walkerIdGravado}`);
+      log(`URL final: ${wCtx.page.url()}`);
       log("13. Banco confirmado");
     });
 
