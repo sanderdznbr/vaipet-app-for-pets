@@ -3,7 +3,11 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * E2E OPERACIONAL REAL — Fase 3.1 (Patch Mínimo)
+ * 
+ * Este teste utiliza contextos isolados para simular a jornada real do PetWalker
+ * e do Dono, validando matching, tracking, segurança e conclusão.
  */
+
 
 test.setTimeout(240000); 
 
