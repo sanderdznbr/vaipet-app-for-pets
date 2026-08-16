@@ -167,12 +167,8 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       }, { message: "PetMatch deve estar selecionado", timeout: 20000 }).toBeTruthy();
     });
 
-    await test.step("5. owner: select-pet", async () => {
-      // O Pet já foi criado no preflight, mas precisamos clicar nele.
-      const petBtn = oCtx.page.locator('button').filter({ has: oCtx.page.locator('span').filter({ hasText: petName }) }).first();
-      await expect(petBtn).toBeVisible({ timeout: 15000 });
-      await petBtn.click({ force: true });
-      
+    await test.step("5. owner: select-pet-confirm", async () => {
+      // O Pet já foi selecionado no step 4, aqui apenas confirmamos e avançamos.
       const continueBtn = oCtx.page.locator('button').filter({ hasText: /^Continuar$/ }).last();
       await expect(continueBtn).toBeEnabled({ timeout: 10000 });
       await continueBtn.click({ force: true });
@@ -180,8 +176,6 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
 
     await test.step("6. owner: select-walk-type", async () => {
       // Step 2: Seleção de tipo (Livre/Coletivo ou Local)
-      // O seletor anterior falhou porque o span tinha o texto dinâmico. 
-      // Vamos usar aria-label ou o texto dos botões no slider.
       const walkTypeBtn = oCtx.page.locator('button').filter({ hasText: /Livre|Coletivo/i }).first();
       await expect(walkTypeBtn).toBeVisible({ timeout: 15000 });
       await walkTypeBtn.click({ force: true });
