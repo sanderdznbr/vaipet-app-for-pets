@@ -159,18 +159,24 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("4. owner: select-pet", async () => {
-      const petText = oCtx.page.locator('span').filter({ hasText: /^PetMatch$/ }).first();
+      // Localiza o texto exato do pet.
+      const petText = oCtx.page.getByText(/^PetMatch$/).first();
       await expect(petText).toBeVisible({ timeout: 10000 });
       
+      // Encontra o container clicável (o botão que contém o pet) e clica nele.
+      // O SearchWalk.tsx:1699 define um <button> que envolve o avatar e o nome.
       const petButton = oCtx.page.locator('button').filter({ has: petText }).first();
-      await petButton.click();
+      await petButton.click({ force: true });
 
+      // O SearchWalk.tsx:1786 define o texto do botão:
+      // (selectedPets.length > 0 ? 'Continuar' : 'Selecione pelo menos um pet')
       await expect.poll(async () => {
         const btn = oCtx.page.locator('button').filter({ hasText: /Continuar/i }).first();
         const isVisible = await btn.isVisible();
         if (!isVisible) return false;
         const btnText = await btn.innerText();
-        return btnText.trim() === 'Continuar';
+        // O texto pode conter "Continuar" como parte de uma frase maior ou exato.
+        return btnText.includes('Continuar');
       }, { message: "PetMatch deve estar selecionado (botão Continuar habilitado)", timeout: 10000 }).toBeTruthy();
     });
 
