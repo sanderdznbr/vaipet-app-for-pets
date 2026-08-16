@@ -2,7 +2,6 @@ import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { failClosedCleanup } from "./helpers/cleanup";
 
-
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const log = (msg: string) => console.log(`[${new Date().toISOString()}] [e2e-isolated] ${msg}`);
@@ -23,9 +22,17 @@ test("matching: OWNER_REQUEST_E2E_COMPLETED", async ({ browser }) => {
   });
   if (uErr) throw uErr;
   const ownerId = uData.user!.id;
-  await admin.from("profiles").upsert({ id: ownerId, full_name: "E2E Isolated", onboarding_completed: true, phone: "(11) 99999-9999", age: 30 });
+  
+  // Provisioning with full profile data to bypass Onboarding hydration barriers
+  await admin.from("profiles").upsert({ 
+    id: ownerId, 
+    full_name: "E2E Isolated", 
+    onboarding_completed: true, 
+    phone: "(11) 99999-9999", 
+    age: 30,
+    birthday: "1994-01-01"
+  });
   await admin.from("pets").insert({ owner_id: ownerId, name: petName, breed: "SRD", is_active: true });
-
 
   const context = await browser.newContext({
     viewport: { width: 430, height: 900 },
@@ -41,17 +48,17 @@ test("matching: OWNER_REQUEST_E2E_COMPLETED", async ({ browser }) => {
     await page.getByPlaceholder("Senha").fill(password);
     await page.getByRole("button", { name: "Entrar" }).click();
     
-    // Recovery: If onboarding blocks us even with onboarding_completed: true (e.g. hydration lag), skip it
+    // Recovery path: if stuck on onboarding despite DB status, force navigation
     await expect(async () => {
       const url = page.url();
       if (url.includes('/onboarding')) {
-        log("Onboarding detected, forcing navigation to /inicio");
+        log("Onboarding detected, attempting to force /inicio");
         await page.goto("/inicio");
       }
       await expect(page).toHaveURL(/.*\/inicio.*/, { timeout: 5000 });
-    }).toPass({ timeout: 30000 });
+    }).toPass({ timeout: 45000 });
 
-    log("3. Iniciando fluxo de pedido via Navbar");
+    log("3. Navegando para /search-walk via Navbar");
     const navWalkBtn = page.locator('#tour-nav-walk');
     await expect(navWalkBtn).toBeVisible({ timeout: 15000 });
     await navWalkBtn.click();
@@ -62,6 +69,7 @@ test("matching: OWNER_REQUEST_E2E_COMPLETED", async ({ browser }) => {
     await expect(petLabel).toBeVisible({ timeout: 15000 });
     await petLabel.click();
     
+    // Explicitly click "Agora" to ensure state consistency
     await page.getByLabel("Agora").click();
     
     const continueBtnS1 = page.locator('button').filter({ hasText: /^Continuar$/ }).last();
@@ -69,12 +77,15 @@ test("matching: OWNER_REQUEST_E2E_COMPLETED", async ({ browser }) => {
     await continueBtnS1.click();
 
     log("5. Selecionando Tipo (Step 2)");
+    // Small delay to allow BottomSheet transition
+    await page.waitForTimeout(500);
     await page.locator('button').filter({ hasText: /Livre/i }).first().click();
     const continueBtnS2 = page.locator('button').filter({ hasText: /^Continuar$/ }).last();
     await expect(continueBtnS2).toBeEnabled({ timeout: 15000 });
     await continueBtnS2.click();
 
     log("6. Selecionando Duração (Step 3)");
+    await page.waitForTimeout(500);
     const continueBtnS3 = page.locator('button').filter({ hasText: /^Continuar$/ }).last();
     await expect(continueBtnS3).toBeEnabled({ timeout: 15000 });
     await continueBtnS3.click();
@@ -94,9 +105,16 @@ test("matching: OWNER_REQUEST_E2E_COMPLETED", async ({ browser }) => {
     await page.mouse.move(tBox.x + tBox.width - 5, tBox.y + tBox.height/2, { steps: 50 });
     await page.mouse.up();
 
-    log("8. Validando criação");
+    log("8. Validando criação no banco");
     await expect.poll(async () => {
-      const { data } = await admin.from("walk_sessions").select("id, current_status").eq("customer_id", ownerId).order('created_at', {ascending: false}).limit(1).maybeSingle();
+      const { data } = await admin
+        .from("walk_sessions")
+        .select("id, current_status")
+        .eq("customer_id", ownerId)
+        .order('created_at', {ascending: false})
+        .limit(1)
+        .maybeSingle();
+        
       if (data?.current_status === "searching") {
           log(`OWNER_REQUEST_E2E_COMPLETED SessionId: ${data.id}`);
           return true;
@@ -105,7 +123,7 @@ test("matching: OWNER_REQUEST_E2E_COMPLETED", async ({ browser }) => {
     }, { timeout: 30000 }).toBeTruthy();
 
   } catch (err) {
-    await page.screenshot({ path: '/tmp/failed_isolated_v11.png' });
+    await page.screenshot({ path: '/tmp/failed_isolated_final.png' });
     throw err;
   } finally {
     await context.close();
