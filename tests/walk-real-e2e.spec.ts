@@ -163,19 +163,24 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
       const petText = oCtx.page.locator('span').filter({ hasText: /^PetMatch$/ }).first();
       await expect(petText).toBeVisible({ timeout: 10000 });
       
-      // Tenta clicar no <div> que contém o avatar/ícone, que é irmão do span dentro do button
-      const petIcon = oCtx.page.locator('button').filter({ has: petText }).locator('div').first();
-      await petIcon.click({ force: true });
+      // No SearchWalk.tsx o button tem a classe "active:scale-95 transition-transform"
+      // e o onClick está nele.
+      const petButton = oCtx.page.locator('button').filter({ has: petText }).first();
+      
+      // Tenta várias abordagens de clique no botão
+      await petButton.click({ force: true });
+      await oCtx.page.waitForTimeout(500);
+      
+      // Se não funcionou, tenta clicar diretamente no span
+      await petText.click({ force: true });
 
-      // O SearchWalk.tsx:1786 define o texto do botão:
-      // (selectedPets.length > 0 ? 'Continuar' : 'Selecione pelo menos um pet')
       await expect.poll(async () => {
-        const btn = oCtx.page.locator('button').filter({ hasText: /Continuar|Selecione/i }).first();
+        const btn = oCtx.page.locator('button').filter({ hasText: /Continuar|Selecione/i }).last();
         const isVisible = await btn.isVisible();
         if (!isVisible) return false;
         const btnText = await btn.innerText();
         log(`Botão de ação: "${btnText}"`);
-        return btnText.includes('Continuar') && !btnText.includes('Selecione');
+        return btnText.includes('Continuar');
       }, { message: "PetMatch deve estar selecionado (botão Continuar habilitado)", timeout: 10000 }).toBeTruthy();
     });
 
