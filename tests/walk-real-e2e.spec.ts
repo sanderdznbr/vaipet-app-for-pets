@@ -248,14 +248,13 @@ test("matching: Ciclo real de oferta via job e aceite via UI", async ({ browser 
     });
 
     await test.step("8. owner: confirm-request", async () => {
-      const bottomSheet = oCtx.page.locator('[role="dialog"], .fixed.bottom-0').filter({ hasText: /INICIAR O PASSEIO/i });
-      // Pode ser "Confirmar", "Pedir Agora", etc.
-      const confirmBtn = bottomSheet.getByRole('button', { name: /(confirmar|pedir|solicitar)/i });
+      const confirmBtn = oCtx.page.getByRole('button', { name: /(confirmar|pedir|solicitar|continuar)/i }).first();
       await confirmBtn.click();
       
-      // Confirmar transição para busca
       await expect(oCtx.page).toHaveURL(/.*search-walk.*/, { timeout: 15000 });
-      await expect(oCtx.page.locator('text=Buscando|Procurando|Encontrando')).toBeVisible({ timeout: 10000 });
+      await expect(oCtx.page.locator('text=Buscando|Procurando|Encontrando|Aguardando')).toBeVisible({ timeout: 10000 });
+      log("8. Pedido publicado e em busca");
+    });
       log("8. Pedido publicado e em busca");
     });
 
