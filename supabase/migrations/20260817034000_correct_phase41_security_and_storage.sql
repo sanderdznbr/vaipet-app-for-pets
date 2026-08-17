@@ -178,8 +178,8 @@ END;
 $$;
 
 -- 5. Revoke/Grant explicit em todas as RPCs operacionais
-REVOKE ALL ON FUNCTION public.petwalker_arrive_pickup(uuid, double precision, double precision) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.petwalker_arrive_pickup(uuid, double precision, double precision) TO authenticated;
+REVOKE ALL ON FUNCTION public.petwalker_arrive_pickup(uuid, double precision, double precision, double precision) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.petwalker_arrive_pickup(uuid, double precision, double precision, double precision) TO authenticated;
 
 REVOKE ALL ON FUNCTION public.customer_get_pickup_code(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.customer_get_pickup_code(uuid) TO authenticated;
