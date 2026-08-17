@@ -70,10 +70,7 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
 
       expect(rUser.data).toMatch(/^\d{6}$/);
       log("Idempotência de PIN: PASS");
-
-    } catch (err: any) {
-      log(`FATAL: ${err.message || JSON.stringify(err)}`);
-      throw err;
+      return; // Sucesso explícito
     } finally {
       await failClosedCleanup(admin, [ownerId], runId);
     }
@@ -136,10 +133,7 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
       expect(error.message).toContain('Max attempts reached');
       
       log("Bloqueio após 5 erros: PASS");
-
-    } catch (err: any) {
-      log(`FATAL: ${err.message || JSON.stringify(err)}`);
-      throw err;
+      return;
     } finally {
       await failClosedCleanup(admin, [walkerId], runId);
     }
@@ -190,9 +184,7 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
        expect(final?.current_status).toBe('in_progress');
        
        log("Sincronização de status: PASS");
-     } catch (err: any) {
-       log(`FATAL: ${err.message || JSON.stringify(err)}`);
-       throw err;
+       return;
      } finally {
        await failClosedCleanup(admin, [uid], runId);
      }
