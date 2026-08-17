@@ -147,13 +147,14 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       });
       if (arriveErr) throw new Error(`petwalker_arrive_pickup failed: ${arriveErr.message}`);
 
-      // Verificação da consulta de walk_pickup_codes (deve retornar erro 42501 ou vazio por RLS/ACL para authenticated)
+      // Verificação da consulta de walk_pickup_codes (deve retornar vazio ou erro 42501 por RLS/ACL para authenticated)
       const { data: pickupCodesData, error: pickupCodesError } = await walkerClient.from('walk_pickup_codes').select('*').eq('session_id', session.id);
       
-      // Se não houver GRANT, retorna 42501. Se houver GRANT mas RLS bloquear, retorna []. Ambos satisfazem a segurança.
       if (pickupCodesError) {
+        // Se houver erro, deve ser de permissão (42501)
         expect(pickupCodesError.code).toBe("42501");
       } else {
+        // Se não houver erro, os dados retornados devem ser vazios (RLS bloqueou)
         expect(pickupCodesData?.length).toBe(0);
       }
 
