@@ -97,7 +97,31 @@ export const ActiveWalkSheet = ({ activeRequest }: ActiveWalkSheetProps) => {
         )}
 
         <Button 
-          onClick={() => navigate(`/petwalker/passeio/${activeRequest.id}`)}
+          onClick={async () => {
+            if (status === 'accepted') {
+              const { error } = await supabase.rpc('petwalker_start_heading', { _session_id: activeRequest.id });
+              if (error) {
+                console.error('Error starting heading:', error);
+                return;
+              }
+            } else if (status === 'heading_to_pickup') {
+              // Get current position
+              navigator.geolocation.getCurrentPosition(async (pos) => {
+                const { error } = await supabase.rpc('petwalker_arrive_pickup', { 
+                  _session_id: activeRequest.id,
+                  _lat: pos.coords.latitude,
+                  _lng: pos.coords.longitude,
+                  _accuracy: pos.coords.accuracy
+                });
+                if (error) {
+                  console.error('Error arriving at pickup:', error);
+                  return;
+                }
+              }, (err) => console.error('GPS error:', err));
+              return;
+            }
+            navigate(`/petwalker/passeio/${activeRequest.id}`);
+          }}
           className={cn(
             "w-full h-14 rounded-2xl font-black text-lg shadow-xl active:scale-95 transition-all",
             isInProgress ? "bg-[#31D880] text-ink hover:bg-[#2bc473]" : "bg-ink text-white hover:bg-ink/90"
@@ -105,7 +129,7 @@ export const ActiveWalkSheet = ({ activeRequest }: ActiveWalkSheetProps) => {
         >
           {status === 'accepted' && 'Iniciar deslocamento'}
           {status === 'heading_to_pickup' && 'Cheguei ao local'}
-          {status === 'arrived' && 'Iniciar passeio'}
+          {status === 'arrived' && 'Validar PIN'}
           {status === 'in_progress' && 'Gerenciar Passeio'}
         </Button>
       </div>
