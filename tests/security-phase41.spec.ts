@@ -278,13 +278,20 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       if (sessErr) throw new Error(`Session creation failed: ${sessErr.message}`);
 
       const walkerClient = ownerClient;
-      await walkerClient.rpc('petwalker_start_heading', { _session_id: session.id });
-      await walkerClient.rpc('petwalker_arrive_pickup', { 
+      
+      // Espera um pouco para garantir que as triggers de perfil e role foram processadas (mesmo sendo upsert síncrono no teste, o RPC pode ler um estado ligeiramente atrasado se houver cache)
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const { error: startErr } = await walkerClient.rpc('petwalker_start_heading', { _session_id: session.id });
+      if (startErr) throw new Error(`Start heading failed: ${startErr.message}`);
+      
+      const { error: arriveErr } = await walkerClient.rpc('petwalker_arrive_pickup', { 
         _session_id: session.id, 
         _lat: -23.5505, 
         _lng: -46.6333, 
         _accuracy: 10 
       });
+      if (arriveErr) throw new Error(`Arrive pickup failed: ${arriveErr.message}`);
 
       const { data: pin, error: pinFetchErr } = await ownerClient.rpc('customer_get_pickup_code', { _session_id: session.id });
       if (pinFetchErr) throw new Error(`PIN fetch failed: ${pinFetchErr.message}`);
