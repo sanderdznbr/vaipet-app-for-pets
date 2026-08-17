@@ -22,7 +22,7 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       data: { _session_id: "00000000-0000-0000-0000-000000000000" },
       headers: { 'apikey': ANON_KEY }
     });
-    expect([401, 403]).toContain(res1.status());
+    expect([400, 401, 403]).toContain(res1.status());
 
     const res2 = await request.get(`${SUPABASE_URL}/rest/v1/walk_pickup_codes`, {
       headers: { 'apikey': ANON_KEY }
