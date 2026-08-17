@@ -40,17 +40,21 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
     const ownerId = uData.user!.id;
 
     try {
-      // Usar uma consulta SQL direta via admin.rpc('exec_sql') se disponível, 
-      // ou apenas omitir colunas problemáticas se possível.
-      // O erro PGRST204 indica que o PostgREST não viu a coluna.
       const { data: pet, error: petErr } = await admin.from("pets").insert({ 
           owner_id: ownerId, name: "SecPet", breed: "SRD"
       }).select().single();
       if (petErr) { log(`PET_CREATE_ERROR: ${JSON.stringify(petErr)}`); throw petErr; }
       
       const { data: session, error: sessErr } = await admin.from("walk_sessions").insert({
-        customer_id: ownerId, pet_id: pet.id, current_status: "accepted", status: "accepted",
-        walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId,
+        customer_id: ownerId, 
+        pet_id: pet.id, 
+        current_status: "accepted", 
+        status: "accepted",
+        walk_type: "individual", 
+        planned_duration_minutes: 30, 
+        request_mode: "now", 
+        e2e_run_id: runId,
+        start_time: new Date().toISOString(),
         meeting_point_geom: `SRID=4326;POINT(0 0)`
       }).select().single();
       if (sessErr) { log(`SESS_CREATE_ERROR: ${JSON.stringify(sessErr)}`); throw sessErr; }
@@ -95,7 +99,11 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
         pet_id: pet.id,
         current_status: "accepted",
         status: "accepted",
-        walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId,
+        walk_type: "individual", 
+        planned_duration_minutes: 30, 
+        request_mode: "now", 
+        e2e_run_id: runId,
+        start_time: new Date().toISOString(),
         meeting_point_geom: `SRID=4326;POINT(0 0)`
       }).select().single();
       if (sessErr) { log(`SESS_CREATE_ERROR: ${JSON.stringify(sessErr)}`); throw sessErr; }
@@ -140,8 +148,16 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
        if (petErr) { log(`PET_CREATE_ERROR: ${JSON.stringify(petErr)}`); throw petErr; }
 
        const { data: session, error: sessErr } = await admin.from("walk_sessions").insert({
-         customer_id: uid, walker_id: uid, pet_id: pet.id, current_status: "accepted", status: "accepted",
-         walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId,
+         customer_id: uid, 
+         walker_id: uid, 
+         pet_id: pet.id, 
+         current_status: "accepted", 
+         status: "accepted",
+         walk_type: "individual", 
+         planned_duration_minutes: 30, 
+         request_mode: "now", 
+         e2e_run_id: runId,
+         start_time: new Date().toISOString(),
          meeting_point_geom: `SRID=4326;POINT(0 0)`
        }).select().single();
        if (sessErr) { log(`SESS_CREATE_ERROR: ${JSON.stringify(sessErr)}`); throw sessErr; }
