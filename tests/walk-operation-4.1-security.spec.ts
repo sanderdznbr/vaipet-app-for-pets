@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
-import { createAuthedContext } from './helpers/auth';
 import { failClosedCleanup } from './helpers/cleanup';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
@@ -59,14 +58,10 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       e2e_test: true
     }).select().single();
     
-    if (petErr) {
-      console.error('[beforeAll] Erro ao criar pet:', petErr);
-      throw petErr;
-    }
+    if (petErr) throw petErr;
     petId = pet!.id;
 
-
-    const { data: walk } = await supabaseAdmin.from('walk_sessions').insert({
+    const { data: walk, error: walkErr } = await supabaseAdmin.from('walk_sessions').insert({
       customer_id: ownerId,
       walker_id: walkerId,
       pet_id: petId,
@@ -79,6 +74,8 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       e2e_test: true,
       e2e_run_id: E2E_RUN_ID
     }).select().single();
+    
+    if (walkErr) throw walkErr;
     sessionId = walk!.id;
   });
 
@@ -95,7 +92,6 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
   });
 
   test('Other walker cannot access PIN or update status', async () => {
-    // Sign in as Other Walker
     const { data: authData } = await supabaseAdmin.auth.signInWithPassword({
       email: TEST_OTHER,
       password: TEST_PASS
@@ -104,11 +100,9 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       global: { headers: { Authorization: `Bearer ${authData.session?.access_token}` } }
     });
 
-    // 1. Cannot get PIN
-    const { data: pin, error: pinErr } = await supabaseOther.rpc('customer_get_pickup_code', { _session_id: sessionId });
+    const { data: pin } = await supabaseOther.rpc('customer_get_pickup_code', { _session_id: sessionId });
     expect(pin).toBeNull();
 
-    // 2. Cannot arrive
     const { error: arriveErr } = await supabaseOther.rpc('petwalker_arrive_pickup', {
       _session_id: sessionId,
       _lat: -23.5505,
@@ -127,10 +121,8 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       global: { headers: { Authorization: `Bearer ${authData.session?.access_token}` } }
     });
 
-    // 1. Move to heading_to_pickup
     await supabaseAdmin.from('walk_sessions').update({ current_status: 'heading_to_pickup' }).eq('id', sessionId);
 
-    // 2. Distant GPS fails (Proximity validation)
     const { error: distErr } = await supabaseWalker.rpc('petwalker_arrive_pickup', {
       _session_id: sessionId,
       _lat: 0,
@@ -139,7 +131,6 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
     });
     expect(distErr?.message).toMatch(/Walker muito distante/i);
 
-    // 3. Low accuracy fails
     const { error: accErr } = await supabaseWalker.rpc('petwalker_arrive_pickup', {
       _session_id: sessionId,
       _lat: -23.5505,
@@ -158,14 +149,11 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       global: { headers: { Authorization: `Bearer ${authData.session?.access_token}` } }
     });
 
-    // Ensure status is arrived
     await supabaseAdmin.from('walk_sessions').update({ current_status: 'arrived' }).eq('id', sessionId);
 
-    // 1. Format check
     const { error: fmtErr } = await supabaseWalker.rpc('petwalker_confirm_pickup', { _session_id: sessionId, _pickup_code: '123' });
     expect(fmtErr?.message).toMatch(/PIN deve ter exatamente 6 dígitos/i);
 
-    // 2. Wrong PIN increments attempts
     for (let i = 1; i <= 5; i++) {
       const { data: res } = await supabaseWalker.rpc('petwalker_confirm_pickup', { _session_id: sessionId, _pickup_code: '000000' });
       expect(res).toBe(false);
@@ -174,7 +162,6 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       expect(attempts?.attempts).toBe(i);
     }
 
-    // 3. 6th attempt is blocked
     const { error: blockErr } = await supabaseWalker.rpc('petwalker_confirm_pickup', { _session_id: sessionId, _pickup_code: '000000' });
     expect(blockErr?.message).toMatch(/bloqueado por excesso de tentativas/i);
   });
