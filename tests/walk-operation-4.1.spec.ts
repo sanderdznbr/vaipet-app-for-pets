@@ -90,7 +90,7 @@ test.describe('Phase 4.1: Walk Operation (Pickup PIN)', () => {
     petId = pet[0].id;
 
     // Create Accepted Walk Session (Pre-condition)
-    const { data: session } = await admin.from('walk_sessions').insert({
+    const { data: session, error: sessErr } = await admin.from('walk_sessions').insert({
       customer_id: ownerId,
       walker_id: walkerId,
       pet_id: petId,
@@ -100,8 +100,11 @@ test.describe('Phase 4.1: Walk Operation (Pickup PIN)', () => {
       meeting_point_address: 'Rua Teste, 123',
       home_location: { lng: -46.6333, lat: -23.5505 },
       meeting_point_geom: 'SRID=4326;POINT(-46.6333 -23.5505)'
-    }).select().single();
-    sessionId = session.id;
+    }).select();
+    
+    if (sessErr) throw new Error(`[SETUP] Failed to create walk session: ${sessErr.message}`);
+    if (!session || session.length === 0) throw new Error(`[SETUP] Walk session creation returned empty data`);
+    sessionId = session[0].id;
   });
 
   test.afterAll(async () => {
