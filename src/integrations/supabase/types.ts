@@ -244,6 +244,7 @@ export type Database = {
           behavioral_notes: string | null
           breed: string
           created_at: string | null
+          e2e_test: boolean | null
           emergency_contact: string | null
           gender: string | null
           id: string
@@ -260,6 +261,7 @@ export type Database = {
           behavioral_notes?: string | null
           breed: string
           created_at?: string | null
+          e2e_test?: boolean | null
           emergency_contact?: string | null
           gender?: string | null
           id?: string
@@ -276,6 +278,7 @@ export type Database = {
           behavioral_notes?: string | null
           breed?: string
           created_at?: string | null
+          e2e_test?: boolean | null
           emergency_contact?: string | null
           gender?: string | null
           id?: string
@@ -937,6 +940,8 @@ export type Database = {
           current_status: Database["public"]["Enums"]["walk_status"]
           customer_id: string
           distance_km: number | null
+          e2e_run_id: string | null
+          e2e_test: boolean | null
           end_time: string | null
           feedback: string | null
           heading_started_at: string | null
@@ -979,6 +984,8 @@ export type Database = {
           current_status?: Database["public"]["Enums"]["walk_status"]
           customer_id: string
           distance_km?: number | null
+          e2e_run_id?: string | null
+          e2e_test?: boolean | null
           end_time?: string | null
           feedback?: string | null
           heading_started_at?: string | null
@@ -1021,6 +1028,8 @@ export type Database = {
           current_status?: Database["public"]["Enums"]["walk_status"]
           customer_id?: string
           distance_km?: number | null
+          e2e_run_id?: string | null
+          e2e_test?: boolean | null
           end_time?: string | null
           feedback?: string | null
           heading_started_at?: string | null
@@ -1599,26 +1608,15 @@ export type Database = {
       }
       is_beta_petwalker: { Args: { _user_id: string }; Returns: boolean }
       longtransactionsenabled: { Args: never; Returns: boolean }
-      petwalker_arrive_pickup:
-        | { Args: { _session_id: string }; Returns: boolean }
-        | {
-            Args: {
-              _accuracy?: number
-              _lat: number
-              _lng: number
-              _session_id: string
-            }
-            Returns: boolean
-          }
-        | {
-            Args: {
-              _accuracy: number
-              _lat: number
-              _lng: number
-              _session_id: string
-            }
-            Returns: boolean
-          }
+      petwalker_arrive_pickup: {
+        Args: {
+          _accuracy?: number
+          _lat: number
+          _lng: number
+          _session_id: string
+        }
+        Returns: boolean
+      }
       petwalker_complete_walk: {
         Args: { _session_id: string }
         Returns: boolean
@@ -1631,7 +1629,6 @@ export type Database = {
         Args: { _session_id: string }
         Returns: boolean
       }
-      petwalker_start_walk: { Args: { _session_id: string }; Returns: boolean }
       populate_geometry_columns:
         | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }
         | { Args: { use_typmod?: boolean }; Returns: string }

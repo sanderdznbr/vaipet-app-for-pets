@@ -4,22 +4,166 @@ import { failClosedCleanup } from './helpers/cleanup';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const supabaseAnon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const E2E_RUN_ID = `4.1-sec-${Date.now()}`;
+const TEST_OWNER = `owner-sec-${E2E_RUN_ID}@example.com`;
+const TEST_WALKER = `walker-sec-${E2E_RUN_ID}@example.com`;
+const TEST_OTHER = `other-sec-${E2E_RUN_ID}@example.com`;
+const TEST_PASS = 'VaiPet@2026';
 
-test.describe('Phase 4.1: Security/Zero-Trust Validation', () => {
-  test.afterAll(async () => {
-    await failClosedCleanup(E2E_RUN_ID);
+test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
+  let ownerId: string;
+  let walkerId: string;
+  let otherId: string;
+  let sessionId: string;
+  let petId: string;
+
+  test.beforeAll(async () => {
+    const users = await Promise.all([
+      supabaseAdmin.auth.admin.createUser({ email: TEST_OWNER, password: TEST_PASS, email_confirm: true, user_metadata: { signup_intent: 'pet_owner', e2e_test: true, e2e_run_id: E2E_RUN_ID } }),
+      supabaseAdmin.auth.admin.createUser({ email: TEST_WALKER, password: TEST_PASS, email_confirm: true, user_metadata: { signup_intent: 'petwalker', e2e_test: true, e2e_run_id: E2E_RUN_ID } }),
+      supabaseAdmin.auth.admin.createUser({ email: TEST_OTHER, password: TEST_PASS, email_confirm: true, user_metadata: { signup_intent: 'petwalker', e2e_test: true, e2e_run_id: E2E_RUN_ID } })
+    ]);
+
+    ownerId = users[0].data.user!.id;
+    walkerId = users[1].data.user!.id;
+    otherId = users[2].data.user!.id;
+
+    await supabaseAdmin.from('profiles').upsert([
+      { id: ownerId, onboarding_completed: true, e2e_test: true },
+      { id: walkerId, onboarding_completed: true, e2e_test: true },
+      { id: otherId, onboarding_completed: true, e2e_test: true }
+    ]);
+
+    await supabaseAdmin.from('user_roles').insert([
+      { user_id: ownerId, role: 'user' },
+      { user_id: walkerId, role: 'petwalker' },
+      { user_id: otherId, role: 'petwalker' }
+    ]);
+
+    await supabaseAdmin.from('petwalker_profiles').insert([
+      { user_id: walkerId, status: 'active', is_online: true, e2e_test: true },
+      { user_id: otherId, status: 'active', is_online: true, e2e_test: true }
+    ]);
+
+    const { data: pet } = await supabaseAdmin.from('pets').insert({
+      owner_id: ownerId,
+      name: `Security Rex`,
+      breed: 'Vira-lata',
+      weight: 10,
+      e2e_test: true
+    }).select().single();
+    petId = pet!.id;
+
+    const { data: walk } = await supabaseAdmin.from('walk_sessions').insert({
+      customer_id: ownerId,
+      walker_id: walkerId,
+      pet_id: petId,
+      current_status: 'accepted',
+      status: 'accepted',
+      planned_duration_minutes: 30,
+      total_price_cents: 4500,
+      home_location: { lat: -23.5505, lng: -46.6333 },
+      walk_type: 'livre',
+      request_mode: 'now',
+      start_time: new Date().toISOString(),
+      e2e_test: true,
+      e2e_run_id: E2E_RUN_ID
+    }).select().single();
+    sessionId = walk!.id;
   });
 
-  test('RPC petwalker_confirm_pickup should be secure for anon', async () => {
-    const { data, error } = await supabaseAnon.rpc('petwalker_confirm_pickup', {
-      _session_id: '00000000-0000-0000-0000-000000000000',
+  test.afterAll(async () => {
+    try {
+      await failClosedCleanup(supabaseAdmin, [ownerId, walkerId, otherId], E2E_RUN_ID);
+    } catch (e) {
+      console.warn('Cleanup warning:', e.message);
+    }
+  });
+
+  test('Public/Anon access should be revoked', async () => {
+    const { error } = await supabaseAnon.rpc('petwalker_confirm_pickup', {
+      _session_id: sessionId,
       _pickup_code: '123456'
     });
-    // Expected to fail because of REVOKE ALL from PUBLIC/anon
-    expect(error).toBeDefined();
-    console.log(`[SEC] Expected error: ${error?.message}`);
+    expect(error?.message).toMatch(/permission denied|does not exist/i);
+  });
+
+  test('Other walker cannot access PIN or update status', async () => {
+    const { data: authData } = await supabaseAdmin.auth.signInWithPassword({ email: TEST_OTHER, password: TEST_PASS });
+    const supabaseOther = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: `Bearer ${authData.session?.access_token}` } }
+    });
+
+    const { data: pin } = await supabaseOther.rpc('customer_get_pickup_code', { _session_id: sessionId });
+    expect(pin).toBeNull();
+
+    const { error: arriveErr } = await supabaseOther.rpc('petwalker_arrive_pickup', {
+      _session_id: sessionId,
+      _lat: -23.5505,
+      _lng: -46.6333,
+      _accuracy: 10
+    });
+    expect(arriveErr?.message).toMatch(/Acesso negado/i);
+  });
+
+  test('GPS validation hardening', async () => {
+    const { data: authData } = await supabaseAdmin.auth.signInWithPassword({ email: TEST_WALKER, password: TEST_PASS });
+    const supabaseWalker = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: `Bearer ${authData.session?.access_token}` } }
+    });
+
+    await supabaseAdmin.from('walk_sessions').update({ current_status: 'accepted', status: 'accepted' }).eq('id', sessionId);
+    const { error: startErr } = await supabaseWalker.rpc('petwalker_start_heading', { _session_id: sessionId });
+    if (startErr) throw startErr;
+
+    const { error: distErr } = await supabaseWalker.rpc('petwalker_arrive_pickup', {
+      _session_id: sessionId,
+      _lat: -23.0,
+      _lng: -46.0,
+      _accuracy: 10
+    });
+    expect(distErr?.message).toMatch(/muito longe/i);
+
+    const { error: accErr } = await supabaseWalker.rpc('petwalker_arrive_pickup', {
+      _session_id: sessionId,
+      _lat: -23.5505,
+      _lng: -46.6333,
+      _accuracy: 250
+    });
+    expect(accErr?.message).toMatch(/Precisão de GPS insuficiente/i);
+  });
+
+  test('PIN Lifecycle: Attempts, Format, and Blocking', async () => {
+    const { data: ownerAuth } = await supabaseAdmin.auth.signInWithPassword({ email: TEST_OWNER, password: TEST_PASS });
+    const supabaseOwner = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: `Bearer ${ownerAuth.session?.access_token}` } }
+    });
+
+    const { data: walkerAuth } = await supabaseAdmin.auth.signInWithPassword({ email: TEST_WALKER, password: TEST_PASS });
+    const supabaseWalker = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: `Bearer ${walkerAuth.session?.access_token}` } }
+    });
+
+    await supabaseAdmin.from('walk_sessions').update({ current_status: 'heading_to_pickup', status: 'heading_to_pickup' }).eq('id', sessionId);
+    const { data: generatedPin } = await supabaseOwner.rpc('customer_get_pickup_code', { _session_id: sessionId });
+    expect(generatedPin).toMatch(/^[0-9]{6}$/);
+
+    await supabaseAdmin.from('walk_sessions').update({ current_status: 'arrived', status: 'arrived' }).eq('id', sessionId);
+
+    const { error: fmtErr } = await supabaseWalker.rpc('petwalker_confirm_pickup', { _session_id: sessionId, _pickup_code: '123' });
+    expect(fmtErr?.message).toMatch(/PIN deve ter exatamente 6 dígitos numéricos/i);
+
+    for (let i = 1; i <= 5; i++) {
+      const { data: res } = await supabaseWalker.rpc('petwalker_confirm_pickup', { _session_id: sessionId, _pickup_code: '000000' });
+      expect(res).toBe(false);
+    }
+
+    const { error: blockErr } = await supabaseWalker.rpc('petwalker_confirm_pickup', { _session_id: sessionId, _pickup_code: '000000' });
+    expect(blockErr?.message).toMatch(/bloqueado devido a excesso de tentativas/i);
   });
 });
