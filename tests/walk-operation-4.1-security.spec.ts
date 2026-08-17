@@ -61,8 +61,8 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
     if (roleErr) throw roleErr;
 
     const { error: walkerErr } = await adminClient.from('petwalker_profiles').upsert([
-      { user_id: walkerId, status: 'active', is_online: true, e2e_test: true },
-      { user_id: otherId, status: 'active', is_online: true, e2e_test: true }
+      { user_id: walkerId, approval_status: 'approved', availability_status: 'available', e2e_test: true },
+      { user_id: otherId, approval_status: 'approved', availability_status: 'available', e2e_test: true }
     ]);
     if (walkerErr) throw walkerErr;
 
