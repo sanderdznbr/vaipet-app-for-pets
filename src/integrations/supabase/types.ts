@@ -1600,10 +1600,9 @@ export type Database = {
       is_beta_petwalker: { Args: { _user_id: string }; Returns: boolean }
       longtransactionsenabled: { Args: never; Returns: boolean }
       petwalker_arrive_pickup:
-        | { Args: { _session_id: string }; Returns: boolean }
         | {
             Args: {
-              _accuracy?: number
+              _accuracy: number
               _lat: number
               _lng: number
               _session_id: string
