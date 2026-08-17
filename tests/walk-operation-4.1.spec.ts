@@ -82,7 +82,7 @@ test.describe('Phase 4.1: Walk Operation (Pickup PIN)', () => {
       owner_id: ownerId,
       name: 'TestDog',
       breed: 'E2E',
-      weight_kg: 10
+      weight: 10
     }).select();
     
     if (petErr) throw new Error(`[SETUP] Failed to create pet: \${petErr.message}`);
