@@ -1610,7 +1610,7 @@ export type Database = {
       longtransactionsenabled: { Args: never; Returns: boolean }
       petwalker_arrive_pickup: {
         Args: {
-          _accuracy: number
+          _accuracy?: number
           _lat: number
           _lng: number
           _session_id: string
