@@ -83,9 +83,11 @@ test.describe('Phase 4.1: Walk Operation (Pickup PIN)', () => {
       name: 'TestDog',
       breed: 'E2E',
       weight_kg: 10
-    }).select().single();
-    if (petErr) throw new Error(`[SETUP] Failed to create pet: ${petErr.message}`);
-    petId = pet.id;
+    }).select();
+    
+    if (petErr) throw new Error(`[SETUP] Failed to create pet: \${petErr.message}`);
+    if (!pet || pet.length === 0) throw new Error(`[SETUP] Pet creation returned empty data`);
+    petId = pet[0].id;
 
     // Create Accepted Walk Session (Pre-condition)
     const { data: session } = await admin.from('walk_sessions').insert({
