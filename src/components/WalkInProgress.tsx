@@ -2143,7 +2143,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
 
 
   const handleConfirmCode = async () => {
-    if (codeInput.length !== 6 || codeInput === '000000') {
+    if (codeInput.length !== 6) {
       setCodeError(true);
       setTimeout(() => setCodeError(false), 800);
       return;
