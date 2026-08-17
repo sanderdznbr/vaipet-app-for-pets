@@ -149,7 +149,7 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       log("Validação de Expiração: PASS");
 
     } finally {
-      await failClosedCleanup(admin, [owner.id], runId);
+      await failClosedCleanup(admin, [owner.id, walker.id], runId);
     }
   });
 
