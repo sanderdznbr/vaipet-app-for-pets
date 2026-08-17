@@ -128,7 +128,9 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       global: { headers: { Authorization: `Bearer ${authData.session?.access_token}` } }
     });
 
-    await supabaseAdmin.from('walk_sessions').update({ current_status: 'heading_to_pickup' }).eq('id', sessionId);
+    const { error: updErr } = await supabaseAdmin.from('walk_sessions').update({ current_status: 'heading_to_pickup' }).eq('id', sessionId);
+    if (updErr) throw updErr;
+
 
     const { error: distErr } = await supabaseWalker.rpc('petwalker_arrive_pickup', {
       _session_id: sessionId,
@@ -156,7 +158,17 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       global: { headers: { Authorization: `Bearer ${authData.session?.access_token}` } }
     });
 
-    await supabaseAdmin.from('walk_sessions').update({ current_status: 'arrived' }).eq('id', sessionId);
+    const { error: updErr2 } = await supabaseAdmin.from('walk_sessions').update({ current_status: 'arrived' }).eq('id', sessionId);
+    if (updErr2) throw updErr2;
+
+    // Create PIN manually for testing attempts
+    await supabaseAdmin.from('walk_pickup_codes').upsert({
+      session_id: sessionId,
+      pickup_code: '123456',
+      attempts: 0,
+      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    });
+
 
     const { error: fmtErr } = await supabaseWalker.rpc('petwalker_confirm_pickup', { _session_id: sessionId, _pickup_code: '123' });
     expect(fmtErr?.message).toMatch(/PIN deve ter exatamente 6 dígitos/i);
