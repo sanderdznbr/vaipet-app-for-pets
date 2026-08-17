@@ -111,15 +111,15 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     console.log('[STEP 1] Walker starting displacement');
     await walkerPage.goto(`/petwalker/passeio/${walk.id}`);
     
-    // Bypass onboarding manually if visible
-    if (await walkerPage.isVisible('text=Sobre você')) {
+    // Bypass onboarding manually if visible - using input[type="tel"] directly
+    if (await walkerPage.isVisible('input[type="tel"]')) {
       console.log('[WARNING] Manual onboarding bypass for walker');
       await walkerPage.fill('input[type="tel"]', '11888888888');
       await walkerPage.fill('input[placeholder="Dia"]', '01');
       await walkerPage.fill('input[placeholder="Mês"]', '01');
       await walkerPage.fill('input[placeholder="Ano"]', '1990');
       await walkerPage.click('text=Continuar');
-      await expect(walkerPage.locator('text=Sobre você')).not.toBeVisible({ timeout: 10000 });
+      await expect(walkerPage.locator('input[type="tel"]')).not.toBeVisible({ timeout: 10000 });
     }
 
     const headingBtn = walkerPage.locator('text=Iniciar Deslocamento');
@@ -139,14 +139,14 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     await ownerPage.goto(`/petwalker/passeio/${walk.id}`);
     
     // Bypass onboarding manually if visible
-    if (await ownerPage.isVisible('text=Sobre você')) {
+    if (await ownerPage.isVisible('input[type="tel"]')) {
       console.log('[WARNING] Manual onboarding bypass for owner');
       await ownerPage.fill('input[type="tel"]', '11999999999');
       await ownerPage.fill('input[placeholder="Dia"]', '01');
       await ownerPage.fill('input[placeholder="Mês"]', '01');
       await ownerPage.fill('input[placeholder="Ano"]', '1990');
       await ownerPage.click('text=Continuar');
-      await expect(ownerPage.locator('text=Sobre você')).not.toBeVisible({ timeout: 10000 });
+      await expect(ownerPage.locator('input[type="tel"]')).not.toBeVisible({ timeout: 10000 });
     }
 
     const pinLocator = ownerPage.locator('span:has-text("PIN") + span, .text-accent');
