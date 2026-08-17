@@ -56,9 +56,10 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       owner_id: ownerId,
       name: `Security Rex`,
       breed: 'Vira-lata',
-      weight_kg: 10,
+      weight: 10,
       e2e_test: true
     }).select().single();
+
 
     
     if (petErr) throw petErr;

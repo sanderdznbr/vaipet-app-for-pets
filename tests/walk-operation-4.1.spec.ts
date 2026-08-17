@@ -67,9 +67,10 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       owner_id: ownerId,
       name: `E2E Rex ${E2E_RUN_ID}`,
       breed: 'Vira-lata',
-      weight_kg: 10,
+      weight: 10,
       e2e_test: true
     }).select().single();
+
 
     if (petErr) throw petErr;
 
