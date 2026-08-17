@@ -66,8 +66,11 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     const { data: pet, error: petErr } = await supabase.from('pets').insert({
       owner_id: ownerId,
       name: `E2E Rex ${E2E_RUN_ID}`,
+      breed: 'Vira-lata',
+      weight_kg: 10,
       e2e_test: true
     }).select().single();
+
     if (petErr) throw petErr;
 
     // 3. Criar Sessão em status 'accepted'

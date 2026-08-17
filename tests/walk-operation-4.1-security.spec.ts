@@ -55,8 +55,11 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
     const { data: pet, error: petErr } = await supabaseAdmin.from('pets').insert({
       owner_id: ownerId,
       name: `Security Rex`,
+      breed: 'Vira-lata',
+      weight_kg: 10,
       e2e_test: true
     }).select().single();
+
     
     if (petErr) throw petErr;
     petId = pet!.id;
