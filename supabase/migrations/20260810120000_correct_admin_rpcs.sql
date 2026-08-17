@@ -47,6 +47,7 @@ END;
 $$;
 
 -- 3. Redefine get_petwalker_application_admin
+DROP FUNCTION IF EXISTS public.get_petwalker_application_admin(uuid);
 CREATE OR REPLACE FUNCTION public.get_petwalker_application_admin(_application_id uuid)
 RETURNS TABLE (
     id uuid,
