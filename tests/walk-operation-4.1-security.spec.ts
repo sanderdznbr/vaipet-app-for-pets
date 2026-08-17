@@ -50,14 +50,14 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
     ]);
     if (profErr) throw profErr;
 
-    const { error: roleErr } = await adminClient.from('user_roles').insert([
+    const { error: roleErr } = await adminClient.from('user_roles').upsert([
       { user_id: ownerId, role: 'user' },
       { user_id: walkerId, role: 'petwalker' },
       { user_id: otherId, role: 'petwalker' }
     ]);
     if (roleErr) throw roleErr;
 
-    const { error: walkerErr } = await adminClient.from('petwalker_profiles').insert([
+    const { error: walkerErr } = await adminClient.from('petwalker_profiles').upsert([
       { user_id: walkerId, status: 'active', is_online: true, e2e_test: true },
       { user_id: otherId, status: 'active', is_online: true, e2e_test: true }
     ]);
