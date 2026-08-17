@@ -53,12 +53,18 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       { user_id: otherId, status: 'active', is_online: true, e2e_test: true }
     ]);
 
-    const { data: pet } = await supabaseAdmin.from('pets').insert({
+    const { data: pet, error: petErr } = await supabaseAdmin.from('pets').insert({
       owner_id: ownerId,
       name: `Security Rex`,
       e2e_test: true
     }).select().single();
+    
+    if (petErr) {
+      console.error('[beforeAll] Erro ao criar pet:', petErr);
+      throw petErr;
+    }
     petId = pet!.id;
+
 
     const { data: walk } = await supabaseAdmin.from('walk_sessions').insert({
       customer_id: ownerId,
