@@ -245,26 +245,54 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     await expect(walkerPage.locator('[data-testid="walk-in-progress-marker"]')).toBeVisible();
 
     // Tentar confirmar PIN novamente (Replay)
-    const { data: { session: walkerSession } } = await supabase.auth.signInWithPassword({ email: TEST_WALKER, password: TEST_PASS });
-    const walkerAuthClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-    await walkerAuthClient.auth.setSession(walkerSession!);
-    
-    const { error: replayErr } = await walkerAuthClient.rpc('petwalker_confirm_pickup', { session_id: sessionId, pin_code: pin });
-    // Replay deve falhar (PIN consumido)
-    expect(replayErr).toBeDefined();
+    const walkerAuthClient = createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY,
+      { auth: { persistSession: false } }
+    );
 
-    const { data: auditPostReplay } = await supabase.from('walk_sessions')
+    const { data: replayLoginData, error: replayLoginErr } = await walkerAuthClient.auth.signInWithPassword({
+      email: TEST_WALKER,
+      password: TEST_PASS
+    });
+
+    if (replayLoginErr) {
+      throw new Error(`Replay walker login failed: ${replayLoginErr.message}`);
+    }
+    if (!replayLoginData.session) {
+      throw new Error('Replay walker login returned no session');
+    }
+    
+    const { data: replayData, error: replayErr } = await walkerAuthClient.rpc(
+      'petwalker_confirm_pickup',
+      { 
+        walk_id: sessionId,
+        input_pin: pin
+      }
+    );
+
+    // Replay deve falhar (PIN consumido)
+    expect(replayData).not.toBe(true);
+    expect(replayErr).not.toBeNull();
+
+    const { data: auditPostReplay, error: auditPostReplayErr } = await supabase.from('walk_sessions')
         .select('status, current_status, walker_id')
         .eq('id', sessionId)
         .single();
+    
+    if (auditPostReplayErr) {
+      throw new Error(`Audit post-replay failed: ${auditPostReplayErr.message}`);
+    }
     
     expect(auditPostReplay?.status).toBe('in_progress');
     expect(auditPostReplay?.current_status).toBe('in_progress');
     expect(auditPostReplay?.walker_id).toBe(walkerId);
 
     const { data: pins, error: finalPinErr } = await supabase.from('walk_pickup_codes').select('session_id').eq('session_id', sessionId);
-    if (finalPinErr && finalPinErr.code !== '42501') throw new Error(`Final PIN count failed: ${finalPinErr.message}`);
-    expect(pins?.length || 0).toBe(0);
+    if (finalPinErr) {
+      throw new Error(`Final PIN audit failed: ${finalPinErr.message}`);
+    }
+    expect(pins).toHaveLength(0);
 
 
 
