@@ -76,7 +76,9 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       total_price_cents: 4500,
       home_location: { lat: -23.5505, lng: -46.6333 },
       walk_type: 'now',
+      start_time: new Date().toISOString(),
       e2e_test: true,
+
       e2e_run_id: E2E_RUN_ID
     }).select().single();
     
