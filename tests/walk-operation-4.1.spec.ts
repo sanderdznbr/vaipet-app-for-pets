@@ -96,9 +96,13 @@ test("Phase 4.1: displacement and secure PIN pickup flow", async ({ browser }) =
     
     // Check if pet selection card is already there
     const petCard = ownerPage.getByTestId("pet-selection-card").first();
-    if (!(await petCard.isVisible())) {
-      await ownerPage.click('button:has-text("Passeio")', { timeout: 15000 });
-      await ownerPage.click('button:has-text("Agora")', { timeout: 10000 });
+    const walkBtn = ownerPage.getByRole("button", { name: 'Passeio', exact: true });
+    
+    if (await walkBtn.isVisible()) {
+      await walkBtn.click();
+      await ownerPage.waitForTimeout(1000); // Aguarda animação do bottom sheet
+      const agoraBtn = ownerPage.getByRole("button", { name: /Agora/i });
+      await agoraBtn.click({ timeout: 15000 });
     }
 
     await petCard.click({ timeout: 20000 });
