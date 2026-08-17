@@ -1,5 +1,4 @@
 import { test, expect, BrowserContext, Page } from '@playwright/test';
-import { createAuthedContext } from './helpers/auth';
 import { failClosedCleanup } from './helpers/cleanup';
 import { createClient } from '@supabase/supabase-js';
 
