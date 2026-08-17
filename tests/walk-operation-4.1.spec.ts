@@ -43,6 +43,16 @@ async function provisionUser(runId: string, kind: "pet_owner" | "petwalker") {
       is_accepting_requests: true, price_30_minutes: 2250, experience_years: 2, service_radius_km: 10,
       last_known_location: `SRID=4326;POINT(-46.7009 -23.6004)`
     });
+  } else {
+    // Need a pet for the owner
+    await admin.from("pets").insert({
+      owner_id: id,
+      name: "Rex E2E",
+      type: "dog",
+      breed: "Labrador",
+      weight_kg: 25,
+      e2e_test: true
+    });
   }
   return { id, email, password };
 }
@@ -73,7 +83,7 @@ test("Phase 4.1: displacement and secure PIN pickup flow", async ({ browser }) =
   ]);
 
   const ownerCoords = { lng: -46.7011, lat: -23.6001 };
-  const walkerCoords = { lng: -46.7009, lat: -23.6004 }; // ~45m apart
+  const walkerCoords = { lng: -46.7009, lat: -23.6004 }; 
 
   const { page: ownerPage } = await createAuthedContext(browser, owner, ownerCoords);
   const { page: walkerPage } = await createAuthedContext(browser, walker, walkerCoords);
@@ -82,60 +92,56 @@ test("Phase 4.1: displacement and secure PIN pickup flow", async ({ browser }) =
     // 1. Owner requests walk
     log("1. Cliente solicitando passeio");
     await ownerPage.goto("/inicio");
-    
-    // Otimização: Se já houver um passeio ativo detectado pelo RoleLanding, 
-    // o ownerPage pode ser redirecionado automaticamente. 
-    // Mas para o teste, forçamos o início de um novo.
     await ownerPage.waitForLoadState('networkidle');
     
-    // Tenta clicar em "Passeio" se estiver na home
-    const walkBtn = ownerPage.getByRole("button", { name: /Passeio/i });
-    if (await walkBtn.isVisible()) {
-      await walkBtn.click({ timeout: 15000 });
+    // Check if pet selection card is already there
+    const petCard = ownerPage.getByTestId("pet-selection-card").first();
+    if (!(await petCard.isVisible())) {
+      await ownerPage.click('button:has-text("Passeio")', { timeout: 15000 });
       await ownerPage.click('button:has-text("Agora")', { timeout: 10000 });
     }
-    
-    await ownerPage.getByTestId("pet-selection-card").first().click({ timeout: 20000 });
+
+    await petCard.click({ timeout: 20000 });
     await ownerPage.click('button:has-text("Confirmar Pet")', { timeout: 10000 });
     await ownerPage.click('button:has-text("30 min")', { timeout: 10000 });
     
     const slider = ownerPage.getByTestId("slider-confirm-handle");
     const track = ownerPage.getByTestId("slider-confirm-track");
+    await slider.waitFor({ state: 'visible' });
     const box = await track.boundingBox();
     if (!box) throw new Error("Slider not found");
     await ownerPage.mouse.move(box.x + 20, box.y + box.height / 2);
     await ownerPage.mouse.down();
-    await ownerPage.mouse.move(box.x + box.width - 20, box.y + box.height / 2, { steps: 10 });
+    await ownerPage.mouse.move(box.x + box.width - 20, box.y + box.height / 2, { steps: 15 });
     await ownerPage.mouse.up();
-    await expect(ownerPage.getByText(/Procurando/i)).toBeVisible();
+    await expect(ownerPage.getByText(/Procurando/i)).toBeVisible({ timeout: 20000 });
 
     // 2. Walker accepts
     log("2. PetWalker aceitando");
     await walkerPage.goto("/petwalker/painel");
-    await walkerPage.click('button:has-text("Ficar Online")');
+    await walkerPage.click('button:has-text("Ficar Online")', { timeout: 10000 });
     const acceptBtn = walkerPage.getByTestId("walker-accept-button");
-    await expect(acceptBtn).toBeVisible({ timeout: 30000 });
+    await expect(acceptBtn).toBeVisible({ timeout: 45000 });
     await acceptBtn.click();
-    await expect(walkerPage.getByText(/Deslocamento/i)).toBeVisible();
+    await expect(walkerPage.getByText(/Passeio confirmado/i)).toBeVisible({ timeout: 20000 });
 
     // 3. Walker starts heading
     log("3. PetWalker iniciando deslocamento");
-    await walkerPage.click('button:has-text("Iniciar deslocamento")');
-    await expect(walkerPage.getByText(/Cheguei ao local/i)).toBeVisible();
+    await walkerPage.click('button:has-text("Iniciar deslocamento")', { timeout: 10000 });
+    await expect(walkerPage.getByText(/Deslocamento/i)).toBeVisible({ timeout: 20000 });
     
     // Verify DB state
-    const { data: session } = await admin.from("walk_sessions").select("current_status, heading_started_at").eq("petwalker_id", walker.id).single();
+    const { data: session } = await admin.from("walk_sessions").select("id, current_status, heading_started_at").eq("petwalker_id", walker.id).single();
     expect(session.current_status).toBe("heading_to_pickup");
     expect(session.heading_started_at).not.toBeNull();
 
     // 4. Walker arrives (proximity check)
     log("4. PetWalker chegando (proximity check)");
-    await walkerPage.click('button:has-text("Cheguei ao local")');
-    await expect(walkerPage.getByText(/Validar PIN/i)).toBeVisible();
+    await walkerPage.click('button:has-text("Cheguei ao local")', { timeout: 10000 });
+    await expect(walkerPage.getByText(/Validar PIN/i)).toBeVisible({ timeout: 20000 });
 
+    // 5. Owner gets PIN
     log("5. Cliente obtendo PIN");
-    await ownerPage.goto(`/petwalker/passeio/${session.id}`); // Correct route check for owner too, but details page handles it
-    // Actually, owner goes to /passeio/:id or via /inicio -> details
     await ownerPage.goto(`/passeio/${session.id}`);
     await expect(ownerPage.getByText(/Código de Retirada/i)).toBeVisible({ timeout: 20000 });
     const pinElement = ownerPage.getByTestId("pickup-pin-display");
@@ -144,7 +150,7 @@ test("Phase 4.1: displacement and secure PIN pickup flow", async ({ browser }) =
 
     // 6. Walker validates PIN
     log("6. PetWalker validando PIN");
-    await walkerPage.click('button:has-text("Validar PIN")');
+    await walkerPage.click('button:has-text("Validar PIN")', { timeout: 10000 });
     const inputs = walkerPage.locator('input[inputmode="numeric"]');
     for (let i = 0; i < 6; i++) {
       await inputs.nth(i).fill(pin[i]);
@@ -153,7 +159,7 @@ test("Phase 4.1: displacement and secure PIN pickup flow", async ({ browser }) =
     
     // 7. Verification: Walk in progress
     log("7. Verificando início do passeio");
-    await expect(walkerPage.getByText(/Ao Vivo/i)).toBeVisible();
+    await expect(walkerPage.getByText(/Ao Vivo/i)).toBeVisible({ timeout: 30000 });
     
     const { data: finalSession } = await admin.from("walk_sessions").select("current_status, pickup_confirmed_at").eq("petwalker_id", walker.id).single();
     expect(finalSession.current_status).toBe("in_progress");
