@@ -231,10 +231,11 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     expect(finalWalk?.current_status).toBe('in_progress');
     expect(finalWalk?.pickup_confirmed_at).not.toBeNull();
     expect(finalWalk?.start_time).not.toBeNull();
+    expect(new Date(finalWalk!.start_time).getTime()).not.toBe(0);
     expect(finalWalk?.walker_id).toBe(walkerId);
 
     // Verificar que walk_pickup_codes não possui mais registro
-    const { data: pinRecord, error: pinAuditErr } = await supabase.from('walk_pickup_codes').select('*').eq('session_id', sessionId).maybeSingle();
+    const { data: pinRecord, error: pinAuditErr } = await supabase.from('walk_pickup_codes').select('session_id').eq('session_id', sessionId).maybeSingle();
     if (pinAuditErr) throw new Error(`PIN cleanup audit failed: ${pinAuditErr.message}`);
     expect(pinRecord).toBeNull();
 
