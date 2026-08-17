@@ -46,6 +46,7 @@ REVOKE ALL ON public.walk_pickup_codes FROM PUBLIC, anon, authenticated;
 GRANT ALL ON public.walk_pickup_codes TO service_role;
 
 -- 3. Função customer_get_pickup_code serializada com FOR UPDATE
+DROP FUNCTION IF EXISTS public.customer_get_pickup_code(uuid);
 CREATE OR REPLACE FUNCTION public.customer_get_pickup_code(walk_id uuid)
 RETURNS text
 LANGUAGE plpgsql
@@ -113,6 +114,7 @@ END;
 $$;
 
 -- 4. Função petwalker_confirm_pickup robusta
+DROP FUNCTION IF EXISTS public.petwalker_confirm_pickup(uuid, text);
 CREATE OR REPLACE FUNCTION public.petwalker_confirm_pickup(walk_id uuid, input_pin text)
 RETURNS boolean
 LANGUAGE plpgsql
