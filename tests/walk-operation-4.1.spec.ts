@@ -47,7 +47,7 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       e2e_test: E2E_RUN_ID
     });
 
-    // Create Pet (pets table lacks e2e_test column)
+    // Create Pet
     const { data: pet, error: petErr } = await supabase.from('pets').insert({
       owner_id: owner.user!.id,
       name: `E2E Rex ${E2E_RUN_ID}`,
@@ -57,29 +57,41 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     if (petErr) throw petErr;
 
     // Create Accepted Session directly
+    // Using walker_name as a temporary storage for E2E_RUN_ID since session tables lack e2e_test
     const { error: sessionErr } = await supabase.from('walk_sessions').insert({
-      user_id: owner.user!.id,
+      customer_id: owner.user!.id,
       walker_id: walker.user!.id,
       pet_id: pet.id,
       current_status: 'accepted',
+      status: 'accepted',
       planned_duration_minutes: 30,
       total_price_cents: 4500,
       meeting_point_address: 'Rua E2E, 123',
       home_location: { lat: -23.5505, lng: -46.6333 },
       walk_type: 'now',
-      e2e_test: E2E_RUN_ID
+      walker_name: E2E_RUN_ID
     });
     if (sessionErr) throw sessionErr;
   });
 
   test.afterAll(async () => {
+    // Cleanup based on metadata
+    const { data: sessions } = await supabase.from('walk_sessions')
+      .select('id')
+      .eq('walker_name', E2E_RUN_ID);
+    
+    if (sessions) {
+      for (const s of sessions) {
+        await supabase.from('walk_sessions').delete().eq('id', s.id);
+      }
+    }
     await failClosedCleanup(E2E_RUN_ID);
   });
 
   test('Operational displacement and PIN confirmation', async ({ browser }) => {
     const { data: walk, error: walkErr } = await supabase.from('walk_sessions')
       .select('id')
-      .eq('e2e_test', E2E_RUN_ID)
+      .eq('walker_name', E2E_RUN_ID)
       .single();
     if (walkErr) throw walkErr;
 
