@@ -6,7 +6,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
  * @param ids Lista de IDs de usuários a serem removidos.
  * @param runId Opcional: ID da execução para validação extra.
  */
-export async function failClosedCleanup(admin: SupabaseClient, ids: string[], runId?: string) {
+export async function failClosedCleanup(admin: SupabaseClient, ids: string[], runId: string) {
   if (!ids || ids.length === 0) return;
   
   console.log(`[cleanup] Iniciando fail-closed cleanup para ${ids.length} IDs.`);
