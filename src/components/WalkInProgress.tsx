@@ -2142,13 +2142,37 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
   }, [routeCoordinates, isReturning, phase, pickupSpeedMs]);
 
 
-  // After customer confirms the code, start the walk loop from current marker position
-  const handleConfirmCode = () => {
-    if (codeInput !== walkerCode) {
+  const handleConfirmCode = async () => {
+    if (codeInput.length !== 6 || codeInput === '000000') {
       setCodeError(true);
       setTimeout(() => setCodeError(false), 800);
       return;
     }
+
+    try {
+      setConcluding(true);
+      const { data: success, error } = await supabase.rpc('petwalker_confirm_pickup', {
+        _session_id: sessionId,
+        _pickup_code: codeInput
+      });
+
+      if (error || !success) {
+        setCodeError(true);
+        setTimeout(() => setCodeError(false), 800);
+        setConcluding(false);
+        return;
+      }
+
+      // Success! Transition state
+      setPhase('walking');
+      setConcluding(false);
+    } catch (e) {
+      console.error('PIN validation error:', e);
+      setCodeError(true);
+      setConcluding(false);
+      return;
+    }
+
     const start = lastLocRef.current || petLocation || walkerLocation;
     if (!start) return;
     setWalkStartedAt(new Date());
