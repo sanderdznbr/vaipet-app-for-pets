@@ -10,7 +10,6 @@ if (!SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for security tests');
 }
 
-// 1. Admin Client Exclusivo para Setup/Cleanup/Inspeção (Nunca SignIn)
 const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const E2E_RUN_ID = `4.1-sec-${Date.now()}`;
@@ -27,8 +26,6 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
   let petId: string;
 
   test.beforeAll(async () => {
-    // 2. Setup Fail-Closed com verificação de erro em todas as etapas
-    // Use upsert to handle possible race conditions with handle_new_user trigger
     const users = await Promise.all([
       adminClient.auth.admin.createUser({ email: TEST_OWNER, password: TEST_PASS, email_confirm: true, user_metadata: { signup_intent: 'pet_owner', e2e_test: true, e2e_run_id: E2E_RUN_ID } }),
       adminClient.auth.admin.createUser({ email: TEST_WALKER, password: TEST_PASS, email_confirm: true, user_metadata: { signup_intent: 'petwalker', e2e_test: true, e2e_run_id: E2E_RUN_ID } }),
@@ -51,8 +48,6 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
     ]);
     if (profErr) throw profErr;
 
-    // Role 'user' is handled by trigger handle_new_user.
-    // We only need to provision 'petwalker' roles and ensure they exist for the test users.
     const { error: roleErr } = await adminClient.from('user_roles').upsert([
       { user_id: ownerId, role: 'user' },
       { user_id: walkerId, role: 'petwalker' },
@@ -96,11 +91,9 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
   });
 
   test.afterAll(async () => {
-    // 3. Cleanup Fail-Closed (Qualquer erro falha o teste)
     await failClosedCleanup(adminClient, [ownerId, walkerId, otherId], E2E_RUN_ID);
   });
 
-  // Auxiliar para criar cliente autenticado sem mutar o admin
   const createClientForUser = async (email: string) => {
     const tempAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { data, error } = await tempAdmin.auth.signInWithPassword({ email, password: TEST_PASS });
@@ -128,16 +121,13 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
   test('Multi-User Blocking: Other users cannot interfere', async () => {
     const otherClient = await createClientForUser(TEST_OTHER);
 
-    // Other walker cannot get PIN
     const { data: pin, error: pinErr } = await otherClient.rpc('customer_get_pickup_code', { _session_id: sessionId });
     expect(pin).toBeNull();
     expect(pinErr?.message).toMatch(/Acesso negado/i);
 
-    // Other walker cannot start heading
     const { data: start, error: startErr } = await otherClient.rpc('petwalker_start_heading', { _session_id: sessionId });
     expect(start).toBe(false);
 
-    // Other walker cannot arrive at pickup
     const { error: arriveErr } = await otherClient.rpc('petwalker_arrive_pickup', {
       _session_id: sessionId,
       _lat: -23.5505,
@@ -146,7 +136,6 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
     });
     expect(arriveErr?.message).toMatch(/Walker incorreto/i);
 
-    // Another Walker's failed PIN attempts should not increment legitimate walker's count
     const { data: confirm, error: confirmErr } = await otherClient.rpc('petwalker_confirm_pickup', {
       _session_id: sessionId,
       _pickup_code: '999999'
@@ -159,8 +148,6 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
 
   test('GPS Validation Hardened (limits, accuracy, proximity)', async () => {
     const walkerClient = await createClientForUser(TEST_WALKER);
-
-    // Move to heading_to_pickup
     await walkerClient.rpc('petwalker_start_heading', { _session_id: sessionId });
 
     const scenarios = [
@@ -168,7 +155,7 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
       { lat: -23, lng: 190, acc: 10, msg: /Longitude inválida/i },
       { lat: -23, lng: -46, acc: -5, msg: /Precisão.*inválida/i },
       { lat: -23, lng: -46, acc: 250, msg: /Precisão.*insuficiente/i },
-      { lat: -23.0, lng: -46.0, acc: 10, msg: /Muito longe/i } // Distant coordinate
+      { lat: -23.0, lng: -46.0, acc: 10, msg: /Muito longe/i }
     ];
 
     for (const s of scenarios) {
@@ -186,12 +173,10 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
     const ownerClient = await createClientForUser(TEST_OWNER);
     const walkerClient = await createClientForUser(TEST_WALKER);
 
-    // 1. PIN Format and Generation
     const { data: generatedPin, error: pinErr } = await ownerClient.rpc('customer_get_pickup_code', { _session_id: sessionId });
     if (pinErr) throw pinErr;
     expect(generatedPin).toMatch(/^[0-9]{6}$/);
 
-    // 2. Arrive at pickup
     const { error: arriveErr } = await walkerClient.rpc('petwalker_arrive_pickup', {
       _session_id: sessionId,
       _lat: -23.5505,
@@ -200,23 +185,17 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
     });
     if (arriveErr) throw arriveErr;
 
-    // 3. Failed attempts (Exactly 5)
-    // Use a code guaranteed different from the generated one
     const wrongPin = generatedPin === '000000' ? '111111' : '000000';
-    
     for (let i = 1; i <= 5; i++) {
       const { data: res } = await walkerClient.rpc('petwalker_confirm_pickup', { _session_id: sessionId, _pickup_code: wrongPin });
       expect(res).toBe(false);
-      
       const { data: check } = await adminClient.from('walk_pickup_codes').select('attempts').eq('session_id', sessionId).single();
       expect(check?.attempts).toBe(i);
     }
 
-    // 4. Sixth attempt blocked
     const { error: blockErr } = await walkerClient.rpc('petwalker_confirm_pickup', { _session_id: sessionId, _pickup_code: generatedPin });
     expect(blockErr?.message).toMatch(/bloqueado/i);
 
-    // 5. Success Flow (New Session to reset attempts for success test)
     const { data: newWalk } = await adminClient.from('walk_sessions').insert({
       customer_id: ownerId, walker_id: walkerId, pet_id: petId, current_status: 'accepted', status: 'accepted',
       planned_duration_minutes: 30, total_price_cents: 4500, home_location: { lat: -23.5505, lng: -46.6333 },
@@ -232,15 +211,13 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
     if (successErr) throw successErr;
     expect(success).toBe(true);
 
-    // 6. Verification: status = in_progress, pickup_confirmed_at filled, PIN deleted (Replay)
     const { data: session } = await adminClient.from('walk_sessions').select('*').eq('id', newSessionId).single();
     expect(session?.current_status).toBe('in_progress');
     expect(session?.pickup_confirmed_at).not.toBeNull();
     
-    const { data: pinExists } = await adminClient.from('walk_pickup_codes').select('pickup_code').eq('session_id', newSessionId).single();
-    expect(pinExists).toBeNull();
+    const { data: pinExists } = await adminClient.from('walk_pickup_codes').select('*').eq('session_id', newSessionId);
+    expect(pinExists?.length).toBe(0);
 
-    // 7. Replay Protection
     const { error: replayErr } = await walkerClient.rpc('petwalker_confirm_pickup', { _session_id: newSessionId, _pickup_code: newPin });
     expect(replayErr?.message).toMatch(/PIN não gerado/i);
   });
