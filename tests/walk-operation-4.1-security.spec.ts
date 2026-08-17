@@ -50,8 +50,8 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
     ]);
     if (profErr) throw profErr;
 
+    // Trigger handles 'user' role creation, skip manual insert for owner to avoid 23505
     const { error: roleErr } = await adminClient.from('user_roles').upsert([
-      { user_id: ownerId, role: 'user' },
       { user_id: walkerId, role: 'petwalker' },
       { user_id: otherId, role: 'petwalker' }
     ]);
