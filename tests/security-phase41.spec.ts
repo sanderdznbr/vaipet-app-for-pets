@@ -47,7 +47,7 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
 
     try {
       const { data: pet, error: petErr } = await admin.from("pets").insert({ 
-          owner_id: ownerId, name: "SecPet", breed: "SRD"
+          owner_id: ownerId, name: "SecPet", breed: "SRD", e2e_run_id: runId
       }).select().single();
       if (petErr) { throw new Error(`PET_CREATE_ERROR: ${petErr.message}`); }
       
@@ -66,11 +66,14 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
       if (sessErr) { throw new Error(`SESS_CREATE_ERROR: ${sessErr.message}`); }
 
       const rUser = await ownerClient.rpc('customer_get_pickup_code', { walk_id: session.id });
-      if (rUser.error) { throw new Error(`R USER ERROR: ${rUser.error.message}`); }
+      if (rUser.error) { throw new Error(`RPC_FETCH_ERROR: ${JSON.stringify(rUser.error)}`); }
 
       expect(rUser.data).toMatch(/^\d{6}$/);
       log("Idempotência de PIN: PASS");
 
+    } catch (err: any) {
+      log(`FATAL: ${err.message || JSON.stringify(err)}`);
+      throw err;
     } finally {
       await failClosedCleanup(admin, [ownerId], runId);
     }
@@ -95,7 +98,7 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
 
     try {
       const { data: pet, error: petErr } = await admin.from("pets").insert({ 
-          owner_id: walkerId, name: "SecPetErr", breed: "SRD"
+          owner_id: walkerId, name: "SecPetErr", breed: "SRD", e2e_run_id: runId
       }).select().single();
       if (petErr) { throw new Error(`PET_CREATE_ERROR: ${petErr.message}`); }
 
@@ -134,6 +137,9 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
       
       log("Bloqueio após 5 erros: PASS");
 
+    } catch (err: any) {
+      log(`FATAL: ${err.message || JSON.stringify(err)}`);
+      throw err;
     } finally {
       await failClosedCleanup(admin, [walkerId], runId);
     }
@@ -156,7 +162,7 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
      await userClient.auth.signInWithPassword({ email, password });
 
      try {
-       const { data: pet, error: petErr } = await admin.from("pets").insert({ owner_id: uid, name: "S", breed: "S" }).select().single();
+       const { data: pet, error: petErr } = await admin.from("pets").insert({ owner_id: uid, name: "S", breed: "S", e2e_run_id: runId }).select().single();
        if (petErr) { throw new Error(`PET_CREATE_ERROR: ${petErr.message}`); }
 
        const { data: session, error: sessErr } = await admin.from("walk_sessions").insert({
@@ -184,6 +190,9 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
        expect(final?.current_status).toBe('in_progress');
        
        log("Sincronização de status: PASS");
+     } catch (err: any) {
+       log(`FATAL: ${err.message || JSON.stringify(err)}`);
+       throw err;
      } finally {
        await failClosedCleanup(admin, [uid], runId);
      }
