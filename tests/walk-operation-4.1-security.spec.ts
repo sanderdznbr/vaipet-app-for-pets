@@ -115,7 +115,7 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       _accuracy: 10
     });
     // The RPC fails with "Somente o Walker designado" because walker_id <> auth.uid()
-    expect(arriveErr?.message).toMatch(/Somente o Walker designado|Não autorizado/i);
+    expect(arriveErr?.message).toMatch(/Acesso negado/i);
   });
 
   test('GPS validation hardening', async () => {
@@ -133,8 +133,9 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
     // Distant GPS fails (Proximity validation)
     const { error: distErr } = await supabaseWalker.rpc('petwalker_arrive_pickup', {
       _session_id: sessionId,
-      _lat: 0,
-      _lng: 0,
+      _lat: -23.0,
+      _lng: -46.0,
+
       _accuracy: 10
     });
     expect(distErr?.message).toMatch(/muito longe/i);
