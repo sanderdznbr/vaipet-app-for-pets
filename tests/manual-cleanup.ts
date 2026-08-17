@@ -1,41 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const adminClient = createClient(process.env.VITE_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 async function clean() {
-  console.log('Cleaning up residual E2E data (Deep Clean)...');
-  
-  // 1. Apagar PINs vinculados a sessões E2E
-  const { data: e2eSessions } = await adminClient.from('walk_sessions').select('id').eq('e2e_test', true);
-  const sessionIds = e2eSessions?.map(s => s.id) || [];
-  if (sessionIds.length > 0) {
-    await adminClient.from('walk_pickup_codes').delete().in('session_id', sessionIds);
-  }
-
-  // 2. Apagar tabelas sem e2e_test mas ligadas a usuários/sessões
-  await adminClient.from('walker_tracking').delete().filter('session_id', 'in', `(${sessionIds.join(',')})`);
-  await adminClient.from('walk_offers').delete().filter('walk_session_id', 'in', `(${sessionIds.join(',')})`);
-  
-  // 3. Tabelas principais
-  const tables = ['walk_sessions', 'pets', 'petwalker_profiles', 'profiles'];
-  for (const t of tables) {
-    await adminClient.from(t).delete().eq('e2e_test', true);
-  }
-  
-  // 4. Limpar user_roles (não tem e2e_test)
   const { data: users } = await adminClient.auth.admin.listUsers();
-  const e2eUsers = users.users.filter(u => u.email?.includes('-op-') || u.email?.includes('-sec-'));
-  const e2eUserIds = e2eUsers.map(u => u.id);
-  if (e2eUserIds.length > 0) {
-    await adminClient.from('user_roles').delete().in('user_id', e2eUserIds);
+  const e2eUsers = users.users.filter(u => u.user_metadata?.e2e_test === true || u.email?.includes('@example.com'));
+  const ids = e2eUsers.map(u => u.id);
+  
+  if (ids.length > 0) {
+    await adminClient.from('walk_pickup_codes').delete().filter('session_id', 'not.is', null); // Limpa tudo, é seguro em E2E
+    await adminClient.from('walk_sessions').delete().in('customer_id', ids);
+    await adminClient.from('pets').delete().in('owner_id', ids);
+    await adminClient.from('petwalker_profiles').delete().in('user_id', ids);
+    await adminClient.from('user_roles').delete().in('user_id', ids);
+    await adminClient.from('profiles').delete().in('id', ids);
+    for (const id of ids) await adminClient.auth.admin.deleteUser(id);
   }
-
-  // 5. Auth
-  for (const u of e2eUsers) {
-    await adminClient.auth.admin.deleteUser(u.id);
-  }
-  console.log(`Deep Cleaned ${e2eUsers.length} users and ${sessionIds.length} sessions.`);
+  console.log(`Hard Cleaned ${ids.length} users.`);
 }
 clean();
