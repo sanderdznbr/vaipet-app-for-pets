@@ -16,10 +16,10 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
   
   test("security: ACESSO ANON DEVE FALHAR (403/401)", async ({ request }) => {
     // Tentativa de ler PIN anonimamente
-    const { status: s1 } = await request.post(`${SUPABASE_URL}/rest/v1/rpc/customer_get_pickup_code`, {
+    const res1 = await request.post(`${SUPABASE_URL}/rest/v1/rpc/customer_get_pickup_code`, {
       data: { walk_id: "00000000-0000-0000-0000-000000000000" }
     });
-    expect(s1()).toBeGreaterThanOrEqual(400);
+    expect(res1.status()).toBeGreaterThanOrEqual(400);
 
     // Tentativa de ler a tabela diretamente
     const res2 = await request.get(`${SUPABASE_URL}/rest/v1/walk_pickup_codes`);
@@ -54,11 +54,12 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
       // ALTERNATIVA: Testar idempotência via service_role chamando a RPC repetidamente (FOR UPDATE)
       // O requisito diz "duas chamadas simultâneas devem retornar exatamente o mesmo PIN"
       
-      const p1 = admin.rpc('customer_get_pickup_code', { walk_id: session.id });
-      const p2 = admin.rpc('customer_get_pickup_code', { walk_id: session.id });
-      
-      const [r1, r2] = await Promise.all([p1, p2]);
-      
+      const r1 = await admin.rpc('customer_get_pickup_code', { walk_id: session.id });
+      const r2 = await admin.rpc('customer_get_pickup_code', { walk_id: session.id });
+
+      if (r1.error) throw r1.error;
+      if (r2.error) throw r2.error;
+
       expect(r1.data).toBe(r2.data);
       expect(r1.data).toMatch(/^\d{6}$/);
       log("Idempotência de PIN: PASS");
@@ -84,7 +85,8 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
       }).select().single();
 
       // Gerar PIN
-      const { data: pin } = await admin.rpc('customer_get_pickup_code', { walk_id: session.id });
+      const { data: pin, error: pinErr } = await admin.rpc('customer_get_pickup_code', { walk_id: session.id });
+      if (pinErr) throw pinErr;
       
       // 5 erros propositais
       for (let i = 0; i < 5; i++) {
@@ -121,7 +123,8 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
          meeting_point_geom: `SRID=4326;POINT(0 0)`
        }).select().single();
 
-       const { data: pin } = await admin.rpc('customer_get_pickup_code', { walk_id: session.id });
+       const { data: pin, error: pinErr } = await admin.rpc('customer_get_pickup_code', { walk_id: session.id });
+       if (pinErr) throw pinErr;
        
        await admin.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
        
