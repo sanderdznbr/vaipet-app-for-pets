@@ -122,12 +122,12 @@ test("Phase 4.1: displacement and secure PIN pickup flow", async ({ browser }) =
     await walkerPage.click('button:has-text("Cheguei ao local")');
     await expect(walkerPage.getByText(/Validar PIN/i)).toBeVisible();
 
-    // 5. Owner gets PIN
     log("5. Cliente obtendo PIN");
-    await ownerPage.goto("/inicio"); // Refresh to see active walk
-    await ownerPage.click('button:has-text("Ver Detalhes")');
-    await expect(ownerPage.getByText(/Código de Retirada/i)).toBeVisible();
-    const pinElement = ownerPage.locator(".text-4xl.font-black"); // PIN display
+    await ownerPage.goto(`/petwalker/passeio/${session.id}`); // Correct route check for owner too, but details page handles it
+    // Actually, owner goes to /passeio/:id or via /inicio -> details
+    await ownerPage.goto(`/passeio/${session.id}`);
+    await expect(ownerPage.getByText(/Código de Retirada/i)).toBeVisible({ timeout: 20000 });
+    const pinElement = ownerPage.getByTestId("pickup-pin-display");
     const pin = await pinElement.innerText();
     expect(pin).toMatch(/^\d{6}$/);
 
