@@ -870,22 +870,25 @@ export type Database = {
         Row: {
           attempts: number
           created_at: string
+          e2e_run_id: string | null
           expires_at: string
-          pin_hash: string
+          pin_code: string
           session_id: string
         }
         Insert: {
           attempts?: number
           created_at?: string
+          e2e_run_id?: string | null
           expires_at: string
-          pin_hash: string
+          pin_code: string
           session_id: string
         }
         Update: {
           attempts?: number
           created_at?: string
+          e2e_run_id?: string | null
           expires_at?: string
-          pin_hash?: string
+          pin_code?: string
           session_id?: string
         }
         Relationships: [
@@ -1348,10 +1351,7 @@ export type Database = {
         Args: { _session_id: string }
         Returns: boolean
       }
-      customer_get_pickup_code: {
-        Args: { _session_id: string }
-        Returns: string
-      }
+      customer_get_pickup_code: { Args: { walk_id: string }; Returns: string }
       customer_request_return: {
         Args: { _session_id: string }
         Returns: boolean
@@ -1628,7 +1628,7 @@ export type Database = {
         Returns: boolean
       }
       petwalker_confirm_pickup: {
-        Args: { _pin: string; _session_id: string }
+        Args: { input_pin: string; walk_id: string }
         Returns: boolean
       }
       petwalker_start_heading: {
