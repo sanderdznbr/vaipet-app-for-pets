@@ -237,7 +237,7 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
     expect(session?.current_status).toBe('in_progress');
     expect(session?.pickup_confirmed_at).not.toBeNull();
     
-    const { data: pinExists } = await adminClient.from('walk_pickup_codes').select('code_hash').eq('session_id', newSessionId).single();
+    const { data: pinExists } = await adminClient.from('walk_pickup_codes').select('pin_hash').eq('session_id', newSessionId).single();
     expect(pinExists).toBeNull();
 
     // 7. Replay Protection
