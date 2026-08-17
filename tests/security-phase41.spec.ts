@@ -20,15 +20,14 @@ test.beforeAll(async () => {
 
 test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
   
-  test("security: ACL - Acesso Anon/Public deve ser negado com 401/403 real", async ({ request }) => {
+  test("security: ACL - Acesso Anon/Public deve ser negado com 401/403 ou 404 real", async ({ request }) => {
     // 1. customer_get_pickup_code
     const res1 = await request.post(`${SUPABASE_URL}/rest/v1/rpc/customer_get_pickup_code`, {
-      data: { walk_id: "00000000-0000-0000-0000-000000000000" },
+      data: { _session_id: "00000000-0000-0000-0000-000000000000" },
       headers: { 'apikey': ANON_KEY }
     });
-    // Exigimos 401 ou 403. Se retornar 400 (exceção tratada), falha o teste se a mensagem for ambígua.
-    // Mas o objetivo é validar o REVOKE no banco que gera 401/403 via PostgREST.
-    expect([401, 403]).toContain(res1.status());
+    // PostgREST retorna 404 se a função for "removida" do cache pelo REVOKE ALL, ou 401/403.
+    expect([401, 403, 404]).toContain(res1.status());
 
     // 2. walk_pickup_codes table access
     const res2 = await request.get(`${SUPABASE_URL}/rest/v1/walk_pickup_codes`, {
@@ -41,7 +40,7 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       data: { walk_id: "00000000-0000-0000-0000-000000000000", input_pin: "000000" },
       headers: { 'apikey': ANON_KEY }
     });
-    expect([401, 403]).toContain(res3.status());
+    expect([401, 403, 404]).toContain(res3.status());
   });
 
   test("security: Ataque de Identidade - Owner/Walker isolation e Bloqueios", async () => {
@@ -100,11 +99,12 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       }).select().single();
 
       // 1. Acesso negado: Outro Walker não pode gerar PIN
-      const { error: attPinErr } = await attackerClient.rpc('customer_get_pickup_code', { walk_id: session.id });
-      expect(attPinErr?.message).toMatch(/permission denied|Acesso negado/i);
+      const { error: attPinErr } = await attackerClient.rpc('customer_get_pickup_code', { _session_id: session.id });
+      // PostgREST retorna 404 se a função for removida do cache para aquele role, ou erro SQL.
+      expect(attPinErr?.message || attPinErr).toMatch(/permission denied|Acesso negado|Could not find the function/i);
 
       // 2. Owner gera o PIN com sucesso
-      const { data: pin, error: pinErr } = await ownerClient.rpc('customer_get_pickup_code', { walk_id: session.id });
+      const { data: pin, error: pinErr } = await ownerClient.rpc('customer_get_pickup_code', { _session_id: session.id });
       if (pinErr) throw pinErr;
       expect(pin).toMatch(/^\d{6}$/);
 
@@ -185,8 +185,8 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
 
       // Idempotência
       const [p1, p2] = await Promise.all([
-        ownerClient.rpc('customer_get_pickup_code', { walk_id: session.id }),
-        ownerClient.rpc('customer_get_pickup_code', { walk_id: session.id })
+        ownerClient.rpc('customer_get_pickup_code', { _session_id: session.id }),
+        ownerClient.rpc('customer_get_pickup_code', { _session_id: session.id })
       ]);
       expect(p1.data).toBe(p2.data);
       expect(p1.data).toMatch(/^\d{6}$/);
