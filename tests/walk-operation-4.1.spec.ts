@@ -111,10 +111,15 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     console.log('[STEP 1] Walker starting displacement');
     await walkerPage.goto(`/petwalker/passeio/${walk.id}`);
     
-    // Check if still on onboarding (safety)
+    // Bypass onboarding manually if visible
     if (await walkerPage.isVisible('text=Sobre você')) {
-      console.log('[WARNING] Walker still on onboarding UI despite bypass');
-      await walkerPage.screenshot({ path: 'onboarding-stuck-walker.png' });
+      console.log('[WARNING] Manual onboarding bypass for walker');
+      await walkerPage.fill('input[type="tel"]', '11888888888');
+      await walkerPage.fill('input[placeholder="Dia"]', '01');
+      await walkerPage.fill('input[placeholder="Mês"]', '01');
+      await walkerPage.fill('input[placeholder="Ano"]', '1990');
+      await walkerPage.click('text=Continuar');
+      await expect(walkerPage.locator('text=Sobre você')).not.toBeVisible({ timeout: 10000 });
     }
 
     const headingBtn = walkerPage.locator('text=Iniciar Deslocamento');
@@ -132,6 +137,18 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     // 3. Owner: Get PIN
     console.log('[STEP 3] Owner fetching PIN');
     await ownerPage.goto(`/petwalker/passeio/${walk.id}`);
+    
+    // Bypass onboarding manually if visible
+    if (await ownerPage.isVisible('text=Sobre você')) {
+      console.log('[WARNING] Manual onboarding bypass for owner');
+      await ownerPage.fill('input[type="tel"]', '11999999999');
+      await ownerPage.fill('input[placeholder="Dia"]', '01');
+      await ownerPage.fill('input[placeholder="Mês"]', '01');
+      await ownerPage.fill('input[placeholder="Ano"]', '1990');
+      await ownerPage.click('text=Continuar');
+      await expect(ownerPage.locator('text=Sobre você')).not.toBeVisible({ timeout: 10000 });
+    }
+
     const pinLocator = ownerPage.locator('span:has-text("PIN") + span, .text-accent');
     await expect(pinLocator).toBeVisible({ timeout: 20000 });
     await expect(pinLocator).not.toHaveText(/------/, { timeout: 20000 });
