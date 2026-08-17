@@ -314,10 +314,6 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
             <p className="text-sm text-muted-foreground mb-4">Mostre este código para o passeador iniciar o passeio.</p>
             <div className="bg-card border-2 border-accent/20 rounded-2xl px-8 py-4 shadow-sm">
               <span className="text-4xl font-black text-accent tracking-[0.2em]" data-testid="pickup-pin-display">
-                {/* 
-                   Aqui buscamos o código. Como o owner não tem acesso à tabela walk_pickup_codes,
-                   usaremos o RPC customer_get_pickup_code que criamos na migração.
-                */}
                 <PickupCode session_id={walk.id} />
               </span>
             </div>

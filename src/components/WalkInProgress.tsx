@@ -2719,7 +2719,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
                     </div>
                     <h3 className="text-lg font-extrabold" style={{ color: ink }}>{walkerName} chegou!</h3>
                     <p className="text-sm mt-1 mb-5" style={{ color: inkSoft }}>
-                      Peça o código de 6 dígitos que o <b>cliente</b> está visualizando para confirmar a retirada.
+                      Peça o código de 6 dígitos que o cliente está visualizando para confirmar a retirada.
                     </p>
 
                     <div className="flex gap-1.5 mb-3">
@@ -2729,6 +2729,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
                           inputMode="numeric"
                           maxLength={1}
                           value={codeInput[i] || ''}
+                          data-testid="pickup-pin-input"
                           onChange={(e) => {
                             const v = e.target.value.replace(/\D/g, '').slice(-1);
                             const arr = codeInput.padEnd(6, ' ').split('');
@@ -2749,6 +2750,7 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
 
                     <button
                       onClick={handleConfirmCode}
+                      data-testid="pickup-pin-submit"
                       disabled={codeInput.length !== 6 || concluding}
                       className="w-full py-3.5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-40"
                       style={{ background: 'linear-gradient(135deg, hsl(159 100% 33%), hsl(159 100% 27%))', boxShadow: '0 6px 18px -6px rgba(0,169,120,0.55)' }}
