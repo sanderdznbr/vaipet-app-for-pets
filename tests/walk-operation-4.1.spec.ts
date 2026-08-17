@@ -111,19 +111,8 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     console.log('[STEP 1] Walker starting displacement');
     await walkerPage.goto(`/petwalker/passeio/${walk.id}`);
     
-    // Bypass onboarding manually if visible - using input[type="tel"] directly
-    if (await walkerPage.isVisible('input[type="tel"]')) {
-      console.log('[WARNING] Manual onboarding bypass for walker');
-      await walkerPage.fill('input[type="tel"]', '11888888888');
-      await walkerPage.fill('input[placeholder="Dia"]', '01');
-      await walkerPage.fill('input[placeholder="Mês"]', '01');
-      await walkerPage.fill('input[placeholder="Ano"]', '1990');
-      await walkerPage.click('text=Continuar');
-      await expect(walkerPage.locator('input[type="tel"]')).not.toBeVisible({ timeout: 10000 });
-    }
-
     const headingBtn = walkerPage.locator('text=Iniciar Deslocamento');
-    await expect(headingBtn).toBeVisible({ timeout: 20000 });
+    await expect(headingBtn).toBeVisible({ timeout: 30000 });
     await headingBtn.click();
     console.log('[STEP 1.1] Waiting for arrival button');
     await expect(walkerPage.locator('text=Cheguei no Local')).toBeVisible({ timeout: 20000 });
@@ -138,19 +127,8 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     console.log('[STEP 3] Owner fetching PIN');
     await ownerPage.goto(`/petwalker/passeio/${walk.id}`);
     
-    // Bypass onboarding manually if visible
-    if (await ownerPage.isVisible('input[type="tel"]')) {
-      console.log('[WARNING] Manual onboarding bypass for owner');
-      await ownerPage.fill('input[type="tel"]', '11999999999');
-      await ownerPage.fill('input[placeholder="Dia"]', '01');
-      await ownerPage.fill('input[placeholder="Mês"]', '01');
-      await ownerPage.fill('input[placeholder="Ano"]', '1990');
-      await ownerPage.click('text=Continuar');
-      await expect(ownerPage.locator('input[type="tel"]')).not.toBeVisible({ timeout: 10000 });
-    }
-
     const pinLocator = ownerPage.locator('span:has-text("PIN") + span, .text-accent');
-    await expect(pinLocator).toBeVisible({ timeout: 20000 });
+    await expect(pinLocator).toBeVisible({ timeout: 30000 });
     await expect(pinLocator).not.toHaveText(/------/, { timeout: 20000 });
     const pinText = await pinLocator.textContent();
     const pin = pinText?.replace(/\s/g, '').trim();

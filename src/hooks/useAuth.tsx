@@ -363,6 +363,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     petwalkerApplication,
     applicationStatus,
     loading: !initialized || (authStatus === 'authenticated' && (profileStatus === 'loading' || rolesStatus === 'loading')),
+    bypassOnboarding: profile?.onboarding_completed || false,
     authStatus,
     profileStatus,
     rolesStatus,
