@@ -29,13 +29,14 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
   test("security: LEITURA CONCORRENTE E IDEMPOTENCIA", async () => {
     const runId = `sec_${Date.now()}`;
     const email = `e2e.owner.${runId}@e2e.vaipet.invalid`;
+    const password = "Pass!";
     const { data: uData, error: uErr } = await admin.auth.admin.createUser({ 
         email, 
-        password: "Pass!", 
+        password, 
         email_confirm: true, 
         user_metadata: { e2e_test: true, e2e_run_id: runId } 
     });
-    if (uErr) throw uErr;
+    if (uErr) { log(`USER_CREATE_ERROR: ${JSON.stringify(uErr)}`); throw uErr; }
     const ownerId = uData.user!.id;
 
     try {
