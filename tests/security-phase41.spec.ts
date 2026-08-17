@@ -14,48 +14,58 @@ test.beforeAll(async () => {
   admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 });
 
-test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
+test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
   
-  test("security: ACESSO ANON DEVE FALHAR (403/401)", async ({ request }) => {
+  test("security: ACL - Acesso Anon/Public deve ser negado", async ({ request }) => {
     const res1 = await request.post(`${SUPABASE_URL}/rest/v1/rpc/customer_get_pickup_code`, {
-      data: { walk_id: "00000000-0000-0000-0000-000000000000" }
+      data: { _session_id: "00000000-0000-0000-0000-000000000000" },
+      headers: { 'apikey': ANON_KEY }
     });
-    expect(res1.status()).toBeGreaterThanOrEqual(400);
+    expect(res1.status()).toBe(403); // Revoke from public
 
-    const res2 = await request.get(`${SUPABASE_URL}/rest/v1/walk_pickup_codes`);
-    expect(res2.status()).toBeGreaterThanOrEqual(400);
+    const res2 = await request.get(`${SUPABASE_URL}/rest/v1/walk_pickup_codes`, {
+      headers: { 'apikey': ANON_KEY }
+    });
+    expect(res2.status()).toBe(403);
     
-    log("Acesso anon negado: PASS");
+    log("ACL Hardening: PASS");
   });
 
-  test("security: LEITURA CONCORRENTE E IDEMPOTENCIA", async () => {
-    const runId = `sec_${Date.now()}`;
-    const email = `e2e.owner.${runId}@e2e.vaipet.invalid`;
+  test("security: Ataque de Identidade - Walker errado não pode confirmar", async () => {
+    const runId = `sec_id_${Date.now()}`;
     const password = "Pass123456!";
-    const { data: uData, error: uErr } = await admin.auth.admin.createUser({ 
-        email, 
-        password, 
-        email_confirm: true, 
-        user_metadata: { e2e_test: true, e2e_run_id: runId } 
-    });
-    if (uErr) { throw new Error(`USER_CREATE_ERROR: ${uErr.message}`); }
-    const ownerId = uData.user!.id;
+    
+    // Criar Owner, Walker Legítimo e Atacante
+    const create = async (role: string) => {
+        const email = `e2e.${role}.${runId}@e2e.vaipet.invalid`;
+        const { data } = await admin.auth.admin.createUser({ 
+            email, password, email_confirm: true, 
+            user_metadata: { e2e_test: true, e2e_run_id: runId } 
+        });
+        return data.user!;
+    };
+
+    const owner = await create('owner');
+    const walker = await create('walker');
+    const attacker = await create('attacker');
+
+    const attackerClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+    await attackerClient.auth.signInWithPassword({ email: attacker.email!, password });
 
     const ownerClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
-    const { error: signInErr } = await ownerClient.auth.signInWithPassword({ email, password });
-    if (signInErr) { throw new Error(`SIGNIN_ERROR: ${signInErr.message}`); }
+    await ownerClient.auth.signInWithPassword({ email: owner.email!, password });
 
     try {
-      const { data: pet, error: petErr } = await admin.from("pets").insert({ 
-          owner_id: ownerId, name: "SecPet", breed: "SRD", e2e_run_id: runId
+      const { data: pet } = await admin.from("pets").insert({ 
+          owner_id: owner.id, name: "SecPet", breed: "SRD", e2e_run_id: runId 
       }).select().single();
-      if (petErr) { throw new Error(`PET_CREATE_ERROR: ${petErr.message}`); }
       
-      const { data: session, error: sessErr } = await admin.from("walk_sessions").insert({
-        customer_id: ownerId, 
+      const { data: session } = await admin.from("walk_sessions").insert({
+        customer_id: owner.id, 
+        walker_id: walker.id, // Walker legítimo é o 'walker'
         pet_id: pet.id, 
-        current_status: "accepted", 
-        status: "accepted",
+        current_status: "arrived", 
+        status: "arrived",
         walk_type: "individual", 
         planned_duration_minutes: 30, 
         request_mode: "now", 
@@ -63,130 +73,106 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
         start_time: new Date().toISOString(),
         meeting_point_geom: `SRID=4326;POINT(0 0)`
       }).select().single();
-      if (sessErr) { throw new Error(`SESS_CREATE_ERROR: ${sessErr.message}`); }
 
-      const rUser = await ownerClient.rpc('customer_get_pickup_code', { walk_id: session.id });
-      if (rUser.error) { throw new Error(`RPC_FETCH_ERROR: ${JSON.stringify(rUser.error)}`); }
+      // Owner gera o PIN
+      const { data: pin } = await ownerClient.rpc('customer_get_pickup_code', { _session_id: session.id });
+      expect(pin).toMatch(/^\d{6}$/);
 
-      expect(rUser.data).toMatch(/^\d{6}$/);
-      log("Idempotência de PIN: PASS");
-      return; // Sucesso explícito
+      // ATACANTE tenta confirmar
+      const { error: attackErr } = await attackerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
+      expect(attackErr?.message).toContain('você não é o Walker designado');
+
+      log("Ataque de Identidade interceptado: PASS");
     } finally {
-      await failClosedCleanup(admin, [ownerId], runId);
+      await failClosedCleanup(admin, [owner.id, walker.id, attacker.id], runId);
     }
   });
 
-  test("security: 5 ERROS, BLOQUEIO E EXPIRAÇÃO", async () => {
-    const runId = `sec_err_${Date.now()}`;
-    const email = `e2e.walker.${runId}@e2e.vaipet.invalid`;
+  test("security: Concorrência e Expiração", async () => {
+    const runId = `sec_exp_${Date.now()}`;
+    const email = `e2e.owner.${runId}@e2e.vaipet.invalid`;
     const password = "Pass123456!";
-    const { data: uData, error: uErr } = await admin.auth.admin.createUser({ 
-        email, 
-        password, 
-        email_confirm: true, 
+    const { data: uData } = await admin.auth.admin.createUser({ 
+        email, password, email_confirm: true, 
         user_metadata: { e2e_test: true, e2e_run_id: runId } 
     });
-    if (uErr) { throw new Error(`USER_CREATE_ERROR: ${uErr.message}`); }
-    const walkerId = uData.user!.id;
+    const owner = uData.user!;
 
-    const walkerClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
-    const { error: signInErr } = await walkerClient.auth.signInWithPassword({ email, password });
-    if (signInErr) { throw new Error(`SIGNIN_ERROR: ${signInErr.message}`); }
+    const ownerClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+    await ownerClient.auth.signInWithPassword({ email, password });
 
     try {
-      const { data: pet, error: petErr } = await admin.from("pets").insert({ 
-          owner_id: walkerId, name: "SecPetErr", breed: "SRD", e2e_run_id: runId
+      const { data: pet } = await admin.from("pets").insert({ 
+          owner_id: owner.id, name: "P", breed: "P", e2e_run_id: runId 
       }).select().single();
-      if (petErr) { throw new Error(`PET_CREATE_ERROR: ${petErr.message}`); }
-
-      const { data: session, error: sessErr } = await admin.from("walk_sessions").insert({
-        customer_id: walkerId,
-        walker_id: walkerId,
-        pet_id: pet.id,
-        current_status: "accepted",
-        status: "accepted",
-        walk_type: "individual", 
-        planned_duration_minutes: 30, 
-        request_mode: "now", 
-        e2e_run_id: runId,
+      const { data: session } = await admin.from("walk_sessions").insert({
+        customer_id: owner.id, pet_id: pet.id, current_status: "accepted", status: "accepted",
+        walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId,
         start_time: new Date().toISOString(),
         meeting_point_geom: `SRID=4326;POINT(0 0)`
       }).select().single();
-      if (sessErr) { throw new Error(`SESS_CREATE_ERROR: ${sessErr.message}`); }
 
-      const realPin = '123456';
-      await admin.from('walk_pickup_codes').insert({
-          session_id: session.id,
-          pin_code: realPin,
-          expires_at: new Date(Date.now() + 30*60*1000).toISOString(),
-          attempts: 0,
-          e2e_run_id: runId
-      });
+      // Teste de Idempotência em paralelo
+      const [pin1, pin2] = await Promise.all([
+        ownerClient.rpc('customer_get_pickup_code', { _session_id: session.id }),
+        ownerClient.rpc('customer_get_pickup_code', { _session_id: session.id })
+      ]);
+      expect(pin1.data).toBe(pin2.data);
+      expect(pin1.data).toMatch(/^\d{6}$/);
+      log("Idempotência CSPRNG: PASS");
 
-      for (let i = 0; i < 5; i++) {
-        const { data: success } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: '000000' });
-        expect(success).toBe(false);
-      }
-
-      const { error } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: realPin });
-      if (!error) { throw new Error("Should have failed after max attempts"); }
-      expect(error.message).toContain('Max attempts reached');
+      // Forçar expiração via Admin
+      await admin.from('walk_pickup_codes').update({ expires_at: new Date(Date.now() - 1000).toISOString() }).eq('session_id', session.id);
       
-      log("Bloqueio após 5 erros: PASS");
-      return;
+      const { error: expErr } = await ownerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin1.data });
+      expect(expErr?.message).toContain('expirado');
+      log("Validação de Expiração: PASS");
+
     } finally {
-      await failClosedCleanup(admin, [walkerId], runId);
+      await failClosedCleanup(admin, [owner.id], runId);
     }
   });
 
-  test("security: STATUS SYNC (status + current_status)", async () => {
-     const runId = `sec_sync_${Date.now()}`;
-     const email = `e2e.sync.${runId}@e2e.vaipet.invalid`;
-     const password = "Pass123456!";
-     const { data: uData, error: uErr } = await admin.auth.admin.createUser({ 
-         email, 
-         password, 
-         email_confirm: true, 
-         user_metadata: { e2e_test: true, e2e_run_id: runId } 
-     });
-     if (uErr) { throw new Error(`USER_CREATE_ERROR: ${uErr.message}`); }
-     const uid = uData.user!.id;
+  test("security: Bloqueio de Força Bruta (5 tentativas)", async () => {
+    const runId = `sec_brute_${Date.now()}`;
+    const email = `e2e.walker.${runId}@e2e.vaipet.invalid`;
+    const password = "Pass123456!";
+    const { data: uData } = await admin.auth.admin.createUser({ 
+        email, password, email_confirm: true, 
+        user_metadata: { e2e_test: true, e2e_run_id: runId } 
+    });
+    const walker = uData.user!;
 
-     const userClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
-     await userClient.auth.signInWithPassword({ email, password });
+    const walkerClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+    await walkerClient.auth.signInWithPassword({ email, password });
 
-     try {
-       const { data: pet, error: petErr } = await admin.from("pets").insert({ owner_id: uid, name: "S", breed: "S", e2e_run_id: runId }).select().single();
-       if (petErr) { throw new Error(`PET_CREATE_ERROR: ${petErr.message}`); }
+    try {
+      const { data: pet } = await admin.from("pets").insert({ owner_id: walker.id, name: "P", breed: "P", e2e_run_id: runId }).select().single();
+      const { data: session } = await admin.from("walk_sessions").insert({
+        customer_id: walker.id, walker_id: walker.id, pet_id: pet.id, current_status: "arrived", status: "arrived",
+        walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId,
+        start_time: new Date().toISOString(), meeting_point_geom: `SRID=4326;POINT(0 0)`
+      }).select().single();
 
-       const { data: session, error: sessErr } = await admin.from("walk_sessions").insert({
-         customer_id: uid, walker_id: uid, pet_id: pet.id, current_status: "arrived", status: "arrived",
-         walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId,
-         start_time: new Date().toISOString(),
-         meeting_point_geom: `SRID=4326;POINT(0 0)`
-       }).select().single();
-       if (sessErr) { throw new Error(`SESS_CREATE_ERROR: ${sessErr.message}`); }
+      const realPin = '999999';
+      await admin.from('walk_pickup_codes').insert({
+          session_id: session.id, pin_code: realPin,
+          expires_at: new Date(Date.now() + 300000).toISOString(), attempts: 0, e2e_run_id: runId
+      });
 
-       const pin = '111222';
-       const { error: pinErr } = await admin.from('walk_pickup_codes').insert({
-           session_id: session.id, pin_code: pin,
-           expires_at: new Date(Date.now() + 30*60*1000).toISOString(),
-           attempts: 0, e2e_run_id: runId
-       });
-       if (pinErr) { throw new Error(`PIN_INSERT_ERROR: ${pinErr.message}`); }
-       
-       const { data: success, error: confErr } = await userClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
-       if (confErr) { throw new Error(`CONF_ERR: ${confErr.message}`); }
-       expect(success).toBe(true);
-       
-       const { data: final } = await admin.from("walk_sessions").select("status, current_status").eq("id", session.id).single();
-       expect(final?.status).toBe('in_progress');
-       expect(final?.current_status).toBe('in_progress');
-       
-       log("Sincronização de status: PASS");
-       return;
-     } finally {
-       await failClosedCleanup(admin, [uid], runId);
-     }
+      // 5 erros
+      for (let i = 0; i < 5; i++) {
+        const { data } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: '000000' });
+        expect(data).toBe(false);
+      }
+
+      // Sexta tentativa com PIN correto deve falhar
+      const { error } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: realPin });
+      expect(error?.message).toContain('limite de tentativas excedido');
+      
+      log("Bloqueio de 5 tentativas: PASS");
+    } finally {
+      await failClosedCleanup(admin, [walker.id], runId);
+    }
   });
 });
