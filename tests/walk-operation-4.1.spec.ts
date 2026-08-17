@@ -33,15 +33,30 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     if (walkerErr) throw walkerErr;
 
     await supabase.from('profiles').insert([
-      { id: owner.user!.id, full_name: 'E2E Owner', e2e_test: E2E_RUN_ID },
-      { id: walker.user!.id, full_name: 'E2E Walker', e2e_test: E2E_RUN_ID }
+      { 
+        id: owner.user!.id, 
+        full_name: 'E2E Owner', 
+        e2e_test: E2E_RUN_ID,
+        onboarding_completed: true,
+        phone: '11999999999',
+        birth_date: '1990-01-01'
+      },
+      { 
+        id: walker.user!.id, 
+        full_name: 'E2E Walker', 
+        e2e_test: E2E_RUN_ID,
+        onboarding_completed: true,
+        phone: '11888888888',
+        birth_date: '1990-01-01'
+      }
     ]);
 
     await supabase.from('petwalker_profiles').insert({
       user_id: walker.user!.id,
       status: 'active',
       is_online: true,
-      e2e_test: E2E_RUN_ID
+      e2e_test: E2E_RUN_ID,
+      operational_onboarding_completed: true
     });
 
     const { data: pet, error: petErr } = await supabase.from('pets').insert({
@@ -92,13 +107,16 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     const { page: walkerPage } = await createAuthedContext(browser, TEST_WALKER, TEST_PASS);
     const { page: ownerPage } = await createAuthedContext(browser, TEST_OWNER, TEST_PASS);
 
-    // Monitor console errors
-    walkerPage.on('console', msg => { if (msg.type() === 'error') console.log(`[WALKER PAGE ERROR] ${msg.text()}`); });
-    ownerPage.on('console', msg => { if (msg.type() === 'error') console.log(`[OWNER PAGE ERROR] ${msg.text()}`); });
-
     // 1. Walker: Start Heading
     console.log('[STEP 1] Walker starting displacement');
     await walkerPage.goto(`/petwalker/passeio/${walk.id}`);
+    
+    // Check if still on onboarding (safety)
+    if (await walkerPage.isVisible('text=Sobre você')) {
+      console.log('[WARNING] Walker still on onboarding UI despite bypass');
+      await walkerPage.screenshot({ path: 'onboarding-stuck-walker.png' });
+    }
+
     const headingBtn = walkerPage.locator('text=Iniciar Deslocamento');
     await expect(headingBtn).toBeVisible({ timeout: 20000 });
     await headingBtn.click();
