@@ -127,8 +127,12 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       global: { headers: { Authorization: `Bearer ${authData.session?.access_token}` } }
     });
 
-    const { error: updErr } = await supabaseAdmin.from('walk_sessions').update({ current_status: 'heading_to_pickup' }).eq('id', sessionId);
+    const { error: updErr } = await supabaseAdmin.from('walk_sessions').update({ 
+      current_status: 'heading_to_pickup',
+      status: 'heading_to_pickup'
+    }).eq('id', sessionId);
     if (updErr) throw updErr;
+
 
     // Distant GPS fails (Proximity validation)
     const { error: distErr } = await supabaseWalker.rpc('petwalker_arrive_pickup', {
@@ -159,8 +163,12 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       global: { headers: { Authorization: `Bearer ${authData.session?.access_token}` } }
     });
 
-    const { error: updErr2 } = await supabaseAdmin.from('walk_sessions').update({ current_status: 'arrived' }).eq('id', sessionId);
+    const { error: updErr2 } = await supabaseAdmin.from('walk_sessions').update({ 
+      current_status: 'arrived',
+      status: 'arrived'
+    }).eq('id', sessionId);
     if (updErr2) throw updErr2;
+
 
     await supabaseAdmin.from('walk_pickup_codes').upsert({
       session_id: sessionId,
