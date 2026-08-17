@@ -1698,6 +1698,7 @@ const SearchWalk = () => {
                           return (
                             <button
                               key={p.id}
+                              data-testid="pet-selection-card"
                               onClick={() => {
                                 const willBeCollective = !selectedPets.some(sp => sp.id === p.id) && selectedPets.length >= 1;
                                 const nonEligible = ['agressivo', 'protetor', 'moderavel'];
