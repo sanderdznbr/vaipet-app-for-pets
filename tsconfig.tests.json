@@ -5,6 +5,9 @@
     "rootDir": ".",
     "baseUrl": ".",
     "types": ["node", "@playwright/test"],
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM"],
+    "downlevelIteration": true,
     "noEmit": true,
     "skipLibCheck": true
   },

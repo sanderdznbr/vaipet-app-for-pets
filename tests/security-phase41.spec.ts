@@ -1,5 +1,5 @@
-import { test, expect, type SupabaseClient } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
+import { test, expect } from "@playwright/test";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { failClosedCleanup } from "./helpers/cleanup";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
