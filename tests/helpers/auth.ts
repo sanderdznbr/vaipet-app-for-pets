@@ -1,22 +1,26 @@
-import { expect, type Browser, type BrowserContext } from '@playwright/test';
-import { createClient } from '@supabase/supabase-js';
+import { test, expect, Page, BrowserContext } from '@playwright/test';
 
-export async function createAuthedContext(browser: Browser, email: string, pass: string, coords?: { lng: number; lat: number }) {
+/**
+ * Creates an authenticated context for E2E tests by performing real UI login.
+ */
+export async function createAuthedContext(browser: any, email: string, pass: string): Promise<{ context: BrowserContext; page: Page }> {
   const context = await browser.newContext({
-    viewport: { width: 430, height: 900 },
-    permissions: ["geolocation"],
-    geolocation: coords ? { longitude: coords.lng, latitude: coords.lat } : undefined,
-    locale: "pt-BR",
+    viewport: { width: 1280, height: 1800 }
   });
-  
   const page = await context.newPage();
-  await page.goto("/auth");
-  await page.getByPlaceholder("E-mail").fill(email);
-  await page.getByPlaceholder("Senha").fill(pass);
-  await page.getByRole("button", { name: /^Entrar$/i }).click();
+
+  console.log(`[AUTH] Logging in as ${email}...`);
+  await page.goto('http://localhost:8080/auth');
   
-  // Aguarda o redirecionamento para fora da tela de login
-  await expect(page).not.toHaveURL(/.*\/auth.*/, { timeout: 45000 });
+  // Wait for auth form
+  await page.waitForSelector('input[type="email"]');
+  await page.fill('input[type="email"]', email);
+  await page.fill('input[type="password"]', pass);
+  await page.click('button[type="submit"]');
+
+  // Wait for redirect to /inicio or /petwalker
+  await expect(page).toHaveURL(/.*(inicio|petwalker)/, { timeout: 20000 });
+  console.log(`[AUTH] Login successful for ${email}`);
   
   return { context, page };
 }

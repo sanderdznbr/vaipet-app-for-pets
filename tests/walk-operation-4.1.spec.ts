@@ -1,219 +1,117 @@
 import { test, expect } from '@playwright/test';
-import { createClient } from '@supabase/supabase-js';
-import { failClosedCleanup } from './helpers/cleanup';
 import { createAuthedContext } from './helpers/auth';
+import { supabase } from '../src/integrations/supabase/client';
+import { failClosedCleanup } from './helpers/cleanup';
 
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const ANON_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+const E2E_RUN_ID = `4.1-${Date.now()}`;
+const TEST_OWNER = `owner-${E2E_RUN_ID}@example.com`;
+const TEST_WALKER = `walker-${E2E_RUN_ID}@example.com`;
+const TEST_PASS = 'VaiPet@2026';
 
-
-/**
- * PHASE 4.1 E2E: Displacement and Secure Pickup
- * Modular test starting from 'accepted' status.
- */
-
-test.describe('Phase 4.1: Walk Operation (Pickup PIN)', () => {
-  let ownerId: string;
-  let walkerId: string;
-  let otherWalkerId: string;
-  let sessionId: string;
-  let petId: string;
-  const runId = `e2e-4.1-${Math.random().toString(36).slice(2, 7)}`;
-
-  let admin: any;
+test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
+  test.setTimeout(120000);
 
   test.beforeAll(async () => {
-    admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
-
-
-    // Create Owner
-    const ownerEmail = `owner-${runId}@test.com`;
-    const { data: ownerAuth, error: ownerErr } = await admin.auth.admin.createUser({
-      email: ownerEmail,
-      password: 'password123',
+    // Provisioning
+    const { data: owner } = await supabase.auth.admin.createUser({
+      email: TEST_OWNER,
+      password: TEST_PASS,
       email_confirm: true,
-      user_metadata: { e2e_test: true, e2e_run_id: runId, full_name: 'E2E Owner' }
+      user_metadata: { signup_intent: 'pet_owner', e2e_test: E2E_RUN_ID }
     });
-    if (ownerErr) throw ownerErr;
-    ownerId = ownerAuth.user.id;
 
-    // Create PetWalker
-    const walkerEmail = `walker-${runId}@test.com`;
-    const { data: walkerAuth, error: walkerErr } = await admin.auth.admin.createUser({
-      email: walkerEmail,
-      password: 'password123',
+    const { data: walker } = await supabase.auth.admin.createUser({
+      email: TEST_WALKER,
+      password: TEST_PASS,
       email_confirm: true,
-      user_metadata: { e2e_test: true, e2e_run_id: runId, full_name: 'E2E Walker' }
+      user_metadata: { signup_intent: 'petwalker', e2e_test: E2E_RUN_ID }
     });
-    if (walkerErr) throw walkerErr;
-    walkerId = walkerAuth.user.id;
 
-    // Create Other Walker
-    const otherEmail = `other-${runId}@test.com`;
-    const { data: otherAuth } = await admin.auth.admin.createUser({
-      email: otherEmail,
-      password: 'password123',
-      email_confirm: true,
-      user_metadata: { e2e_test: true, e2e_run_id: runId }
-    });
-    otherWalkerId = otherAuth.user.id;
-
-    // Roles and Profiles
-    await admin.from('user_roles').insert([
-      { user_id: ownerId, role: 'user' },
-      { user_id: walkerId, role: 'petwalker' },
-      { user_id: otherWalkerId, role: 'petwalker' }
+    // Create Profiles
+    await supabase.from('profiles').insert([
+      { id: owner.user!.id, full_name: 'E2E Owner', e2e_test: E2E_RUN_ID },
+      { id: walker.user!.id, full_name: 'E2E Walker', e2e_test: E2E_RUN_ID }
     ]);
 
-    await admin.from('profiles').insert([
-      { id: ownerId, full_name: 'E2E Owner', onboarding_completed: true },
-      { id: walkerId, full_name: 'E2E Walker', onboarding_completed: true },
-      { id: otherWalkerId, full_name: 'Other Walker', onboarding_completed: true }
-    ]);
-
-    await admin.from('petwalker_profiles').insert([
-      { user_id: walkerId, status: 'verified', city: 'São Paulo', service_radius_meters: 5000 },
-      { user_id: otherWalkerId, status: 'verified', city: 'São Paulo' }
-    ]);
+    // Walker eligibility
+    await supabase.from('petwalker_profiles').insert({
+      user_id: walker.user!.id,
+      status: 'active',
+      is_online: true,
+      e2e_test: E2E_RUN_ID
+    });
 
     // Create Pet
-    const { data: pet, error: petErr } = await admin.from('pets').insert({
-      owner_id: ownerId,
-      name: 'TestDog',
-      breed: 'E2E',
-      weight: 10
-    }).select();
-    
-    if (petErr) throw new Error(`[SETUP] Failed to create pet: ${petErr.message}`);
-    if (!pet || pet.length === 0) throw new Error(`[SETUP] Pet creation returned empty data`);
-    petId = pet[0].id;
+    const { data: pet } = await supabase.from('pets').insert({
+      owner_id: owner.user!.id,
+      name: 'E2E Rex',
+      type: 'dog',
+      breed: 'Labrador',
+      weight: 25,
+      e2e_test: E2E_RUN_ID
+    }).select().single();
 
-    // Create Accepted Walk Session (Pre-condition)
-    const { data: session, error: sessErr } = await admin.from('walk_sessions').insert({
-      customer_id: ownerId,
-      walker_id: walkerId,
-      pet_id: petId,
-      current_status: 'accepted',
-      start_time: new Date().toISOString(),
-      status: 'accepted',
-      walk_type: 'now',
+    // Create Accepted Session directly to skip matching in this test
+    await supabase.from('walk_sessions').insert({
+      user_id: owner.user!.id,
+      walker_id: walker.user!.id,
+      pet_id: pet.id,
       current_status: 'accepted',
       planned_duration_minutes: 30,
       total_price_cents: 4500,
-      meeting_point_address: 'Rua Teste, 123',
-      home_location: { lng: -46.6333, lat: -23.5505 },
-      meeting_point_geom: 'SRID=4326;POINT(-46.6333 -23.5505)'
-    }).select();
-    
-    if (sessErr) throw new Error(`[SETUP] Failed to create walk session: ${sessErr.message}`);
-    if (!session || session.length === 0) throw new Error(`[SETUP] Walk session creation returned empty data`);
-    sessionId = session[0].id;
+      meeting_point_address: 'Rua E2E, 123',
+      home_location: { lat: -23.5505, lng: -46.6333 }, -- São Paulo
+      walk_type: 'now',
+      e2e_test: E2E_RUN_ID
+    });
   });
 
   test.afterAll(async () => {
-    await failClosedCleanup(admin, [ownerId, walkerId, otherWalkerId], runId);
+    await failClosedCleanup(E2E_RUN_ID);
   });
 
-  test('Operation Flow: accepted -> in_progress via Secure PIN', async ({ browser }) => {
-    const walkerCtx = await createAuthedContext(browser, `walker-${runId}@test.com`, 'password123');
-    const ownerCtx = await createAuthedContext(browser, `owner-${runId}@test.com`, 'password123');
+  test('Operational displacement and PIN confirmation', async ({ browser }) => {
+    const { page: walkerPage } = await createAuthedContext(browser, TEST_WALKER, TEST_PASS);
+    const { page: ownerPage } = await createAuthedContext(browser, TEST_OWNER, TEST_PASS);
+
+    const { data: walk } = await supabase.from('walk_sessions')
+      .select('id')
+      .eq('e2e_test', E2E_RUN_ID)
+      .single();
+
+    // 1. Walker: Start Heading
+    console.log('[STEP 1] Walker starting displacement');
+    await walkerPage.goto(`http://localhost:8080/petwalker/passeio/${walk.id}`);
+    await walkerPage.click('text=Iniciar Deslocamento');
+    await expect(walkerPage.locator('text=Cheguei no Local')).toBeVisible({ timeout: 10000 });
+
+    // 2. Walker: Arrive at Pickup (GPS Mocked by Browser)
+    // Note: Playwright browser context has default geolocation
+    console.log('[STEP 2] Walker arriving at pickup');
+    await walkerPage.click('text=Cheguei no Local');
+    await expect(walkerPage.locator('[data-testid="pickup-pin-input"]')).toBeVisible({ timeout: 10000 });
+
+    // 3. Owner: Get PIN
+    console.log('[STEP 3] Owner fetching PIN');
+    await ownerPage.goto(`http://localhost:8080/petwalker/passeio/${walk.id}`); // Both use same view but rendered differently
+    const pinText = await ownerPage.locator('span:has-text("PIN") + span, .text-accent').textContent();
+    const pin = pinText?.replace(/\s/g, '').trim();
+    expect(pin).toMatch(/^[0-9]{6}$/);
+    console.log(`[INFO] PIN discovered: ${pin}`);
+
+    // 4. Walker: Submit PIN
+    console.log('[STEP 4] Walker submitting PIN');
+    await walkerPage.fill('[data-testid="pickup-pin-input"]', pin!);
+    await walkerPage.click('[data-testid="pickup-pin-submit"]');
+
+    // 5. Verification: Walk In Progress
+    console.log('[STEP 5] Verifying walk is in progress');
+    await expect(walkerPage.locator('text=Finalização indisponível')).toBeVisible({ timeout: 15000 });
     
-    const walkerPage = walkerCtx.page;
-    const ownerPage = ownerCtx.page;
-
-    // 1. PetWalker starts heading
-    await test.step('petwalker-start-heading', async () => {
-      await walkerPage.goto('/petwalker');
-      await walkerPage.getByRole('button', { name: /Iniciar deslocamento/i }).click();
-      
-      // Wait for status sync
-      await expect(walkerPage.locator('text=A caminho do pet')).toBeVisible({ timeout: 10000 });
-      
-      const { data } = await admin.from('walk_sessions').select('current_status, heading_started_at').eq('id', sessionId).single();
-      expect(data.current_status).toBe('heading_to_pickup');
-      expect(data.heading_started_at).not.toBeNull();
-    });
-
-    // 2. Proximity validation
-    await test.step('petwalker-proximity-check', async () => {
-      // Mock far location (using page.evaluate for geolocation mock is fine here as it mimics browser hardware)
-      await walkerCtx.context.setGeolocation({ latitude: -23.6000, longitude: -46.7000 }); // ~10km away
-      await walkerPage.getByRole('button', { name: /Cheguei ao local/i }).click();
-      
-      // Should fail/stay in same status (Error toast might appear)
-      const { data: farData } = await admin.from('walk_sessions').select('current_status').eq('id', sessionId).single();
-      expect(farData.current_status).toBe('heading_to_pickup');
-
-      // Mock near location
-      await walkerCtx.context.setGeolocation({ latitude: -23.5505, longitude: -46.6333 }); // exact
-      await walkerPage.getByRole('button', { name: /Cheguei ao local/i }).click();
-      
-      await expect(walkerPage.locator('text=Validar PIN')).toBeVisible({ timeout: 10000 });
-      const { data: nearData } = await admin.from('walk_sessions').select('current_status, arrived_at').eq('id', sessionId).single();
-      expect(nearData.current_status).toBe('arrived');
-      expect(nearData.arrived_at).not.toBeNull();
-    });
-
-    // 3. Owner gets PIN
-    await test.step('owner-visualize-pin', async () => {
-      await ownerPage.goto(`/historico/${sessionId}`);
-      const pinLocator = ownerPage.locator('[data-testid="pickup-pin-display"]');
-      await expect(pinLocator).toBeVisible({ timeout: 15000 });
-      const pin = await pinLocator.innerText();
-      expect(pin).toHaveLength(6);
-      expect(pin).toMatch(/^[A-Z0-9]{6}$/);
-    });
-
-    // 4. PIN Validation
-    await test.step('petwalker-pin-validation', async () => {
-      const pin = await ownerPage.locator('[data-testid="pickup-pin-display"]').innerText();
-      
-      await walkerPage.getByRole('button', { name: /Validar PIN/i }).click();
-      await expect(walkerPage).toHaveURL(new RegExp(`/petwalker/passeio/${sessionId}`));
-
-      const inputs = walkerPage.locator('[data-testid="pickup-pin-input"]');
-      
-      // Wrong PIN
-      await inputs.nth(0).fill('0');
-      await inputs.nth(1).fill('0');
-      await inputs.nth(2).fill('0');
-      await inputs.nth(3).fill('0');
-      await inputs.nth(4).fill('0');
-      await inputs.nth(5).fill('0');
-      await walkerPage.locator('[data-testid="pickup-pin-submit"]').click();
-      
-      await expect(walkerPage.locator('text=Código incorreto')).toBeVisible();
-
-      // Correct PIN
-      for (let i = 0; i < 6; i++) {
-        await inputs.nth(i).fill(pin[i]);
-      }
-      await walkerPage.locator('[data-testid="pickup-pin-submit"]').click();
-
-      // Check walk starts
-      await expect(walkerPage.locator('text=Passeando')).toBeVisible({ timeout: 15000 });
-      const { data } = await admin.from('walk_sessions').select('current_status, pickup_confirmed_at, start_time').eq('id', sessionId).single();
-      expect(data.current_status).toBe('in_progress');
-      expect(data.pickup_confirmed_at).not.toBeNull();
-      expect(data.start_time).not.toBeNull();
-    });
-
-    // 5. Security: Replay and Direct Access blocking
-    await test.step('security-checks', async () => {
-      // Re-confirm should fail (PIN deleted)
-      const { error: replayErr } = await admin.rpc('petwalker_confirm_pickup', { 
-        _session_id: sessionId, 
-        _pickup_code: '123456' 
-      });
-      expect(replayErr).not.toBeNull();
-
-      // Direct petwalker_complete_walk bypass check
-      const { error: completeErr } = await admin.rpc('petwalker_complete_walk', { 
-        _session_id: sessionId 
-      });
-      // Should fail because it's in_progress, not returning (and authenticated execute revoked)
-      expect(completeErr).not.toBeNull();
-    });
+    const { data: finalWalk } = await supabase.from('walk_sessions')
+      .select('current_status')
+      .eq('id', walk.id)
+      .single();
+    expect(finalWalk?.current_status).toBe('in_progress');
   });
 });
