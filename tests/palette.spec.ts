@@ -24,7 +24,8 @@ test.describe('Verificação de Paleta Editorial em Search Walk', () => {
         const results = [];
         const all = document.querySelectorAll('*');
         const OLD_GREEN_RGB = 'rgb(0, 169, 120)';
-        for (const el of all) {
+        for (let i = 0; i < all.length; i++) {
+            const el = all[i];
             const style = window.getComputedStyle(el);
             if (style.backgroundColor === OLD_GREEN_RGB || 
                 style.color === OLD_GREEN_RGB || 
@@ -41,7 +42,8 @@ test.describe('Verificação de Paleta Editorial em Search Walk', () => {
     const hasBrandGreen = await page.evaluate(() => {
         const BRAND_GREEN_RGB = 'rgb(49, 216, 128)';
         const all = document.querySelectorAll('*');
-        for (const el of all) {
+        for (let i = 0; i < all.length; i++) {
+            const el = all[i];
             const style = window.getComputedStyle(el);
             if (style.backgroundColor === BRAND_GREEN_RGB || 
                 style.color === BRAND_GREEN_RGB || 
