@@ -31,7 +31,7 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
     expect([401, 403]).toContain(res2.status());
     
     const res3 = await request.post(`${SUPABASE_URL}/rest/v1/rpc/petwalker_confirm_pickup`, {
-      data: { walk_id: "00000000-0000-0000-0000-000000000000", input_pin: "000000" },
+      data: { _session_id: "00000000-0000-0000-0000-000000000000", _pin: "000000" },
       headers: { 'apikey': ANON_KEY }
     });
     expect([401, 403, 404]).toContain(res3.status());
@@ -87,7 +87,7 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       if (pinErr) throw pinErr;
       expect(pin).toMatch(/^\d{6}$/);
 
-      const { error: earlyErr } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
+      const { error: earlyErr } = await walkerClient.rpc('petwalker_confirm_pickup', { _session_id: session.id, _pin: pin });
       expect(earlyErr?.message).toMatch(/estado de retirada|status.*arrived|Status inválido/i);
 
       await admin.from('walk_sessions').update({ status: 'arrived', current_status: 'arrived' }).eq('id', session.id);
@@ -113,7 +113,7 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       const { data: pin2, error: pinErr2 } = await ownerClient.rpc('customer_get_pickup_code', { _session_id: session2.id });
       if (pinErr2) throw pinErr2;
       
-      const { data: ok, error: okErr } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session2.id, input_pin: pin2 });
+      const { data: ok, error: okErr } = await walkerClient.rpc('petwalker_confirm_pickup', { _session_id: session2.id, _pin: pin2 });
       if (okErr) throw okErr;
       expect(ok).toBe(true);
 
@@ -160,7 +160,7 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
 
       await admin.from('walk_pickup_codes').update({ expires_at: new Date(Date.now() - 1000).toISOString() }).eq('session_id', session.id);
       
-      const { error: expErr } = await ownerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: p1.data });
+      const { error: expErr } = await ownerClient.rpc('petwalker_confirm_pickup', { _session_id: session.id, _pin: p1.data });
       expect(expErr?.message).toMatch(/expirado|inválido/i);
     } finally {
       await failClosedCleanup(admin, [uid], runId);
