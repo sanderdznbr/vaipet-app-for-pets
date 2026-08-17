@@ -86,10 +86,12 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       total_price_cents: 4500,
       meeting_point_address: 'Rua E2E, 123',
       home_location: { lat: -23.5505, lng: -46.6333 },
-      walk_type: 'now',
+      walk_type: 'livre',
+      request_mode: 'now',
       e2e_test: true,
       e2e_run_id: E2E_RUN_ID,
       start_time: new Date().toISOString() 
+
     }).select().single();
     if (walkErr) throw walkErr;
     sessionId = walk!.id;
