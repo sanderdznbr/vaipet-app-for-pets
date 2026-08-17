@@ -47,14 +47,12 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       e2e_test: E2E_RUN_ID
     });
 
-    // Create Pet
+    // Create Pet (pets table lacks e2e_test column)
     const { data: pet, error: petErr } = await supabase.from('pets').insert({
       owner_id: owner.user!.id,
-      name: 'E2E Rex',
-      type: 'dog',
+      name: `E2E Rex ${E2E_RUN_ID}`,
       breed: 'Labrador',
-      weight: 25,
-      e2e_test: E2E_RUN_ID
+      weight: 25
     }).select().single();
     if (petErr) throw petErr;
 
