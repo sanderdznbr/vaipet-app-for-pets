@@ -147,10 +147,15 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       });
       if (arriveErr) throw new Error(`petwalker_arrive_pickup failed: ${arriveErr.message}`);
 
-      // Verificação da consulta de walk_pickup_codes (deve retornar vazio por RLS para authenticated)
+      // Verificação da consulta de walk_pickup_codes (deve retornar erro 42501 ou vazio por RLS/ACL para authenticated)
       const { data: pickupCodesData, error: pickupCodesError } = await walkerClient.from('walk_pickup_codes').select('*').eq('session_id', session.id);
-      if (pickupCodesError) throw new Error(`Verification of walk_pickup_codes error failed: ${pickupCodesError.message}`);
-      expect(pickupCodesData?.length).toBe(0);
+      
+      // Se não houver GRANT, retorna 42501. Se houver GRANT mas RLS bloquear, retorna []. Ambos satisfazem a segurança.
+      if (pickupCodesError) {
+        expect(pickupCodesError.code).toBe("42501");
+      } else {
+        expect(pickupCodesData?.length).toBe(0);
+      }
 
       const { data: initialPinData, error: pinFetchErr } = await admin.from('walk_pickup_codes').select('attempts').eq('session_id', session.id).single();
       if (pinFetchErr) throw new Error(`Initial PIN code audit failed: ${pinFetchErr.message}`);
@@ -279,7 +284,6 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
 
       const walkerClient = ownerClient;
       
-      // Espera um pouco para garantir que as triggers de perfil e role foram processadas (mesmo sendo upsert síncrono no teste, o RPC pode ler um estado ligeiramente atrasado se houver cache)
       await new Promise(resolve => setTimeout(resolve, 500));
 
       const { error: startErr } = await walkerClient.rpc('petwalker_start_heading', { _session_id: session.id });
