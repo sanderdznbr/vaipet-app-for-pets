@@ -155,9 +155,14 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
 
     // --- WALKER: Iniciar Deslocamento ---
     await walkerPage.goto(`/petwalker/passeio/${sessionId}`);
+    
+    // Capturar screenshot para debug do estado atual da UI do Walker
+    await walkerPage.screenshot({ path: `test-results/walker-ui-state-${E2E_RUN_ID}.png` });
+
     const headingBtn = walkerPage.getByRole('button', { name: /Iniciar Deslocamento/i });
     await expect(headingBtn).toBeVisible({ timeout: 45000 });
     await headingBtn.click();
+
 
     // Auditoria Banco: current_status = 'heading_to_pickup'
     const { data: audit1, error: err1 } = await supabase.from('walk_sessions').select('current_status').eq('id', sessionId).single();
