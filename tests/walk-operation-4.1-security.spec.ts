@@ -59,9 +59,6 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       weight: 10,
       e2e_test: true
     }).select().single();
-
-
-
     
     if (petErr) throw petErr;
     petId = pet!.id;
@@ -75,10 +72,10 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       planned_duration_minutes: 30,
       total_price_cents: 4500,
       home_location: { lat: -23.5505, lng: -46.6333 },
-      walk_type: 'now',
+      walk_type: 'livre',
+      request_mode: 'now',
       start_time: new Date().toISOString(),
       e2e_test: true,
-
       e2e_run_id: E2E_RUN_ID
     }).select().single();
     
@@ -87,6 +84,7 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
   });
 
   test.afterAll(async () => {
+    // Avoid cleanup permission errors by using Admin client directly if needed, but failClosedCleanup should work if grants applied
     await failClosedCleanup(supabaseAdmin, [ownerId, walkerId, otherId], E2E_RUN_ID);
   });
 
@@ -116,6 +114,7 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       _lng: -46.6333,
       _accuracy: 10
     });
+    // The RPC fails with "Somente o Walker designado" because walker_id <> auth.uid()
     expect(arriveErr?.message).toMatch(/Somente o Walker designado|Não autorizado/i);
   });
 
@@ -131,7 +130,7 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
     const { error: updErr } = await supabaseAdmin.from('walk_sessions').update({ current_status: 'heading_to_pickup' }).eq('id', sessionId);
     if (updErr) throw updErr;
 
-
+    // Distant GPS fails (Proximity validation)
     const { error: distErr } = await supabaseWalker.rpc('petwalker_arrive_pickup', {
       _session_id: sessionId,
       _lat: 0,
@@ -140,6 +139,7 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
     });
     expect(distErr?.message).toMatch(/Walker muito distante/i);
 
+    // Low accuracy fails
     const { error: accErr } = await supabaseWalker.rpc('petwalker_arrive_pickup', {
       _session_id: sessionId,
       _lat: -23.5505,
@@ -161,7 +161,6 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
     const { error: updErr2 } = await supabaseAdmin.from('walk_sessions').update({ current_status: 'arrived' }).eq('id', sessionId);
     if (updErr2) throw updErr2;
 
-    // Create PIN manually for testing attempts
     await supabaseAdmin.from('walk_pickup_codes').upsert({
       session_id: sessionId,
       pickup_code: '123456',
@@ -169,10 +168,11 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
     });
 
-
+    // 1. Format check
     const { error: fmtErr } = await supabaseWalker.rpc('petwalker_confirm_pickup', { _session_id: sessionId, _pickup_code: '123' });
     expect(fmtErr?.message).toMatch(/PIN deve ter exatamente 6 dígitos/i);
 
+    // 2. Wrong PIN increments attempts
     for (let i = 1; i <= 5; i++) {
       const { data: res } = await supabaseWalker.rpc('petwalker_confirm_pickup', { _session_id: sessionId, _pickup_code: '000000' });
       expect(res).toBe(false);
@@ -181,6 +181,7 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       expect(attempts?.attempts).toBe(i);
     }
 
+    // 3. 6th attempt is blocked
     const { error: blockErr } = await supabaseWalker.rpc('petwalker_confirm_pickup', { _session_id: sessionId, _pickup_code: '000000' });
     expect(blockErr?.message).toMatch(/bloqueado por excesso de tentativas/i);
   });
