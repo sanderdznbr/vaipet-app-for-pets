@@ -941,6 +941,7 @@ export type Database = {
           customer_id: string
           distance_km: number | null
           e2e_run_id: string | null
+          e2e_test: boolean | null
           end_time: string | null
           feedback: string | null
           heading_started_at: string | null
@@ -984,6 +985,7 @@ export type Database = {
           customer_id: string
           distance_km?: number | null
           e2e_run_id?: string | null
+          e2e_test?: boolean | null
           end_time?: string | null
           feedback?: string | null
           heading_started_at?: string | null
@@ -1027,6 +1029,7 @@ export type Database = {
           customer_id?: string
           distance_km?: number | null
           e2e_run_id?: string | null
+          e2e_test?: boolean | null
           end_time?: string | null
           feedback?: string | null
           heading_started_at?: string | null
