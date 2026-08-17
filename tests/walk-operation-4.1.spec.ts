@@ -65,7 +65,9 @@ const TEST_PASS = 'VaiPet@2026';
       { user_id: ownerId, role: 'user' },
       { user_id: walkerId, role: 'user' },
       { user_id: walkerId, role: 'petwalker' }
+    ]);
     if (roleErr) throw roleErr;
+
 
     // Colunas reais de petwalker_profiles saneadas conforme inspeção (public_bio, service_radius_km)
     const { error: walkerProfErr } = await supabase.from('petwalker_profiles').upsert({
