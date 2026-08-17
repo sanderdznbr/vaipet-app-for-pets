@@ -2747,17 +2747,13 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
                     </div>
                     {codeError && <p className="text-xs text-red-500 mb-2">Código incorreto, tente novamente</p>}
 
-                    <p className="text-[11px] mb-4" style={{ color: inkFaint }}>
-                      Demo: o código é <b style={{ color: ink }}>{walkerCode}</b>
-                    </p>
-
                     <button
                       onClick={handleConfirmCode}
-                      disabled={codeInput.length !== 4}
+                      disabled={codeInput.length !== 6 || concluding}
                       className="w-full py-3.5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-40"
                       style={{ background: 'linear-gradient(135deg, hsl(159 100% 33%), hsl(159 100% 27%))', boxShadow: '0 6px 18px -6px rgba(0,169,120,0.55)' }}
                     >
-                      <CheckCircle className="w-4 h-4" /> Confirmar e iniciar passeio
+                      {concluding ? 'Validando...' : 'Confirmar e iniciar passeio'}
                     </button>
                   </div>
                 </div>
