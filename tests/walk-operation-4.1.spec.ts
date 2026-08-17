@@ -85,7 +85,7 @@ test.describe('Phase 4.1: Walk Operation (Pickup PIN)', () => {
       weight: 10
     }).select();
     
-    if (petErr) throw new Error(`[SETUP] Failed to create pet: \${petErr.message}`);
+    if (petErr) throw new Error(`[SETUP] Failed to create pet: ${petErr.message}`);
     if (!pet || pet.length === 0) throw new Error(`[SETUP] Pet creation returned empty data`);
     petId = pet[0].id;
 
