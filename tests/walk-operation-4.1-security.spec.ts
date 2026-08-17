@@ -28,6 +28,7 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
 
   test.beforeAll(async () => {
     // 2. Setup Fail-Closed com verificação de erro em todas as etapas
+    // Use upsert to handle possible race conditions with handle_new_user trigger
     const users = await Promise.all([
       adminClient.auth.admin.createUser({ email: TEST_OWNER, password: TEST_PASS, email_confirm: true, user_metadata: { signup_intent: 'pet_owner', e2e_test: true, e2e_run_id: E2E_RUN_ID } }),
       adminClient.auth.admin.createUser({ email: TEST_WALKER, password: TEST_PASS, email_confirm: true, user_metadata: { signup_intent: 'petwalker', e2e_test: true, e2e_run_id: E2E_RUN_ID } }),
@@ -50,11 +51,13 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
     ]);
     if (profErr) throw profErr;
 
-    // Trigger handles 'user' role creation, skip manual insert for owner to avoid 23505
+    // Role 'user' is handled by trigger handle_new_user.
+    // We only need to provision 'petwalker' roles and ensure they exist for the test users.
     const { error: roleErr } = await adminClient.from('user_roles').upsert([
+      { user_id: ownerId, role: 'user' },
       { user_id: walkerId, role: 'petwalker' },
       { user_id: otherId, role: 'petwalker' }
-    ]);
+    ], { onConflict: 'user_id, role' });
     if (roleErr) throw roleErr;
 
     const { error: walkerErr } = await adminClient.from('petwalker_profiles').upsert([
