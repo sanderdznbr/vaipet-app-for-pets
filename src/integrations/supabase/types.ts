@@ -1629,7 +1629,6 @@ export type Database = {
         Args: { _session_id: string }
         Returns: boolean
       }
-      petwalker_start_walk: { Args: { _session_id: string }; Returns: boolean }
       populate_geometry_columns:
         | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }
         | { Args: { use_typmod?: boolean }; Returns: string }
