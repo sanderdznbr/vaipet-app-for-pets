@@ -87,7 +87,7 @@ test("Phase 4.1: displacement and secure PIN pickup flow", async ({ browser }) =
     log("1. Cliente solicitando passeio");
     await ownerPage.goto("/inicio");
     
-    // Check for "Passeio" button (exact ARIA label if possible, or exact text)
+    // Check for "Passeio" button
     const walkBtn = ownerPage.getByRole("button", { name: "Passeio", exact: true });
     await walkBtn.waitFor({ state: 'visible', timeout: 30000 });
     await walkBtn.click();
@@ -102,8 +102,9 @@ test("Phase 4.1: displacement and secure PIN pickup flow", async ({ browser }) =
     await petCard.waitFor({ state: 'visible', timeout: 15000 });
     await petCard.click();
     
-    await ownerPage.click('button:has-text("Confirmar Pet")', { timeout: 10000 });
-    await ownerPage.click('button:has-text("30 min")', { timeout: 10000 });
+    await ownerPage.getByTestId("confirm-pet-selection").click({ timeout: 10000 });
+    await ownerPage.getByTestId("confirm-walk-type").click({ timeout: 10000 });
+    await ownerPage.getByTestId("confirm-duration").click({ timeout: 10000 });
     
     const slider = ownerPage.getByTestId("slider-confirm-handle");
     const track = ownerPage.getByTestId("slider-confirm-track");
