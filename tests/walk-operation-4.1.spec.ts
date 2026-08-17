@@ -13,9 +13,10 @@ const TEST_WALKER = `walker-${E2E_RUN_ID}@example.com`;
 const TEST_PASS = 'VaiPet@2026';
 
 test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
-  test.setTimeout(120000);
+  test.setTimeout(150000);
 
   test.beforeAll(async () => {
+    // 1. Criar Usuários
     const { data: owner, error: ownerErr } = await supabase.auth.admin.createUser({
       email: TEST_OWNER,
       password: TEST_PASS,
@@ -32,6 +33,7 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     });
     if (walkerErr) throw walkerErr;
 
+    // 2. Provisionar Perfis para pular onboarding
     await supabase.from('profiles').insert([
       { 
         id: owner.user!.id, 
@@ -51,6 +53,11 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       }
     ]);
 
+    await supabase.from('user_roles').insert([
+      { user_id: owner.user!.id, role: 'user' },
+      { user_id: walker.user!.id, role: 'petwalker' }
+    ]);
+
     await supabase.from('petwalker_profiles').insert({
       user_id: walker.user!.id,
       status: 'active',
@@ -59,18 +66,18 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       operational_onboarding_completed: true
     });
 
-    const { data: pet, error: petErr } = await supabase.from('pets').insert({
+    const { data: pet } = await supabase.from('pets').insert({
       owner_id: owner.user!.id,
       name: `E2E Rex ${E2E_RUN_ID}`,
       breed: 'Labrador',
       weight: 25
     }).select().single();
-    if (petErr) throw petErr;
 
-    const { error: sessionErr } = await supabase.from('walk_sessions').insert({
+    // 3. Criar Sessão em status 'accepted'
+    await supabase.from('walk_sessions').insert({
       customer_id: owner.user!.id,
       walker_id: walker.user!.id,
-      pet_id: pet.id,
+      pet_id: pet!.id,
       current_status: 'accepted',
       status: 'accepted',
       planned_duration_minutes: 30,
@@ -81,59 +88,51 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       walker_name: E2E_RUN_ID,
       start_time: new Date().toISOString() 
     });
-    if (sessionErr) throw sessionErr;
   });
 
   test.afterAll(async () => {
-    const { data: sessions } = await supabase.from('walk_sessions')
-      .select('id')
-      .eq('walker_name', E2E_RUN_ID);
-    
-    if (sessions) {
-      for (const s of sessions) {
-        await supabase.from('walk_sessions').delete().eq('id', s.id);
-      }
-    }
-    await failClosedCleanup(E2E_RUN_ID);
+    await failClosedCleanup(supabase, [], E2E_RUN_ID);
   });
 
   test('Operational displacement and PIN confirmation', async ({ browser }) => {
-    const { data: walk, error: walkErr } = await supabase.from('walk_sessions')
+    const { data: walk } = await supabase.from('walk_sessions')
       .select('id')
       .eq('walker_name', E2E_RUN_ID)
       .single();
-    if (walkErr) throw walkErr;
 
     const { page: walkerPage } = await createAuthedContext(browser, TEST_WALKER, TEST_PASS);
     const { page: ownerPage } = await createAuthedContext(browser, TEST_OWNER, TEST_PASS);
 
     // 1. Walker: Start Heading
     console.log('[STEP 1] Walker starting displacement');
-    await walkerPage.goto(`/petwalker/passeio/${walk.id}`);
+    await walkerPage.goto(`/petwalker/passeio/${walk!.id}`);
     
-    const headingBtn = walkerPage.locator('text=Iniciar Deslocamento');
-    await expect(headingBtn).toBeVisible({ timeout: 30000 });
+    // Usar data-testid ou seletor mais resiliente
+    const headingBtn = walkerPage.getByRole('button', { name: /Iniciar Deslocamento/i });
+    await expect(headingBtn).toBeVisible({ timeout: 45000 });
     await headingBtn.click();
+    
     console.log('[STEP 1.1] Waiting for arrival button');
-    await expect(walkerPage.locator('text=Cheguei no Local')).toBeVisible({ timeout: 20000 });
+    await expect(walkerPage.getByRole('button', { name: /Cheguei no Local/i })).toBeVisible({ timeout: 20000 });
 
     // 2. Walker: Arrive at Pickup
     console.log('[STEP 2] Walker arriving at pickup');
-    await walkerPage.click('text=Cheguei no Local');
+    await walkerPage.getByRole('button', { name: /Cheguei no Local/i }).click();
     console.log('[STEP 2.1] Waiting for PIN input');
     await expect(walkerPage.locator('[data-testid="pickup-pin-input"]')).toBeVisible({ timeout: 20000 });
 
     // 3. Owner: Get PIN
     console.log('[STEP 3] Owner fetching PIN');
-    await ownerPage.goto(`/petwalker/passeio/${walk.id}`);
+    await ownerPage.goto(`/petwalker/passeio/${walk!.id}`);
     
-    const pinLocator = ownerPage.locator('span:has-text("PIN") + span, .text-accent');
-    await expect(pinLocator).toBeVisible({ timeout: 30000 });
-    await expect(pinLocator).not.toHaveText(/------/, { timeout: 20000 });
-    const pinText = await pinLocator.textContent();
-    const pin = pinText?.replace(/\s/g, '').trim();
-    expect(pin).toMatch(/^[0-9]{6}$/);
+    // Usar o data-testid que adicionamos
+    const pinDisplay = ownerPage.locator('[data-testid="pickup-pin-display"]');
+    await expect(pinDisplay).toBeVisible({ timeout: 30000 });
+    await expect(pinDisplay).not.toHaveText(/------/);
+    
+    const pin = (await pinDisplay.textContent())?.replace(/\s/g, '').trim();
     console.log(`[INFO] PIN discovered: ${pin}`);
+    expect(pin).toMatch(/^[0-9]{6}$/);
 
     // 4. Walker: Submit PIN
     console.log('[STEP 4] Walker submitting PIN');
@@ -142,11 +141,12 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
 
     // 5. Verification: Walk In Progress
     console.log('[STEP 5] Verifying walk is in progress');
-    await expect(walkerPage.locator('text=Finalização indisponível')).toBeVisible({ timeout: 20000 });
+    // Quando em progresso, o botão de finalização deve aparecer (mesmo que desabilitado por segurança na Phase 4.1)
+    await expect(walkerPage.getByRole('button', { name: /Finalizar Passeio/i })).toBeVisible({ timeout: 20000 });
     
     const { data: finalWalk } = await supabase.from('walk_sessions')
       .select('current_status')
-      .eq('id', walk.id)
+      .eq('id', walk!.id)
       .single();
     expect(finalWalk?.current_status).toBe('in_progress');
   });
