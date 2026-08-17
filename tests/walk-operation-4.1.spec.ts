@@ -60,7 +60,7 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       planned_duration_minutes: 30,
       total_price_cents: 4500,
       meeting_point_address: 'Rua E2E, 123',
-      home_location: { lat: -23.5505, lng: -46.6333 }, -- São Paulo
+      home_location: { lat: -23.5505, lng: -46.6333 }, // São Paulo
       walk_type: 'now',
       e2e_test: E2E_RUN_ID
     });
