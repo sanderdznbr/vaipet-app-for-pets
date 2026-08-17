@@ -19,11 +19,11 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
     const { status: s1 } = await request.post(`${SUPABASE_URL}/rest/v1/rpc/customer_get_pickup_code`, {
       data: { walk_id: "00000000-0000-0000-0000-000000000000" }
     });
-    expect(s1).toBeGreaterThanOrEqual(400);
+    expect(s1()).toBeGreaterThanOrEqual(400);
 
     // Tentativa de ler a tabela diretamente
-    const { status: s2 } = await request.get(`${SUPABASE_URL}/rest/v1/walk_pickup_codes`);
-    expect(s2).toBeGreaterThanOrEqual(400);
+    const res2 = await request.get(`${SUPABASE_URL}/rest/v1/walk_pickup_codes`);
+    expect(res2.status()).toBeGreaterThanOrEqual(400);
     
     log("Acesso anon negado: PASS");
   });
