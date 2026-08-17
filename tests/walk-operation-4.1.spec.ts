@@ -254,8 +254,10 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     expect(auditPostReplay?.current_status).toBe('in_progress');
     expect(auditPostReplay?.walker_id).toBe(walkerId);
 
-    const { count } = await supabase.from('walk_pickup_codes').select('*', { count: 'exact', head: true }).eq('session_id', sessionId);
-    expect(count).toBe(0);
+    const { count, error: finalPinErr } = await supabase.from('walk_pickup_codes').select('*', { count: 'exact', head: true }).eq('session_id', sessionId);
+    if (finalPinErr) throw new Error(`Final PIN count failed: ${finalPinErr.message}`);
+    expect(count || 0).toBe(0);
+
 
     await walkerCtx.context.close();
     await ownerCtx.context.close();
