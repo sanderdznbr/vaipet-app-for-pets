@@ -1568,6 +1568,7 @@ const SearchWalk = () => {
                     />
                     <button
                       onClick={() => setScheduleMode('now')}
+                      data-testid="agora-btn"
                       aria-label="Agora"
                       className="relative z-10 flex items-center justify-center gap-2 py-3 rounded-full overflow-hidden transition-[flex-grow] duration-500"
                       style={{
