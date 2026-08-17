@@ -19,26 +19,47 @@ test.beforeAll(async () => {
 test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
   
   test("security: ACL - Acesso Anon/Public deve ser negado com 401/403 real", async ({ request }) => {
-    const rpcs = [
-      'customer_get_pickup_code',
-      'petwalker_confirm_pickup',
-      'petwalker_start_heading',
-      'petwalker_arrive_pickup',
-      'petwalker_complete_walk'
+    const zeroId = "00000000-0000-0000-0000-000000000000";
+
+    const calls = [
+      {
+        rpc: "customer_get_pickup_code",
+        payload: { _session_id: zeroId }
+      },
+      {
+        rpc: "petwalker_confirm_pickup",
+        payload: { walk_id: zeroId, input_pin: "000000" }
+      },
+      {
+        rpc: "petwalker_start_heading",
+        payload: { _session_id: zeroId }
+      },
+      {
+        rpc: "petwalker_arrive_pickup",
+        payload: {
+          _session_id: zeroId,
+          _lat: -23.5505,
+          _lng: -46.6333,
+          _accuracy: 10
+        }
+      },
+      {
+        rpc: "petwalker_complete_walk",
+        payload: { _session_id: zeroId }
+      }
     ];
 
-    for (const rpc of rpcs) {
-      const response = await request.post(`${SUPABASE_URL}/rest/v1/rpc/${rpc}`, {
-        data: rpc === 'customer_get_pickup_code' ? { _session_id: "00000000-0000-0000-0000-000000000000" } : { walk_id: "00000000-0000-0000-0000-000000000000", input_pin: "000000" },
+    for (const call of calls) {
+      const response = await request.post(`${SUPABASE_URL}/rest/v1/rpc/${call.rpc}`, {
+        data: call.payload,
         headers: { 'apikey': ANON_KEY }
       });
-      expect([401, 403, 404]).toContain(response.status());
       
-      if (response.status() !== 404) {
-        const body = await response.json();
-        expect(body.code).toBe('42501');
-        expect(body.message).toMatch(/permission denied/i);
-      }
+      expect([401, 403]).toContain(response.status());
+      
+      const body = await response.json();
+      expect(body.code).toBe("42501");
+      expect(body.message).toMatch(/permission denied/i);
     }
 
     const tableRes = await request.get(`${SUPABASE_URL}/rest/v1/walk_pickup_codes`, {
@@ -46,7 +67,7 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
     });
     expect([401, 403]).toContain(tableRes.status());
     const tableBody = await tableRes.json();
-    expect(tableBody.code).toBe('42501');
+    expect(tableBody.code).toBe("42501");
     expect(tableBody.message).toMatch(/permission denied/i);
   });
 
@@ -98,10 +119,11 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       }).select().single();
       if (petErr) throw new Error(`Pet insertion failed: ${petErr.message}`);
       
+      const oldStartTime = new Date(Date.now() - 3600000).toISOString();
       const { data: session, error: sessErr } = await admin.from("walk_sessions").insert({
         customer_id: owner.id, walker_id: walker.id, pet_id: pet.id, current_status: "accepted", status: "accepted",
         walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId, e2e_test: true,
-        start_time: new Date().toISOString(),
+        start_time: oldStartTime,
         home_location: { lat: -23.5505, lng: -46.6333 }
       }).select().single();
       if (sessErr) throw new Error(`Session insertion failed: ${sessErr.message}`);
@@ -113,13 +135,17 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       if (pinErr) throw new Error(`PIN fetch failed: ${pinErr.message}`);
       expect(pin).toMatch(/^\d{6}$/);
 
-      // Transição forçada para arrived via admin para evitar trâmites de role/GPS complexos
+      // Transição forçada para arrived via admin
       const { error: upErr } = await admin.from('walk_sessions').update({ 
         status: 'arrived', 
         current_status: 'arrived',
         arrived_at: new Date().toISOString()
       }).eq('id', session.id);
       if (upErr) throw new Error(`Admin status update to arrived failed: ${upErr.message}`);
+
+      const { data: pickupCodesData, error: pickupCodesError } = await admin.from('walk_pickup_codes').select('*').eq('session_id', session.id);
+      if (pickupCodesError) throw new Error(`Verification of walk_pickup_codes error failed: ${pickupCodesError.message}`);
+      expect(pickupCodesData?.length).toBe(0); // RLS prevents visibility to non-service_role
 
       const { data: initialPinData, error: pinFetchErr } = await admin.from('walk_pickup_codes').select('attempts').eq('session_id', session.id).single();
       if (pinFetchErr) throw new Error(`Initial PIN code audit failed: ${pinFetchErr.message}`);
@@ -165,7 +191,7 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       const { data: session2, error: sessErr2 } = await admin.from("walk_sessions").insert({
         customer_id: owner.id, walker_id: walker.id, pet_id: pet.id, current_status: "arrived", status: "arrived",
         walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId, e2e_test: true,
-        start_time: new Date().toISOString(),
+        start_time: oldStartTime,
         arrived_at: new Date().toISOString()
       }).select().single();
       if (sessErr2) throw new Error(`Session 2 insertion failed: ${sessErr2.message}`);
@@ -183,15 +209,20 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       expect(confirmedSess.current_status).toBe('in_progress');
       expect(confirmedSess.walker_id).toBe(walker.id);
       expect(confirmedSess.pickup_confirmed_at).not.toBeNull();
-      expect(confirmedSess.start_time).not.toBeNull();
+      expect(confirmedSess.start_time).not.toBe(oldStartTime);
 
       const { data: pinRecord } = await admin.from('walk_pickup_codes').select('*').eq('session_id', session2.id);
       expect(pinRecord?.length).toBe(0);
 
-      const { data: replay } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session2.id, input_pin: pin2 });
-      expect(replay).not.toBe(true);
-      const { data: finalCheckSess } = await admin.from('walk_sessions').select('status').eq('id', session2.id).single();
+      const { data: replayData, error: replayError } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session2.id, input_pin: pin2 });
+      expect(replayData).not.toBe(true);
+      expect(replayError).not.toBeNull();
+      
+      const { data: finalCheckSess, error: finalCheckError } = await admin.from('walk_sessions').select('status, current_status, walker_id').eq('id', session2.id).single();
+      if (finalCheckError) throw new Error(`Final check session audit failed: ${finalCheckError.message}`);
       expect(finalCheckSess?.status).toBe('in_progress');
+      expect(finalCheckSess?.current_status).toBe('in_progress');
+      expect(finalCheckSess?.walker_id).toBe(walker.id);
 
     } finally {
       await failClosedCleanup(admin, [owner.id, walker.id, attacker.id], runId);
