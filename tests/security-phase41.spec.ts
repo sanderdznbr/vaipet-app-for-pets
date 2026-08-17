@@ -207,13 +207,28 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       }).select().single();
       if (sessErr2) throw new Error(`Session 2 insertion failed: ${sessErr2.message}`);
 
-      await walkerClient.rpc('petwalker_start_heading', { _session_id: session2.id });
-      await walkerClient.rpc('petwalker_arrive_pickup', { 
-        _session_id: session2.id, 
-        _lat: -23.5505, 
-        _lng: -46.6333, 
-        _accuracy: 10 
-      });
+      const { error: start2Error } = await walkerClient.rpc(
+        "petwalker_start_heading",
+        { _session_id: session2.id }
+      );
+
+      if (start2Error) {
+        throw new Error(`Session 2 start heading failed: ${start2Error.message}`);
+      }
+
+      const { error: arrive2Error } = await walkerClient.rpc(
+        "petwalker_arrive_pickup",
+        {
+          _session_id: session2.id,
+          _lat: -23.5505,
+          _lng: -46.6333,
+          _accuracy: 10
+        }
+      );
+
+      if (arrive2Error) {
+        throw new Error(`Session 2 arrive pickup failed: ${arrive2Error.message}`);
+      }
 
       const { data: pin2, error: pinErr2 } = await ownerClient.rpc('customer_get_pickup_code', { _session_id: session2.id });
       if (pinErr2) throw new Error(`PIN 2 fetch failed: ${pinErr2.message}`);
@@ -230,8 +245,16 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       expect(confirmedSess.pickup_confirmed_at).not.toBeNull();
       expect(confirmedSess.start_time).not.toBe(oldStartTime);
 
-      const { data: pinRecord } = await admin.from('walk_pickup_codes').select('*').eq('session_id', session2.id);
-      expect(pinRecord?.length).toBe(0);
+      const { data: pinRecord, error: pinRecordError } = await admin
+        .from("walk_pickup_codes")
+        .select("*")
+        .eq("session_id", session2.id);
+
+      if (pinRecordError) {
+        throw new Error(`PIN deletion audit failed: ${pinRecordError.message}`);
+      }
+
+      expect(pinRecord).toHaveLength(0);
 
       const { data: replayData, error: replayError } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session2.id, input_pin: pin2 });
       expect(replayData).not.toBe(true);
