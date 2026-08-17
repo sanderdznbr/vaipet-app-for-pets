@@ -26,7 +26,6 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       data: { _session_id: "00000000-0000-0000-0000-000000000000" },
       headers: { 'apikey': ANON_KEY }
     });
-    // PostgREST retorna 404 se a função for "removida" do cache pelo REVOKE ALL, ou 401/403.
     expect([401, 403, 404]).toContain(res1.status());
 
     // 2. walk_pickup_codes table access
@@ -100,8 +99,7 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
 
       // 1. Acesso negado: Outro Walker não pode gerar PIN
       const { error: attPinErr } = await attackerClient.rpc('customer_get_pickup_code', { _session_id: session.id });
-      // PostgREST retorna 404 se a função for removida do cache para aquele role, ou erro SQL.
-      expect(attPinErr?.message || attPinErr).toMatch(/permission denied|Acesso negado|Could not find the function/i);
+      expect(attPinErr?.message || JSON.stringify(attPinErr)).toMatch(/permission denied|Acesso negado|Could not find the function/i);
 
       // 2. Owner gera o PIN com sucesso
       const { data: pin, error: pinErr } = await ownerClient.rpc('customer_get_pickup_code', { _session_id: session.id });
@@ -112,7 +110,7 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       const { error: earlyErr } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
       expect(earlyErr?.message).toMatch(/status.*arrived/i);
 
-      // 4. Mudar status para arrived (via admin para pular GPS no teste de segurança pura)
+      // 4. Mudar status para arrived
       await admin.from('walk_sessions').update({ status: 'arrived', current_status: 'arrived' }).eq('id', session.id);
 
       // 5. ATACANTE tenta confirmar PIN do Walker correto
@@ -137,7 +135,8 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
         start_time: new Date().toISOString()
       }).select().single();
 
-      const { data: pin2 } = await ownerClient.rpc('customer_get_pickup_code', { walk_id: session2.id });
+      const { data: pin2, error: pinErr2 } = await ownerClient.rpc('customer_get_pickup_code', { _session_id: session2.id });
+      if (pinErr2) throw pinErr2;
       
       const { data: ok, error: okErr } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session2.id, input_pin: pin2 });
       if (okErr) throw okErr;
