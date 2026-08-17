@@ -2141,33 +2141,38 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
     return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
   }, [routeCoordinates, isReturning, phase, pickupSpeedMs]);
 
-  // [DEV/TEST] Skip the pickup animation entirely: teleport the walker to
-  // the pet location and immediately transition into the 'arrived' phase
-  // so the code-input UI appears without waiting for the en-route animation.
-  const handleSkipPickup = () => {
-    const target = petLocation || walkerLocation;
-    if (target) {
-      walkerMarkerRef.current?.setLngLat(target);
-      lastLocRef.current = target;
-    }
-    setEtaSec(0);
-    setRemainingMeters(0);
-    setPhase('arrived');
-    // Clear the pickup polyline so the map stays clean for the code step.
-    if (map.current?.getSource('pickup-route')) {
-      (map.current.getSource('pickup-route') as mapboxgl.GeoJSONSource).setData({
-        type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] },
-      });
-    }
-  };
 
-  // After customer confirms the code, start the walk loop from current marker position
-  const handleConfirmCode = () => {
-    if (codeInput !== walkerCode) {
+  const handleConfirmCode = async () => {
+    if (codeInput.length !== 6 || codeInput === '000000') {
       setCodeError(true);
       setTimeout(() => setCodeError(false), 800);
       return;
     }
+
+    try {
+      setConcluding(true);
+      const { data: success, error } = await supabase.rpc('petwalker_confirm_pickup', {
+        _session_id: sessionId,
+        _pickup_code: codeInput
+      });
+
+      if (error || !success) {
+        setCodeError(true);
+        setTimeout(() => setCodeError(false), 800);
+        setConcluding(false);
+        return;
+      }
+
+      // Success! Transition state
+      setPhase('walking');
+      setConcluding(false);
+    } catch (e) {
+      console.error('PIN validation error:', e);
+      setCodeError(true);
+      setConcluding(false);
+      return;
+    }
+
     const start = lastLocRef.current || petLocation || walkerLocation;
     if (!start) return;
     setWalkStartedAt(new Date());
@@ -2678,22 +2683,6 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
               for a cleaner walking screen. Theme toggle lives in the top
               header next to the recenter button. */}
 
-          {/* [DEV/TEST] Skip pickup button — only shown while the walker is
-              on the way. Jumps straight to the code-confirmation step. */}
-          {phase === 'pickup' && (
-            <button
-              onClick={handleSkipPickup}
-              className="absolute left-1/2 -translate-x-1/2 bottom-6 z-20 px-5 py-2.5 rounded-full font-bold text-sm text-white backdrop-blur-md active:scale-95 transition-transform"
-              style={{
-                background: 'rgba(0,0,0,0.65)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
-              }}
-              aria-label="Pular animação de chegada (teste)"
-            >
-              Pular ⏭
-            </button>
-          )}
 
         </div>
 
@@ -2730,11 +2719,11 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
                     </div>
                     <h3 className="text-lg font-extrabold" style={{ color: ink }}>{walkerName} chegou!</h3>
                     <p className="text-sm mt-1 mb-5" style={{ color: inkSoft }}>
-                      Confirme o código que <b style={{ color: ink }}>{walkerName}</b> está mostrando para iniciar o passeio com {petName}.
+                      Peça o código de 6 dígitos que o <b>cliente</b> está visualizando para confirmar a retirada.
                     </p>
 
-                    <div className="flex gap-2 mb-3">
-                      {[0,1,2,3].map(i => (
+                    <div className="flex gap-1.5 mb-3">
+                      {[0, 1, 2, 3, 4, 5].map(i => (
                         <input
                           key={i}
                           inputMode="numeric"
@@ -2742,12 +2731,12 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
                           value={codeInput[i] || ''}
                           onChange={(e) => {
                             const v = e.target.value.replace(/\D/g, '').slice(-1);
-                            const arr = codeInput.padEnd(4, ' ').split('');
+                            const arr = codeInput.padEnd(6, ' ').split('');
                             arr[i] = v || ' ';
                             setCodeInput(arr.join('').trimEnd());
                             if (v && e.target.nextElementSibling) (e.target.nextElementSibling as HTMLInputElement).focus();
                           }}
-                          className="w-12 h-14 text-center text-2xl font-extrabold rounded-xl border-2 focus:outline-none transition-colors"
+                          className="w-10 h-14 text-center text-xl font-extrabold rounded-xl border-2 focus:outline-none transition-colors"
                           style={{
                             background: inputBg,
                             color: ink,
@@ -2758,17 +2747,13 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
                     </div>
                     {codeError && <p className="text-xs text-red-500 mb-2">Código incorreto, tente novamente</p>}
 
-                    <p className="text-[11px] mb-4" style={{ color: inkFaint }}>
-                      Demo: o código é <b style={{ color: ink }}>{walkerCode}</b>
-                    </p>
-
                     <button
                       onClick={handleConfirmCode}
-                      disabled={codeInput.length !== 4}
+                      disabled={codeInput.length !== 6 || concluding}
                       className="w-full py-3.5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-40"
                       style={{ background: 'linear-gradient(135deg, hsl(159 100% 33%), hsl(159 100% 27%))', boxShadow: '0 6px 18px -6px rgba(0,169,120,0.55)' }}
                     >
-                      <CheckCircle className="w-4 h-4" /> Confirmar e iniciar passeio
+                      {concluding ? 'Validando...' : 'Confirmar e iniciar passeio'}
                     </button>
                   </div>
                 </div>

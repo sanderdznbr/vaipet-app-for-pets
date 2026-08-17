@@ -376,10 +376,10 @@ const Auth = () => {
                 <p>Escolha o seu perfil para continuar</p>
               </header>
               <div className="auth-form">
-                <button onClick={() => setSignupIntent('pet_owner')} className="social-button" style={{ justifyContent: 'center' }}>
+                <button onClick={() => setSignupIntent('pet_owner')} className="social-button" style={{ justifyContent: 'center' }} data-testid="intent-owner-btn">
                   <span>Dono(a) de Pet</span>
                 </button>
-                <button onClick={() => setSignupIntent('petwalker')} className="social-button" style={{ justifyContent: 'center' }}>
+                <button onClick={() => setSignupIntent('petwalker')} className="social-button" style={{ justifyContent: 'center' }} data-testid="intent-walker-btn">
                   <span>Quero ser PetWalker</span>
                 </button>
               </div>

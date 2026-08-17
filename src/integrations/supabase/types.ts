@@ -857,6 +857,38 @@ export type Database = {
           },
         ]
       }
+      walk_pickup_codes: {
+        Row: {
+          attempts: number
+          created_at: string
+          expires_at: string
+          pickup_code: string
+          session_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          expires_at: string
+          pickup_code: string
+          session_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          expires_at?: string
+          pickup_code?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "walk_pickup_codes_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "walk_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       walk_pricing_settings: {
         Row: {
           created_at: string | null
@@ -899,6 +931,7 @@ export type Database = {
       walk_sessions: {
         Row: {
           actual_duration_minutes: number | null
+          arrived_at: string | null
           created_at: string
           current_radius_meters: number | null
           current_status: Database["public"]["Enums"]["walk_status"]
@@ -906,6 +939,7 @@ export type Database = {
           distance_km: number | null
           end_time: string | null
           feedback: string | null
+          heading_started_at: string | null
           home_location: Json | null
           id: string
           last_expansion_at: string | null
@@ -918,6 +952,7 @@ export type Database = {
           pet_id: string
           pet_ids: string[] | null
           petwalker_notified_at: string | null
+          pickup_confirmed_at: string | null
           planned_duration_minutes: number
           price_per_minute_cents: number | null
           pricing_surcharge_cents: number | null
@@ -938,6 +973,7 @@ export type Database = {
         }
         Insert: {
           actual_duration_minutes?: number | null
+          arrived_at?: string | null
           created_at?: string
           current_radius_meters?: number | null
           current_status?: Database["public"]["Enums"]["walk_status"]
@@ -945,6 +981,7 @@ export type Database = {
           distance_km?: number | null
           end_time?: string | null
           feedback?: string | null
+          heading_started_at?: string | null
           home_location?: Json | null
           id?: string
           last_expansion_at?: string | null
@@ -957,6 +994,7 @@ export type Database = {
           pet_id: string
           pet_ids?: string[] | null
           petwalker_notified_at?: string | null
+          pickup_confirmed_at?: string | null
           planned_duration_minutes?: number
           price_per_minute_cents?: number | null
           pricing_surcharge_cents?: number | null
@@ -977,6 +1015,7 @@ export type Database = {
         }
         Update: {
           actual_duration_minutes?: number | null
+          arrived_at?: string | null
           created_at?: string
           current_radius_meters?: number | null
           current_status?: Database["public"]["Enums"]["walk_status"]
@@ -984,6 +1023,7 @@ export type Database = {
           distance_km?: number | null
           end_time?: string | null
           feedback?: string | null
+          heading_started_at?: string | null
           home_location?: Json | null
           id?: string
           last_expansion_at?: string | null
@@ -996,6 +1036,7 @@ export type Database = {
           pet_id?: string
           pet_ids?: string[] | null
           petwalker_notified_at?: string | null
+          pickup_confirmed_at?: string | null
           planned_duration_minutes?: number
           price_per_minute_cents?: number | null
           pricing_surcharge_cents?: number | null
@@ -1292,6 +1333,10 @@ export type Database = {
         Args: { _session_id: string }
         Returns: boolean
       }
+      customer_get_pickup_code: {
+        Args: { _session_id: string }
+        Returns: string
+      }
       customer_request_return: {
         Args: { _session_id: string }
         Returns: boolean
@@ -1554,12 +1599,23 @@ export type Database = {
       }
       is_beta_petwalker: { Args: { _user_id: string }; Returns: boolean }
       longtransactionsenabled: { Args: never; Returns: boolean }
-      petwalker_arrive_pickup: {
+      petwalker_arrive_pickup:
+        | { Args: { _session_id: string }; Returns: boolean }
+        | {
+            Args: {
+              _accuracy: number
+              _lat: number
+              _lng: number
+              _session_id: string
+            }
+            Returns: boolean
+          }
+      petwalker_complete_walk: {
         Args: { _session_id: string }
         Returns: boolean
       }
-      petwalker_complete_walk: {
-        Args: { _session_id: string }
+      petwalker_confirm_pickup: {
+        Args: { _pickup_code: string; _session_id: string }
         Returns: boolean
       }
       petwalker_start_heading: {

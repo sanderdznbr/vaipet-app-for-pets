@@ -1698,6 +1698,7 @@ const SearchWalk = () => {
                           return (
                             <button
                               key={p.id}
+                              data-testid="pet-selection-card"
                               onClick={() => {
                                 const willBeCollective = !selectedPets.some(sp => sp.id === p.id) && selectedPets.length >= 1;
                                 const nonEligible = ['agressivo', 'protetor', 'moderavel'];
@@ -1778,6 +1779,7 @@ const SearchWalk = () => {
                     </div>
 
                   <button
+                    data-testid="confirm-pet-selection"
                     onClick={() => { if (selectedPets.length > 0) setStep(2); }}
                     disabled={selectedPets.length === 0}
                     className="w-full py-3.5 rounded-full text-white font-extrabold text-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1847,6 +1849,7 @@ const SearchWalk = () => {
                       Voltar
                     </button>
                     <button
+                      data-testid="confirm-duration"
                       onClick={() => setStep(4)}
                       className="flex-1 py-3.5 rounded-full text-white font-extrabold text-sm transition-all active:scale-[0.98]"
                       style={{ background: '#31d880', boxShadow: '0 10px 24px rgba(49,216,128,0.35)' }}
@@ -2062,6 +2065,7 @@ const SearchWalk = () => {
                       Voltar
                     </button>
                     <button
+                      data-testid="confirm-walk-type"
                       onClick={() => setStep(3)}
                       disabled={walkType === 'local' && localStops.length === 0}
                       className="flex-1 py-3.5 rounded-full text-white font-extrabold text-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"

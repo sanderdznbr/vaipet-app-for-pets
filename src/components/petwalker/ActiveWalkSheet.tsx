@@ -5,6 +5,7 @@ import { MapPin, Navigation } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Database } from '@/integrations/supabase/types';
+import { supabase } from "@/integrations/supabase/client";
 
 type WalkSession = Database['public']['Tables']['walk_sessions']['Row'] & {
   customer?: { full_name: string | null };
@@ -33,7 +34,10 @@ export const ActiveWalkSheet = ({ activeRequest }: ActiveWalkSheetProps) => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[#31D880] animate-pulse" />
+            <div className={cn(
+              "w-2 h-2 rounded-full",
+              status === 'in_progress' ? "bg-[#31D880] animate-pulse" : "bg-blue-500"
+            )} />
             <h3 className={cn(
               "text-lg font-bold font-space uppercase tracking-tight", 
               isInProgress ? "text-white" : "text-ink"
@@ -97,7 +101,31 @@ export const ActiveWalkSheet = ({ activeRequest }: ActiveWalkSheetProps) => {
         )}
 
         <Button 
-          onClick={() => navigate(`/petwalker/passeio/${activeRequest.id}`)}
+          onClick={async () => {
+            if (status === 'accepted') {
+              const { error } = await supabase.rpc('petwalker_start_heading', { _session_id: activeRequest.id });
+              if (error) {
+                console.error('Error starting heading:', error);
+                return;
+              }
+            } else if (status === 'heading_to_pickup') {
+              // Get current position
+              navigator.geolocation.getCurrentPosition(async (pos) => {
+                const { error } = await supabase.rpc('petwalker_arrive_pickup', { 
+                  _session_id: activeRequest.id,
+                  _lat: pos.coords.latitude,
+                  _lng: pos.coords.longitude,
+                  _accuracy: pos.coords.accuracy
+                });
+                if (error) {
+                  console.error('Error arriving at pickup:', error);
+                  return;
+                }
+              }, (err) => console.error('GPS error:', err));
+              return;
+            }
+            navigate(`/petwalker/passeio/${activeRequest.id}`);
+          }}
           className={cn(
             "w-full h-14 rounded-2xl font-black text-lg shadow-xl active:scale-95 transition-all",
             isInProgress ? "bg-[#31D880] text-ink hover:bg-[#2bc473]" : "bg-ink text-white hover:bg-ink/90"
@@ -105,7 +133,7 @@ export const ActiveWalkSheet = ({ activeRequest }: ActiveWalkSheetProps) => {
         >
           {status === 'accepted' && 'Iniciar deslocamento'}
           {status === 'heading_to_pickup' && 'Cheguei ao local'}
-          {status === 'arrived' && 'Iniciar passeio'}
+          {status === 'arrived' && 'Validar PIN'}
           {status === 'in_progress' && 'Gerenciar Passeio'}
         </Button>
       </div>
