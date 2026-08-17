@@ -67,13 +67,15 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     }).eq('id', walkerId);
     if (profWalkerErr) throw profWalkerErr;
 
-    await supabase.from('user_roles').delete().in('user_id', [ownerId, walkerId]);
+    const { error: deleteRoleErr } = await supabase.from('user_roles').delete().in('user_id', [ownerId, walkerId]);
+    if (deleteRoleErr) throw new Error(`Role deletion failed: ${deleteRoleErr.message}`);
+
     const { error: roleErr } = await supabase.from('user_roles').insert([
       { user_id: ownerId, role: 'user' },
       { user_id: walkerId, role: 'user' },
       { user_id: walkerId, role: 'petwalker' }
     ]);
-    if (roleErr) throw roleErr;
+    if (roleErr) throw new Error(`Role insertion failed: ${roleErr.message}`);
 
     const { error: walkerProfErr } = await supabase.from('petwalker_profiles').upsert({
       user_id: walkerId,
