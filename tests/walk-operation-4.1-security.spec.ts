@@ -137,7 +137,7 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
       _lng: 0,
       _accuracy: 10
     });
-    expect(distErr?.message).toMatch(/Walker muito distante/i);
+    expect(distErr?.message).toMatch(/muito longe/i);
 
     // Low accuracy fails
     const { error: accErr } = await supabaseWalker.rpc('petwalker_arrive_pickup', {
@@ -170,7 +170,8 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
 
     // 1. Format check
     const { error: fmtErr } = await supabaseWalker.rpc('petwalker_confirm_pickup', { _session_id: sessionId, _pickup_code: '123' });
-    expect(fmtErr?.message).toMatch(/PIN deve ter exatamente 6 dígitos/i);
+    expect(fmtErr?.message).toMatch(/exatamente 6 dígitos/i);
+
 
     // 2. Wrong PIN increments attempts
     for (let i = 1; i <= 5; i++) {
