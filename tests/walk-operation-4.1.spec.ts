@@ -11,10 +11,6 @@ test.setTimeout(300000);
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const ANON_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
-const PROJECT_REF = SUPABASE_URL.replace(/^https?:\/\//, "").split(".")[0];
-const STORAGE_KEY = `sb-${PROJECT_REF}-auth-token`;
-
 const log = (msg: string) => console.log(`[${new Date().toISOString()}] [e2e-4.1] ${msg}`);
 
 let admin: SupabaseClient;
@@ -44,7 +40,6 @@ async function provisionUser(runId: string, kind: "pet_owner" | "petwalker") {
       last_known_location: `SRID=4326;POINT(-46.7009 -23.6004)`
     });
   } else {
-    // Need a pet for the owner
     await admin.from("pets").insert({
       owner_id: id,
       name: "Rex E2E",
@@ -89,23 +84,24 @@ test("Phase 4.1: displacement and secure PIN pickup flow", async ({ browser }) =
   const { page: walkerPage } = await createAuthedContext(browser, walker, walkerCoords);
 
   try {
-    // 1. Owner requests walk
     log("1. Cliente solicitando passeio");
     await ownerPage.goto("/inicio");
-    await ownerPage.waitForLoadState('networkidle');
     
-    // Check if pet selection card is already there
-    const petCard = ownerPage.getByTestId("pet-selection-card").first();
-    const walkBtn = ownerPage.getByRole("button", { name: 'Passeio', exact: true });
+    // Check for "Passeio" button (exact ARIA label if possible, or exact text)
+    const walkBtn = ownerPage.getByRole("button", { name: "Passeio", exact: true });
+    await walkBtn.waitFor({ state: 'visible', timeout: 30000 });
+    await walkBtn.click();
     
-    if (await walkBtn.isVisible()) {
-      await walkBtn.click();
-      await ownerPage.waitForTimeout(1000); // Aguarda animação do bottom sheet
-      const agoraBtn = ownerPage.getByRole("button", { name: /Agora/i });
-      await agoraBtn.click({ timeout: 15000 });
-    }
+    log("Aguardando botão 'Agora'");
+    const agoraBtn = ownerPage.getByRole("button", { name: /Agora/i });
+    await agoraBtn.waitFor({ state: 'visible', timeout: 15000 });
+    await agoraBtn.click();
 
-    await petCard.click({ timeout: 20000 });
+    log("Selecionando pet");
+    const petCard = ownerPage.getByTestId("pet-selection-card").first();
+    await petCard.waitFor({ state: 'visible', timeout: 15000 });
+    await petCard.click();
+    
     await ownerPage.click('button:has-text("Confirmar Pet")', { timeout: 10000 });
     await ownerPage.click('button:has-text("30 min")', { timeout: 10000 });
     
@@ -120,7 +116,6 @@ test("Phase 4.1: displacement and secure PIN pickup flow", async ({ browser }) =
     await ownerPage.mouse.up();
     await expect(ownerPage.getByText(/Procurando/i)).toBeVisible({ timeout: 20000 });
 
-    // 2. Walker accepts
     log("2. PetWalker aceitando");
     await walkerPage.goto("/petwalker/painel");
     await walkerPage.click('button:has-text("Ficar Online")', { timeout: 10000 });
@@ -129,22 +124,18 @@ test("Phase 4.1: displacement and secure PIN pickup flow", async ({ browser }) =
     await acceptBtn.click();
     await expect(walkerPage.getByText(/Passeio confirmado/i)).toBeVisible({ timeout: 20000 });
 
-    // 3. Walker starts heading
     log("3. PetWalker iniciando deslocamento");
     await walkerPage.click('button:has-text("Iniciar deslocamento")', { timeout: 10000 });
     await expect(walkerPage.getByText(/Deslocamento/i)).toBeVisible({ timeout: 20000 });
     
-    // Verify DB state
     const { data: session } = await admin.from("walk_sessions").select("id, current_status, heading_started_at").eq("petwalker_id", walker.id).single();
     expect(session.current_status).toBe("heading_to_pickup");
     expect(session.heading_started_at).not.toBeNull();
 
-    // 4. Walker arrives (proximity check)
     log("4. PetWalker chegando (proximity check)");
     await walkerPage.click('button:has-text("Cheguei ao local")', { timeout: 10000 });
     await expect(walkerPage.getByText(/Validar PIN/i)).toBeVisible({ timeout: 20000 });
 
-    // 5. Owner gets PIN
     log("5. Cliente obtendo PIN");
     await ownerPage.goto(`/passeio/${session.id}`);
     await expect(ownerPage.getByText(/Código de Retirada/i)).toBeVisible({ timeout: 20000 });
@@ -152,7 +143,6 @@ test("Phase 4.1: displacement and secure PIN pickup flow", async ({ browser }) =
     const pin = await pinElement.innerText();
     expect(pin).toMatch(/^\d{6}$/);
 
-    // 6. Walker validates PIN
     log("6. PetWalker validando PIN");
     await walkerPage.click('button:has-text("Validar PIN")', { timeout: 10000 });
     const inputs = walkerPage.locator('input[inputmode="numeric"]');
@@ -161,7 +151,6 @@ test("Phase 4.1: displacement and secure PIN pickup flow", async ({ browser }) =
     }
     await walkerPage.click('button:has-text("Confirmar e iniciar passeio")');
     
-    // 7. Verification: Walk in progress
     log("7. Verificando início do passeio");
     await expect(walkerPage.getByText(/Ao Vivo/i)).toBeVisible({ timeout: 30000 });
     
