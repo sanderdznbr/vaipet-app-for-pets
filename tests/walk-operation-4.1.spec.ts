@@ -78,12 +78,13 @@ test.describe('Phase 4.1: Walk Operation (Pickup PIN)', () => {
     ]);
 
     // Create Pet
-    const { data: pet } = await admin.from('pets').insert({
+    const { data: pet, error: petErr } = await admin.from('pets').insert({
       owner_id: ownerId,
       name: 'TestDog',
       breed: 'E2E',
       weight_kg: 10
     }).select().single();
+    if (petErr) throw new Error(`[SETUP] Failed to create pet: ${petErr.message}`);
     petId = pet.id;
 
     // Create Accepted Walk Session (Pre-condition)
