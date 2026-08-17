@@ -82,11 +82,11 @@ test("Phase 4.1: displacement and secure PIN pickup flow", async ({ browser }) =
     // 1. Owner requests walk
     log("1. Cliente solicitando passeio");
     await ownerPage.goto("/inicio");
-    await ownerPage.click('button:has-text("Passeio")');
-    await ownerPage.click('button:has-text("Agora")');
-    await ownerPage.getByTestId("pet-selection-card").first().click();
-    await ownerPage.click('button:has-text("Confirmar Pet")');
-    await ownerPage.click('button:has-text("30 min")');
+    await ownerPage.click('button:has-text("Passeio")', { timeout: 15000 });
+    await ownerPage.click('button:has-text("Agora")', { timeout: 10000 });
+    await ownerPage.getByTestId("pet-selection-card").first().click({ timeout: 10000 });
+    await ownerPage.click('button:has-text("Confirmar Pet")', { timeout: 10000 });
+    await ownerPage.click('button:has-text("30 min")', { timeout: 10000 });
     
     const slider = ownerPage.getByTestId("slider-confirm-handle");
     const track = ownerPage.getByTestId("slider-confirm-track");

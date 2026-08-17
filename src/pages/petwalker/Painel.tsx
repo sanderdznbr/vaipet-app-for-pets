@@ -337,7 +337,7 @@ const Painel = () => {
 
   // Route drawing logic
   useEffect(() => {
-    if (activeRequest && ['accepted', 'heading_to_pickup', 'arrived'].includes(activeRequest.current_status) && walkerCoords) {
+    if (activeRequest && ['accepted', 'heading_to_pickup', 'arrived', 'in_progress'].includes(activeRequest.current_status) && walkerCoords) {
       const meetingPoint = activeRequest.meeting_point_geom as unknown as { coordinates: [number, number] } | null;
       const destLat = meetingPoint?.coordinates?.[1];
       const destLng = meetingPoint?.coordinates?.[0];
