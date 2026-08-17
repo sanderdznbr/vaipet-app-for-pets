@@ -38,39 +38,38 @@ export async function failClosedCleanup(supabase: SupabaseClient, userIds: strin
   ];
 
   for (const table of tables) {
-    let deleteQuery;
-    
-    // Verificamos se a coluna e2e_run_id existe antes de filtrar por ela
-    // Como estamos rodando em sandbox, assumimos que as migrations estão aplicadas ou usamos verifiedIds como fallback
     if (['walk_pickup_codes', 'walker_tracking', 'walk_offers', 'petwalker_earnings', 'walk_sessions', 'pets', 'petwalker_profiles', 'profiles'].includes(table)) {
-        // Fallback robusto: se a coluna e2e_run_id falhar, tentamos via verifiedIds
         const { error: delError } = await supabase.from(table).delete().eq('e2e_run_id', runId);
-        if (delError && delError.code === '42703') { // Column does not exist
-             const idCol = table === 'pets' ? 'owner_id' : (table === 'walk_sessions' ? 'customer_id' : (table === 'walk_offers' ? 'session_id' : 'id'));
-             // Para tabelas de junção ou específicas, o ID pode variar. Profiles e Roles são os mais críticos.
-             if (['profiles', 'petwalker_profiles'].includes(table)) {
-                 await supabase.from(table).delete().in('id', verifiedIds);
+        if (delError) {
+             if (delError.code === '42703') { // Column does not exist
+                  console.log(`[cleanup] Coluna e2e_run_id não encontrada em ${table}, tentando via IDs.`);
+                  if (table === 'profiles' || table === 'petwalker_profiles') {
+                      await supabase.from(table).delete().in('id', verifiedIds);
+                  } else if (table === 'pets') {
+                      await supabase.from(table).delete().in('owner_id', verifiedIds);
+                  } else if (table === 'walk_sessions') {
+                      await supabase.from(table).delete().in('customer_id', verifiedIds);
+                  }
+             } else {
+                  console.error(`[cleanup] Erro ao deletar de ${table}:`, delError);
+                  throw delError;
              }
-        } else if (delError) {
-            throw delError;
         }
     } else if (table === 'user_roles') {
         await supabase.from(table).delete().in('user_id', verifiedIds);
     }
 
-    // Verificação rigorosa: contagem de e2e_run_id deve ser 0
+    // Verificação rigorosa: contagem de e2e_run_id deve ser 0 (se existir)
     const { count, error: countError } = await supabase.from(table).select('*', { count: 'exact', head: true }).eq('e2e_run_id', runId);
     if (countError && countError.code !== '42703') throw countError;
-    if (countError && countError.code === '42703') {
-        // Se a coluna não existe, não há resíduos por e2e_run_id nesta tabela
-        console.log(`[cleanup] Tabela ${table} ignorada (sem e2e_run_id)`);
-        continue;
+    
+    if (!countError) {
+        if (count === null || count === undefined) throw new Error(`Falha ao obter contagem da tabela ${table}`);
+        if (count > 0) throw new Error(`Cleanup incompleto na tabela ${table}: count=${count}`);
+        console.log(`[cleanup] Tabela ${table} confirmada: count=0`);
+    } else {
+        console.log(`[cleanup] Tabela ${table} ignorada na contagem (coluna inexistente)`);
     }
-    
-    if (count === null || count === undefined) throw new Error(`Falha ao obter contagem da tabela ${table}`);
-    if (count > 0) throw new Error(`Cleanup incompleto na tabela ${table}: count=${count}`);
-    
-    console.log(`[cleanup] Tabela ${table} confirmada: count=0`);
   }
 
   // Deletar usuários Auth (Admin)
