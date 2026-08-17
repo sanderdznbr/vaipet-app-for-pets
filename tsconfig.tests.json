@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist-tests",
+    "rootDir": ".",
+    "baseUrl": ".",
+    "types": ["node", "@playwright/test"],
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext", "DOM"],
+    "downlevelIteration": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["tests/**/*.ts", "src/integrations/supabase/types.ts"]
+}
