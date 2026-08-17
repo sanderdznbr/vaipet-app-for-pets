@@ -61,14 +61,15 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     if (profWalkerErr) throw profWalkerErr;
 
     // Provisionamos as roles e o perfil técnico do walker para evitar redirecionamentos ao onboarding
-    // O trigger handle_new_user já inseriu a role 'user', então usamos .upsert() sem forçar a duplicata se possível,
-    // ou simplesmente deletamos e inserimos para ser atômico no teste.
-    const { error: roleErr } = await supabase.from('user_roles').upsert([
+    // Deletamos primeiro para evitar violação de constraint unique em caso de trigger automático
+    await supabase.from('user_roles').delete().in('user_id', [ownerId, walkerId]);
+    const { error: roleErr } = await supabase.from('user_roles').insert([
       { user_id: ownerId, role: 'user' },
       { user_id: walkerId, role: 'user' },
       { user_id: walkerId, role: 'petwalker' }
-    ], { onConflict: 'user_id,role' });
+    ]);
     if (roleErr) throw roleErr;
+
 
 
 
