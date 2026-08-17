@@ -2152,8 +2152,8 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
     try {
       setConcluding(true);
       const { data: success, error } = await supabase.rpc('petwalker_confirm_pickup', {
-        _session_id: sessionId,
-        _pin: codeInput
+        walk_id: sessionId,
+        input_pin: codeInput
       });
 
       if (error || !success) {
