@@ -68,16 +68,13 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
       const r1 = await ownerClient.rpc('customer_get_pickup_code', { walk_id: session.id });
       const r2 = await ownerClient.rpc('customer_get_pickup_code', { walk_id: session.id });
 
-      if (r1.error) { log(`R1 ERROR: ${JSON.stringify(r1.error)}`); throw r1.error; }
-      if (r2.error) { log(`R2 ERROR: ${JSON.stringify(r2.error)}`); throw r2.error; }
+      if (r1.error) { log(`R1 ERROR: ${JSON.stringify(r1.error)}`); throw new Error(r1.error.message || 'R1 Unknown error'); }
+      if (r2.error) { log(`R2 ERROR: ${JSON.stringify(r2.error)}`); throw new Error(r2.error.message || 'R2 Unknown error'); }
 
       expect(r1.data).toBe(r2.data);
       expect(r1.data).toMatch(/^\d{6}$/);
       log("Idempotência de PIN: PASS");
 
-    } catch (e) {
-      log(`TEST_FAILED: ${JSON.stringify(e)}`);
-      throw e;
     } finally {
       await failClosedCleanup(admin, [ownerId], runId);
     }
@@ -139,9 +136,6 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
       expect(expErr?.message).toContain('Expired');
       log("Expiração de PIN: PASS");
 
-    } catch (e) {
-      log(`TEST_FAILED: ${JSON.stringify(e)}`);
-      throw e;
     } finally {
       await failClosedCleanup(admin, [walkerId], runId);
     }
@@ -189,7 +183,7 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
        if (pinErr) { log(`PIN_FETCH_ERROR: ${JSON.stringify(pinErr)}`); throw pinErr; }
        
        const { data: success, error: confErr } = await userClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
-       if (confErr) { log(`CONF_ERR: ${JSON.stringify(confErr)}`); throw confErr; }
+       if (confErr) { log(`CONF_ERR: ${JSON.stringify(confErr)}`); throw new Error(confErr.message || 'CONF Unknown error'); }
        expect(success).toBe(true);
        
        const { data: final } = await admin.from("walk_sessions").select("status, current_status").eq("id", session.id).single();
@@ -197,9 +191,6 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
        expect(final?.current_status).toBe('in_progress');
        
        log("Sincronização de status: PASS");
-     } catch (e) {
-       log(`TEST_FAILED: ${JSON.stringify(e)}`);
-       throw e;
      } finally {
        await failClosedCleanup(admin, [uid], runId);
      }
