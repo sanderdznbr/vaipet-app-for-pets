@@ -7,11 +7,9 @@ import { type SupabaseClient } from "@supabase/supabase-js";
  * @param runId Opcional: ID da execução para validação extra.
  */
 export async function failClosedCleanup(admin: SupabaseClient, ids: string[], runId: string) {
-  if (ids.length === 0) {
-    console.warn(`[cleanup] AVISO: Lista de IDs vazia para runId ${runId}.`);
+  if (!ids || ids.length === 0) {
+    throw new Error(`[FAIL-CLOSED] Lista de IDs vazia para runId ${runId}. Cleanup requer IDs válidos.`);
   }
-
-  if (!ids || ids.length === 0) return;
   
   console.log(`[cleanup] Iniciando fail-closed cleanup para ${ids.length} IDs.`);
 
@@ -89,7 +87,8 @@ export async function failClosedCleanup(admin: SupabaseClient, ids: string[], ru
        }
 
        if (!Array.isArray(retryData) || retryData.length > 0) {
-           throw new Error(`[FAIL-CLOSED] RESÍDUO CONFIRMADO ou resultado ambíguo em ${table}: ${retryData === null ? 'null' : (Array.isArray(retryData) ? retryData.length : 'não-array')} registros.`);
+           const count = Array.isArray(retryData) ? retryData.length : 'null/undefined';
+           throw new Error(`[FAIL-CLOSED] RESÍDUO CONFIRMADO ou resultado ambíguo em ${table}: ${count} registros encontrados.`);
        }
     } else {
       if (count === null || count === undefined || count !== 0) {
