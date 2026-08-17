@@ -2141,25 +2141,6 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
     return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
   }, [routeCoordinates, isReturning, phase, pickupSpeedMs]);
 
-  // [DEV/TEST] Skip the pickup animation entirely: teleport the walker to
-  // the pet location and immediately transition into the 'arrived' phase
-  // so the code-input UI appears without waiting for the en-route animation.
-  const handleSkipPickup = () => {
-    const target = petLocation || walkerLocation;
-    if (target) {
-      walkerMarkerRef.current?.setLngLat(target);
-      lastLocRef.current = target;
-    }
-    setEtaSec(0);
-    setRemainingMeters(0);
-    setPhase('arrived');
-    // Clear the pickup polyline so the map stays clean for the code step.
-    if (map.current?.getSource('pickup-route')) {
-      (map.current.getSource('pickup-route') as mapboxgl.GeoJSONSource).setData({
-        type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] },
-      });
-    }
-  };
 
   // After customer confirms the code, start the walk loop from current marker position
   const handleConfirmCode = () => {
@@ -2678,22 +2659,6 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
               for a cleaner walking screen. Theme toggle lives in the top
               header next to the recenter button. */}
 
-          {/* [DEV/TEST] Skip pickup button — only shown while the walker is
-              on the way. Jumps straight to the code-confirmation step. */}
-          {phase === 'pickup' && (
-            <button
-              onClick={handleSkipPickup}
-              className="absolute left-1/2 -translate-x-1/2 bottom-6 z-20 px-5 py-2.5 rounded-full font-bold text-sm text-white backdrop-blur-md active:scale-95 transition-transform"
-              style={{
-                background: 'rgba(0,0,0,0.65)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
-              }}
-              aria-label="Pular animação de chegada (teste)"
-            >
-              Pular ⏭
-            </button>
-          )}
 
         </div>
 
