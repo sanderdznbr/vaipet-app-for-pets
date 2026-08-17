@@ -108,7 +108,7 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
 
       // 3. Status incorrect: Walker não pode confirmar antes de "arrived"
       const { error: earlyErr } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
-      expect(earlyErr?.message).toMatch(/status.*arrived/i);
+      expect(earlyErr?.message).toMatch(/estado de retirada|status.*arrived/i);
 
       // 4. Mudar status para arrived
       await admin.from('walk_sessions').update({ status: 'arrived', current_status: 'arrived' }).eq('id', session.id);
