@@ -1849,6 +1849,7 @@ const SearchWalk = () => {
                       Voltar
                     </button>
                     <button
+                      data-testid="confirm-duration"
                       onClick={() => setStep(4)}
                       className="flex-1 py-3.5 rounded-full text-white font-extrabold text-sm transition-all active:scale-[0.98]"
                       style={{ background: '#31d880', boxShadow: '0 10px 24px rgba(49,216,128,0.35)' }}
