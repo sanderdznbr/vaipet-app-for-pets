@@ -57,7 +57,7 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     if (petErr) throw petErr;
 
     // Create Accepted Session directly
-    // Using walker_name as a temporary storage for E2E_RUN_ID since session tables lack e2e_test
+    // Use now() for start_time since it's NOT NULL
     const { error: sessionErr } = await supabase.from('walk_sessions').insert({
       customer_id: owner.user!.id,
       walker_id: walker.user!.id,
@@ -69,13 +69,13 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       meeting_point_address: 'Rua E2E, 123',
       home_location: { lat: -23.5505, lng: -46.6333 },
       walk_type: 'now',
-      walker_name: E2E_RUN_ID
+      walker_name: E2E_RUN_ID,
+      start_time: new Date().toISOString() 
     });
     if (sessionErr) throw sessionErr;
   });
 
   test.afterAll(async () => {
-    // Cleanup based on metadata
     const { data: sessions } = await supabase.from('walk_sessions')
       .select('id')
       .eq('walker_name', E2E_RUN_ID);
