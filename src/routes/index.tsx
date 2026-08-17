@@ -3,10 +3,9 @@ import { useAuth } from "@/hooks/useAuth";
 
 
 const RedirectIndex = () => {
-  const { user, loading, authStatus } = useAuth();
+  const { user, loading, authStatus, profile } = useAuth();
 
-  // Enquanto estiver inicializando (hydrating), não redirecionamos
-  if (loading && authStatus === 'initializing') {
+  if (loading || authStatus === 'initializing') {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -15,6 +14,9 @@ const RedirectIndex = () => {
   }
 
   if (user) {
+    if (profile && !profile.onboarding_completed) {
+      return <Navigate to="/onboarding" replace />;
+    }
     return <Navigate to="/inicio" replace />;
   }
 

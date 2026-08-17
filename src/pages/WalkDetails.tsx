@@ -5,9 +5,11 @@ import { hideMapLabels, enrichMap, tintMapInk } from '@/lib/mapStyle';
 import { useHomeTheme } from '@/hooks/useHomeTheme';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-import { ArrowLeft, Clock, Calendar, Route, DollarSign, MapPin, Flag, Home, Star, Timer } from 'lucide-react';
+import { ArrowLeft, Clock, Calendar, Route, DollarSign, MapPin, Flag, Home, Star, Timer, ShieldCheck, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2FuZGVyY29sb21iZXMiLCJhIjoiY21kNDBuaHZ4MGF3bjJtb2dwNHdsMWR1aCJ9.D_kYvjRu2iigL2uziaEomQ';
 
@@ -36,6 +38,37 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
   const [concluding, setConcluding] = useState(false);
   const [concludeError, setConcludeError] = useState<string | null>(null);
 
+  // PIN states
+  const [pinValue, setPinValue] = useState('');
+  const [pinLoading, setPinLoading] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
+
+  const handleConfirmPickup = async () => {
+    if (!pinValue || pinValue.length !== 6 || pinLoading || !walk?.id) return;
+    setPinLoading(true);
+    setPinError(null);
+    try {
+      const { data, error } = await supabase.rpc('petwalker_confirm_pickup', {
+        _session_id: walk.id,
+        _pickup_code: pinValue
+      });
+      if (error) {
+        setPinError(error.message);
+        setPinLoading(false);
+        return;
+      }
+      if (data === true) {
+        window.location.reload();
+        return;
+      }
+      setPinError('PIN incorreto ou inválido.');
+      setPinLoading(false);
+    } catch (e) {
+      setPinError('Erro ao validar PIN. Tente novamente.');
+      setPinLoading(false);
+    }
+  };
+
   const handleCompleteWalk = async () => {
     if (concluding || !walk?.id) return;
     setConcluding(true);
@@ -50,7 +83,7 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
         return;
       }
       if (data === true) {
-        navigate('/petwalker/painel');
+        navigate('/petwalker');
         return;
       }
       setConcludeError('Não foi possível concluir o passeio. Tente novamente.');
@@ -94,15 +127,6 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
         basemap: {
           lightPreset: isDarkMode ? "night" : "day",
           theme: isDarkMode ? "default" : "faded",
-          colorLand: "#F2F1E8",
-          colorWater: "#D5E8E5",
-          colorGreenspace: "#C5DEBC",
-          colorRoads: "#FFFFFF",
-          colorTrunks: "#F5EEDB",
-          colorMotorways: "#EEE4C8",
-          colorBuildings: "#E6E3D8",
-          colorRoadLabels: "#84908A",
-          colorPlaceLabels: "#46534D"
         }
       }
     });
@@ -138,17 +162,17 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
         });
         // Start + end pins
         const startEl = document.createElement('div');
-        startEl.innerHTML = `<div style="width:28px;height:28px;border-radius:50%;background:#31D880;border:4px solid white;box-shadow:0 4px 12px rgba(0,0,0,0.25);"></div>`;
+        startEl.innerHTML = '<div style="width:28px;height:28px;border-radius:50%;background:#31D880;border:4px solid white;box-shadow:0 4px 12px rgba(0,0,0,0.25);"></div>';
         new mapboxgl.Marker(startEl).setLngLat(coords[0]).addTo(m);
         const endEl = document.createElement('div');
-        endEl.innerHTML = `<div style="width:34px;height:34px;border-radius:50%;background:white;border:4px solid #31D880;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.25);font-weight:800;color:#31D880;font-size:14px;">🏁</div>`;
+        endEl.innerHTML = '<div style="width:34px;height:34px;border-radius:50%;background:white;border:4px solid #31D880;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.25);font-weight:800;color:#31D880;font-size:14px;">🏁</div>';
         new mapboxgl.Marker(endEl).setLngLat(coords[coords.length - 1]).addTo(m);
         const bounds = coords.reduce((b, c) => b.extend(c as any), new mapboxgl.LngLatBounds(coords[0] as any, coords[0] as any));
         m.fitBounds(bounds, { padding: 60, duration: 1200 });
       }
     });
     return () => { map.current?.remove(); map.current = null; };
-  }, [walk]);
+  }, [walk, isDarkMode]);
 
   if (loading) {
     return (
@@ -173,7 +197,7 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
   const price = walk.total_price_cents ? walk.total_price_cents / 100 : 0;
 
   return (
-    <div className="min-h-screen bg-background max-w-md mx-auto pb-10">
+    <div className="min-h-screen bg-background max-w-md mx-auto pb-32">
       {/* Header */}
       <div className="px-4 pt-8 pb-4 flex items-center gap-3">
         <button
@@ -227,93 +251,32 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
         </div>
         <div className="rounded-2xl border border-border/40 bg-card p-3">
           <DollarSign className="w-4 h-4 text-accent mb-1" />
-          <p className="text-[10px] text-muted-foreground font-medium">Valor</p>
+          <p className="text-[10px] text-muted-foreground font-medium">Preço</p>
           <p className="text-sm font-extrabold text-foreground">R$ {price.toFixed(2)}</p>
         </div>
       </div>
 
-      {/* Linha do tempo */}
-      <div className="px-4 mt-4">
-        <div className="rounded-2xl border border-border/40 bg-card p-4">
-          <h2 className="text-xs font-extrabold text-foreground/80 uppercase tracking-wider mb-3">Linha do tempo</h2>
-          <div className="space-y-3">
-            <TimelineRow
-              icon={<Home className="w-4 h-4 text-accent" />}
-              label="Pet retirado"
-              value={fmtTime(walk.start_time)}
-            />
-            <TimelineRow
-              icon={<Flag className="w-4 h-4 text-accent" />}
-              label="Pet entregue"
-              value={fmtTime(walk.end_time)}
-            />
-            <TimelineRow
-              icon={<Calendar className="w-4 h-4 text-accent" />}
-              label="Data"
-              value={fmtDate(walk.start_time || walk.created_at)}
-            />
-            <TimelineRow
-              icon={<Clock className="w-4 h-4 text-accent" />}
-              label="Duração planejada"
-              value={fmtDuration(walk.planned_duration_minutes)}
-            />
-          </div>
+      {/* Details List */}
+      <div className="px-4 mt-6 space-y-4">
+        <h2 className="text-sm font-black font-space uppercase tracking-widest text-muted-foreground px-1">Resumo da sessão</h2>
+        <div className="rounded-3xl border border-border/40 bg-card p-6 space-y-6">
+          <TimelineRow icon={<Calendar className="w-4 h-4 text-accent" />} label="Data" value={fmtDate(walk.start_time || walk.created_at)} />
+          <TimelineRow icon={<Clock className="w-4 h-4 text-accent" />} label="Horário de início" value={fmtTime(walk.start_time || walk.created_at)} />
+          <TimelineRow icon={<Flag className="w-4 h-4 text-accent" />} label="Horário de término" value={fmtTime(walk.completed_at)} />
+          <TimelineRow icon={<Home className="w-4 h-4 text-accent" />} label="Ponto de encontro" value={walk.meeting_point_address || 'Endereço não disponível'} />
         </div>
       </div>
 
-      {/* Passeador */}
-      <div className="px-4 mt-4">
-        <div className="rounded-2xl border border-border/40 bg-card p-4 flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
-            <span className="text-base font-extrabold text-accent">
-              {(walk.walker_name || 'P').charAt(0).toUpperCase()}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-foreground truncate">{walk.walker_name || 'Pet Walker'}</p>
-            <p className="text-[11px] text-muted-foreground">Passeador</p>
-          </div>
-          {walk.rating ? (
-            <div className="flex items-center gap-1 text-sm font-bold">
-              <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-              {walk.rating}
+      {/* PIN Section for Owner */}
+      {!isOperational && walk.current_status !== 'completed' && walk.current_status !== 'cancelled' && (
+        <div className="px-4 mt-6">
+          <div className="rounded-3xl bg-accent/10 border border-accent/20 p-6 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-accent flex items-center justify-center shrink-0 shadow-lg shadow-accent/20">
+              <ShieldCheck className="w-6 h-6 text-ink" />
             </div>
-          ) : null}
-        </div>
-      </div>
-
-      {walk.feedback ? (
-        <div className="px-4 mt-4">
-          <div className="rounded-2xl border border-border/40 bg-card p-4">
-            <h2 className="text-xs font-extrabold text-foreground/80 uppercase tracking-wider mb-2">Seu feedback</h2>
-            <p className="text-sm text-foreground/90">{walk.feedback}</p>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Status */}
-      <div className="px-4 mt-4">
-        <div className="rounded-2xl border border-border/40 bg-card p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-foreground font-medium">Status</span>
-          </div>
-          <span className="text-xs font-extrabold px-3 py-1 rounded-full bg-accent/10 text-accent capitalize">
-            {walk.current_status}
-          </span>
-        </div>
-      </div>
-      
-      {!isOperational && walk.current_status === 'arrived' && (
-        <div className="px-4 mt-4">
-          <div className="rounded-2xl border border-border/40 bg-accent/5 p-5 flex flex-col items-center text-center">
-            <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mb-3">
-              <Star className="w-6 h-6 text-accent animate-pulse" />
-            </div>
-            <h3 className="text-base font-extrabold text-foreground mb-1">Código de Retirada</h3>
-            <p className="text-sm text-muted-foreground mb-4">Mostre este código para o passeador iniciar o passeio.</p>
-            <div className="bg-card border-2 border-accent/20 rounded-2xl px-8 py-4 shadow-sm">
-              <span className="text-4xl font-black text-accent tracking-[0.2em]" data-testid="pickup-pin-display">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-accent-foreground/60 mb-1">PIN de Retirada</p>
+              <span className="text-2xl font-black font-space tracking-[0.2em] text-accent">
                 <PickupCode session_id={walk.id} />
               </span>
             </div>
@@ -321,8 +284,47 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
         </div>
       )}
 
+      {/* PetWalker Operational PIN Input or Status Buttons */}
       {isOperational && walk.current_status !== 'completed' && walk.current_status !== 'cancelled' && (
         <div className="fixed bottom-6 left-4 right-4 z-50 flex flex-col gap-3">
+          {walk.current_status === 'arrived' && (
+            <div className="bg-card border border-border/40 rounded-3xl p-5 shadow-2xl space-y-4 mb-2">
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="w-5 h-5 text-accent" />
+                <h3 className="text-sm font-black font-space uppercase">Confirmar Retirada</h3>
+              </div>
+              
+              <div className="space-y-2">
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Digite o PIN de 6 dígitos"
+                  maxLength={6}
+                  value={pinValue}
+                  onChange={(e) => setPinValue(e.target.value.replace(/[^0-9]/g, ''))}
+                  className="h-14 rounded-2xl text-center text-2xl font-black font-space tracking-[0.5em] bg-background border-border/40 focus:ring-accent"
+                  data-testid="pickup-pin-input"
+                />
+                
+                {pinError && (
+                  <div className="flex items-center gap-2 text-[11px] text-destructive font-bold px-1">
+                    <AlertCircle size={12} />
+                    <span>{pinError}</span>
+                  </div>
+                )}
+              </div>
+
+              <Button
+                onClick={handleConfirmPickup}
+                disabled={pinValue.length !== 6 || pinLoading}
+                className="w-full h-12 rounded-2xl bg-ink text-white font-black hover:bg-ink/90 disabled:opacity-50"
+                data-testid="pickup-pin-submit"
+              >
+                {pinLoading ? 'Validando...' : 'Confirmar Retirada'}
+              </Button>
+            </div>
+          )}
+
           {walk.current_status === 'accepted' && (
             <button 
               onClick={async () => {
@@ -334,6 +336,7 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
               Iniciar Deslocamento
             </button>
           )}
+
           {walk.current_status === 'heading_to_pickup' && (
             <button 
               onClick={async () => {
@@ -353,32 +356,22 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
               Cheguei no Local
             </button>
           )}
-          {walk.current_status === 'arrived' && (
-            <button 
-              onClick={() => navigate(`/petwalker/passeio/${walk.id}`)}
-              className="w-full bg-orange-500 text-white font-extrabold py-4 rounded-2xl shadow-xl active:scale-95 transition-transform"
-            >
-              Inserir PIN de Retirada
-            </button>
-          )}
+
           {walk.current_status === 'in_progress' && (
             <>
               {concludeError && (
-                <div className="w-full rounded-2xl bg-destructive/10 text-destructive text-sm font-semibold px-4 py-3">
+                <div className="w-full rounded-2xl bg-destructive/10 text-destructive text-sm font-semibold px-4 py-3 mb-1">
                   {concludeError}
                 </div>
               )}
-              <button
-                onClick={handleCompleteWalk}
-                disabled={concluding}
-                className="w-full bg-purple-600 text-white font-extrabold py-4 rounded-2xl shadow-xl active:scale-95 transition-transform disabled:opacity-60"
-              >
-                {concluding ? 'Finalizando…' : concludeError ? 'Tentar novamente' : 'Finalizar Passeio'}
-              </button>
+              <div className="bg-ink/5 border border-ink/10 rounded-2xl p-4 mb-1 text-center">
+                <p className="text-xs font-bold text-ink/60">Finalização indisponível na Phase 4.1</p>
+              </div>
             </>
           )}
+
           <button 
-            onClick={() => navigate('/petwalker/painel')}
+            onClick={() => navigate('/petwalker')}
             className="w-full bg-card text-foreground border border-border/40 font-bold py-3 rounded-2xl active:scale-95 transition-transform text-sm"
           >
             Voltar ao Painel

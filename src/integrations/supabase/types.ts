@@ -1603,6 +1603,15 @@ export type Database = {
         | { Args: { _session_id: string }; Returns: boolean }
         | {
             Args: {
+              _accuracy?: number
+              _lat: number
+              _lng: number
+              _session_id: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
               _accuracy: number
               _lat: number
               _lng: number
