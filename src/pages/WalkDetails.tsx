@@ -276,9 +276,10 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
             </div>
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-accent-foreground/60 mb-1">PIN de Retirada</p>
-              <span className="text-2xl font-black font-space tracking-[0.2em] text-accent">
+              <span className="text-2xl font-black font-space tracking-[0.2em] text-accent" data-testid="pickup-pin-display">
                 <PickupCode session_id={walk.id} />
               </span>
+
             </div>
           </div>
         </div>
@@ -399,6 +400,8 @@ const PickupCode: React.FC<{ session_id: string }> = ({ session_id }) => {
     const fetchCode = async () => {
       const { data, error } = await supabase.rpc('customer_get_pickup_code', { _session_id: session_id });
       if (!error && data) setCode(data);
+      else if (error) console.error('PickupCode error:', error.message);
+
     };
     fetchCode();
   }, [session_id]);
