@@ -158,6 +158,8 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     
     const headingBtn = walkerPage.getByRole('button', { name: /Iniciar Deslocamento/i });
     await expect(headingBtn).toBeVisible({ timeout: 45000 });
+    
+    // Iniciar deslocamento
     await headingBtn.click();
 
     // Aguardar transição visual para o próximo botão ('Cheguei no Local')
@@ -175,6 +177,7 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
 
     // Aguardar transição visual indicando que o PIN agora é necessário
     await expect(walkerPage.locator('[data-testid="pickup-pin-input"]')).toBeVisible({ timeout: 20000 });
+
 
     // Auditoria Banco: current_status = 'arrived'
     const { data: audit2, error: err2 } = await supabase.from('walk_sessions').select('current_status').eq('id', sessionId).single();
