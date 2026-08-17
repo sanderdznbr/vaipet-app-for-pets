@@ -1628,7 +1628,7 @@ export type Database = {
         Returns: boolean
       }
       petwalker_confirm_pickup: {
-        Args: { _pickup_code: string; _session_id: string }
+        Args: { _pin: string; _session_id: string }
         Returns: boolean
       }
       petwalker_start_heading: {
