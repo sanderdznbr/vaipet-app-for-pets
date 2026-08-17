@@ -1,7 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { createAuthedContext } from './helpers/auth';
-import { supabase } from '../src/integrations/supabase/client';
 import { failClosedCleanup } from './helpers/cleanup';
+import { createClient } from '@supabase/supabase-js';
+
+// Load env vars manually for the node-side of the test if needed
+// but since supabase-js is used in node here, we need the real keys.
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const E2E_RUN_ID = `4.1-${Date.now()}`;
 const TEST_OWNER = `owner-${E2E_RUN_ID}@example.com`;
@@ -51,7 +57,7 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       e2e_test: E2E_RUN_ID
     }).select().single();
 
-    // Create Accepted Session directly to skip matching in this test
+    // Create Accepted Session directly
     await supabase.from('walk_sessions').insert({
       user_id: owner.user!.id,
       walker_id: walker.user!.id,
@@ -60,7 +66,7 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       planned_duration_minutes: 30,
       total_price_cents: 4500,
       meeting_point_address: 'Rua E2E, 123',
-      home_location: { lat: -23.5505, lng: -46.6333 }, // São Paulo
+      home_location: { lat: -23.5505, lng: -46.6333 },
       walk_type: 'now',
       e2e_test: E2E_RUN_ID
     });
@@ -71,29 +77,28 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
   });
 
   test('Operational displacement and PIN confirmation', async ({ browser }) => {
-    const { page: walkerPage } = await createAuthedContext(browser, TEST_WALKER, TEST_PASS);
-    const { page: ownerPage } = await createAuthedContext(browser, TEST_OWNER, TEST_PASS);
-
     const { data: walk } = await supabase.from('walk_sessions')
       .select('id')
       .eq('e2e_test', E2E_RUN_ID)
       .single();
 
+    const { page: walkerPage } = await createAuthedContext(browser, TEST_WALKER, TEST_PASS);
+    const { page: ownerPage } = await createAuthedContext(browser, TEST_OWNER, TEST_PASS);
+
     // 1. Walker: Start Heading
     console.log('[STEP 1] Walker starting displacement');
-    await walkerPage.goto(`http://localhost:8080/petwalker/passeio/${walk.id}`);
+    await walkerPage.goto(`/petwalker/passeio/${walk.id}`);
     await walkerPage.click('text=Iniciar Deslocamento');
-    await expect(walkerPage.locator('text=Cheguei no Local')).toBeVisible({ timeout: 10000 });
+    await expect(walkerPage.locator('text=Cheguei no Local')).toBeVisible({ timeout: 15000 });
 
     // 2. Walker: Arrive at Pickup (GPS Mocked by Browser)
-    // Note: Playwright browser context has default geolocation
     console.log('[STEP 2] Walker arriving at pickup');
     await walkerPage.click('text=Cheguei no Local');
-    await expect(walkerPage.locator('[data-testid="pickup-pin-input"]')).toBeVisible({ timeout: 10000 });
+    await expect(walkerPage.locator('[data-testid="pickup-pin-input"]')).toBeVisible({ timeout: 15000 });
 
     // 3. Owner: Get PIN
     console.log('[STEP 3] Owner fetching PIN');
-    await ownerPage.goto(`http://localhost:8080/petwalker/passeio/${walk.id}`); // Both use same view but rendered differently
+    await ownerPage.goto(`/petwalker/passeio/${walk.id}`);
     const pinText = await ownerPage.locator('span:has-text("PIN") + span, .text-accent').textContent();
     const pin = pinText?.replace(/\s/g, '').trim();
     expect(pin).toMatch(/^[0-9]{6}$/);

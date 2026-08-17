@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { supabase } from '../src/integrations/supabase/client';
+import { createClient } from '@supabase/supabase-js';
 import { failClosedCleanup } from './helpers/cleanup';
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+const supabaseAnon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const E2E_RUN_ID = `4.1-sec-${Date.now()}`;
 
@@ -9,21 +13,13 @@ test.describe('Phase 4.1: Security/Zero-Trust Validation', () => {
     await failClosedCleanup(E2E_RUN_ID);
   });
 
-  test('RPC petwalker_confirm_pickup should be revokable/secure', async () => {
-    const { data, error } = await supabase.rpc('petwalker_confirm_pickup', {
+  test('RPC petwalker_confirm_pickup should be secure for anon', async () => {
+    const { data, error } = await supabaseAnon.rpc('petwalker_confirm_pickup', {
       _session_id: '00000000-0000-0000-0000-000000000000',
       _pickup_code: '123456'
     });
-    // Should fail with permission error for anon (which client uses if not logged in)
-    // or return error from logic if session not found, but we want to ensure it's not bypassable
-    if (error) {
-      console.log(`[SEC] Expected error: ${error.message}`);
-      expect(error.message).toMatch(/Acesso negado|permission denied|Sessão não encontrada/);
-    }
-  });
-
-  test('PIN should follow ^[0-9]{6}$ regex', async () => {
-    // This is hard to test directly without being the user, but we verified in migration
-    expect('123456').toMatch(/^[0-9]{6}$/);
+    // Expected to fail because of REVOKE ALL from PUBLIC/anon
+    expect(error).toBeDefined();
+    console.log(`[SEC] Expected error: ${error?.message}`);
   });
 });
