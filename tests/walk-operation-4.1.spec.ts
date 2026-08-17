@@ -11,16 +11,16 @@ const TEST_OWNER = `owner-op-${E2E_RUN_ID}@example.com`;
 const TEST_WALKER = `walker-op-${E2E_RUN_ID}@example.com`;
 const TEST_PASS = 'VaiPet@2026';
 
-  test.afterAll(async () => {
-    await failClosedCleanup(supabase, [ownerId, walkerId].filter(Boolean) as string[], E2E_RUN_ID);
-  });
-
-  test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
+test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
   test.setTimeout(180000);
   let ownerId: string;
   let walkerId: string;
   let sessionId: string;
   let petId: string;
+
+  test.afterAll(async () => {
+    await failClosedCleanup(supabase, [ownerId, walkerId].filter(Boolean) as string[], E2E_RUN_ID);
+  });
 
   test.beforeAll(async () => {
     // 1. Criar Usuários E2E (Sequencial para evitar race condition no trigger)
