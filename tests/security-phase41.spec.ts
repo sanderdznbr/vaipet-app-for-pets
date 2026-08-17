@@ -92,12 +92,12 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
 
       await admin.from('walk_sessions').update({ status: 'arrived', current_status: 'arrived' }).eq('id', session.id);
 
-      const { error: attackErr } = await attackerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
-      expect(attackErr?.message).toMatch(/você não é o Walker designado|Acesso negado/i);
+      const { error: attackErr } = await attackerClient.rpc('petwalker_confirm_pickup', { _session_id: session.id, _pin: pin });
+      expect(attackErr?.message).toMatch(/Acesso negado|você não é o Walker designado/i);
 
       const wrongPin = pin === '111111' ? '222222' : '111111';
       for (let i = 0; i < 5; i++) {
-        const { data: failRes, error: failErr } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: wrongPin });
+        const { data: failRes, error: failErr } = await walkerClient.rpc('petwalker_confirm_pickup', { _session_id: session.id, _pin: wrongPin });
         expect(failRes === false || failErr).toBeTruthy();
       }
       
