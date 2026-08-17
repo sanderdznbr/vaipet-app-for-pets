@@ -23,7 +23,7 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
   });
 
   test.beforeAll(async () => {
-    // 1. Criar Usuários E2E (Sequencial para evitar race condition no trigger)
+    // 1. Criar Usuários E2E
     const ownerRes = await supabase.auth.admin.createUser({
       email: TEST_OWNER,
       password: TEST_PASS,
@@ -42,8 +42,7 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     if (walkerRes.error) throw new Error(`Walker creation failed: ${walkerRes.error.message}`);
     walkerId = walkerRes.data.user!.id;
 
-    // 2. Provisionar Perfis usando colunas reais validadas
-    // O trigger handle_new_user já deve ter disparado. Fazemos UPDATE para garantir o estado.
+    // 2. Provisionar Perfis
     const { error: profErr } = await supabase.from('profiles').update({
       onboarding_completed: true,
       e2e_test: true,
@@ -60,8 +59,6 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     }).eq('id', walkerId);
     if (profWalkerErr) throw profWalkerErr;
 
-    // Provisionamos as roles e o perfil técnico do walker para evitar redirecionamentos ao onboarding
-    // Deletamos primeiro para evitar violação de constraint unique em caso de trigger automático
     await supabase.from('user_roles').delete().in('user_id', [ownerId, walkerId]);
     const { error: roleErr } = await supabase.from('user_roles').insert([
       { user_id: ownerId, role: 'user' },
@@ -70,10 +67,6 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     ]);
     if (roleErr) throw roleErr;
 
-
-
-
-    // Colunas reais de petwalker_profiles saneadas conforme inspeção (public_bio, service_radius_km)
     const { error: walkerProfErr } = await supabase.from('petwalker_profiles').upsert({
       user_id: walkerId,
       approval_status: 'approved',
@@ -100,6 +93,8 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     petId = pet!.id;
 
     // 3. Criar Sessão em status 'accepted' sem timestamps de início
+    // Nota: start_time é NOT NULL no schema atual, usamos Epoch (1970) para "vazio" conceitual
+    const epoch = new Date(0).toISOString();
     const { data: walk, error: walkErr } = await supabase.from('walk_sessions').insert({
       customer_id: ownerId,
       walker_id: walkerId,
@@ -114,10 +109,9 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       request_mode: 'now',
       e2e_test: true,
       e2e_run_id: E2E_RUN_ID,
-      start_time: null,
+      start_time: epoch,
       pickup_confirmed_at: null
     }).select().single();
-
     
     if (walkErr) throw walkErr;
     sessionId = walk!.id;
@@ -129,14 +123,12 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       .single();
     
     if (err0 || audit0?.status !== 'accepted' || audit0?.current_status !== 'accepted' || 
-        audit0?.start_time !== null || audit0?.pickup_confirmed_at !== null || audit0?.walker_id !== walkerId) {
+        new Date(audit0?.start_time || '').getTime() !== 0 || audit0?.pickup_confirmed_at !== null || audit0?.walker_id !== walkerId) {
       throw new Error(`Audit creation failed: ${JSON.stringify(audit0)}. Error: ${err0?.message}`);
     }
-
   });
 
   test('Operational displacement and PIN confirmation', async ({ browser }) => {
-    // Autenticação manual para contornar redirecionamentos de RoleLanding
     const login = async (email: string, pass: string, target: string): Promise<{ context: BrowserContext, page: Page }> => {
       const context = await browser.newContext({
         geolocation: { latitude: -23.5505, longitude: -46.6333 },
@@ -147,7 +139,6 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       await page.fill('input[type="email"]', email);
       await page.fill('input[type="password"]', pass);
       await page.click('button[type="submit"]');
-      // Forçamos a ida para a rota alvo, ignorando o gate automático se o provisionamento falhar em tempo real
       await page.goto(target);
       return { context, page };
     };
@@ -220,7 +211,6 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     expect(finalWalk?.start_time).not.toBeNull();
     expect(finalWalk?.walker_id).toBe(walkerId);
 
-
     // Verificar que walk_pickup_codes não possui mais registro
     const { data: pinRecord, error: pinAuditErr } = await supabase.from('walk_pickup_codes').select('*').eq('session_id', sessionId).maybeSingle();
     if (pinAuditErr) throw new Error(`PIN cleanup audit failed: ${pinAuditErr.message}`);
@@ -231,16 +221,16 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     await expect(walkerPage.locator('[data-testid="pickup-pin-input"]')).not.toBeVisible();
     await expect(walkerPage.locator('[data-testid="walk-in-progress-marker"]')).toBeVisible();
 
-    // Tentar confirmar PIN novamente com o mesmo código (usando client autenticado)
+    // Tentar confirmar PIN novamente (Replay)
     const { data: { session: walkerSession } } = await supabase.auth.signInWithPassword({ email: TEST_WALKER, password: TEST_PASS });
     const walkerAuthClient = createClient(SUPABASE_URL, '', { auth: { persistSession: false } });
     await walkerAuthClient.auth.setSession(walkerSession!);
     
     const { error: replayErr } = await walkerAuthClient.rpc('petwalker_confirm_pickup', { session_id: sessionId, pin_code: pin });
+    // Replay deve falhar (PIN consumido)
     expect(replayErr).toBeDefined();
 
-    // Re-auditar estado (deve continuar in_progress)
-    const { data: auditPostReplay, error: errPostReplay } = await supabase.from('walk_sessions')
+    const { data: auditPostReplay } = await supabase.from('walk_sessions')
         .select('status, current_status, walker_id')
         .eq('id', sessionId)
         .single();
@@ -249,7 +239,6 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     expect(auditPostReplay?.current_status).toBe('in_progress');
     expect(auditPostReplay?.walker_id).toBe(walkerId);
 
-    // Re-auditar pickups (deve ser 0)
     const { count } = await supabase.from('walk_pickup_codes').select('*', { count: 'exact', head: true }).eq('session_id', sessionId);
     expect(count).toBe(0);
 
