@@ -27,3 +27,6 @@ test-results/
 playwright-report/
 bun.lock
 bun.lockb
+
+tests/**/*.js
+tests/**/*.js.map
