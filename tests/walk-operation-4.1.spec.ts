@@ -1,7 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { supabase } from '@/integrations/supabase/client';
+import { createClient } from '@supabase/supabase-js';
 import { failClosedCleanup } from './helpers/cleanup';
 import { createAuthedContext } from './helpers/auth';
+
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const ANON_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+
 
 /**
  * PHASE 4.1 E2E: Displacement and Secure Pickup
@@ -16,9 +21,11 @@ test.describe('Phase 4.1: Walk Operation (Pickup PIN)', () => {
   let petId: string;
   const runId = `e2e-4.1-${Math.random().toString(36).slice(2, 7)}`;
 
+  let admin: any;
+
   test.beforeAll(async () => {
-    // 1. Provisioning via Service Role (Direct DB calls are allowed for setup)
-    const admin = supabase; // In test env, it uses VITE_SUPABASE_SERVICE_ROLE_KEY if available, else standard client
+    admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+
 
     // Create Owner
     const ownerEmail = `owner-${runId}@test.com`;
@@ -95,7 +102,7 @@ test.describe('Phase 4.1: Walk Operation (Pickup PIN)', () => {
   });
 
   test.afterAll(async () => {
-    await failClosedCleanup(supabase, [ownerId, walkerId, otherWalkerId], runId);
+    await failClosedCleanup(admin, [ownerId, walkerId, otherWalkerId], runId);
   });
 
   test('Operation Flow: accepted -> in_progress via Secure PIN', async ({ browser }) => {
@@ -113,7 +120,7 @@ test.describe('Phase 4.1: Walk Operation (Pickup PIN)', () => {
       // Wait for status sync
       await expect(walkerPage.locator('text=A caminho do pet')).toBeVisible({ timeout: 10000 });
       
-      const { data } = await supabase.from('walk_sessions').select('current_status, heading_started_at').eq('id', sessionId).single();
+      const { data } = await admin.from('walk_sessions').select('current_status, heading_started_at').eq('id', sessionId).single();
       expect(data.current_status).toBe('heading_to_pickup');
       expect(data.heading_started_at).not.toBeNull();
     });
@@ -125,7 +132,7 @@ test.describe('Phase 4.1: Walk Operation (Pickup PIN)', () => {
       await walkerPage.getByRole('button', { name: /Cheguei ao local/i }).click();
       
       // Should fail/stay in same status (Error toast might appear)
-      const { data: farData } = await supabase.from('walk_sessions').select('current_status').eq('id', sessionId).single();
+      const { data: farData } = await admin.from('walk_sessions').select('current_status').eq('id', sessionId).single();
       expect(farData.current_status).toBe('heading_to_pickup');
 
       // Mock near location
@@ -133,7 +140,7 @@ test.describe('Phase 4.1: Walk Operation (Pickup PIN)', () => {
       await walkerPage.getByRole('button', { name: /Cheguei ao local/i }).click();
       
       await expect(walkerPage.locator('text=Validar PIN')).toBeVisible({ timeout: 10000 });
-      const { data: nearData } = await supabase.from('walk_sessions').select('current_status, arrived_at').eq('id', sessionId).single();
+      const { data: nearData } = await admin.from('walk_sessions').select('current_status, arrived_at').eq('id', sessionId).single();
       expect(nearData.current_status).toBe('arrived');
       expect(nearData.arrived_at).not.toBeNull();
     });
@@ -176,7 +183,7 @@ test.describe('Phase 4.1: Walk Operation (Pickup PIN)', () => {
 
       // Check walk starts
       await expect(walkerPage.locator('text=Passeando')).toBeVisible({ timeout: 15000 });
-      const { data } = await supabase.from('walk_sessions').select('current_status, pickup_confirmed_at, start_time').eq('id', sessionId).single();
+      const { data } = await admin.from('walk_sessions').select('current_status, pickup_confirmed_at, start_time').eq('id', sessionId).single();
       expect(data.current_status).toBe('in_progress');
       expect(data.pickup_confirmed_at).not.toBeNull();
       expect(data.start_time).not.toBeNull();
@@ -185,14 +192,14 @@ test.describe('Phase 4.1: Walk Operation (Pickup PIN)', () => {
     // 5. Security: Replay and Direct Access blocking
     await test.step('security-checks', async () => {
       // Re-confirm should fail (PIN deleted)
-      const { error: replayErr } = await supabase.rpc('petwalker_confirm_pickup', { 
+      const { error: replayErr } = await admin.rpc('petwalker_confirm_pickup', { 
         _session_id: sessionId, 
         _pickup_code: '123456' 
       });
       expect(replayErr).not.toBeNull();
 
       // Direct petwalker_complete_walk bypass check
-      const { error: completeErr } = await supabase.rpc('petwalker_complete_walk', { 
+      const { error: completeErr } = await admin.rpc('petwalker_complete_walk', { 
         _session_id: sessionId 
       });
       // Should fail because it's in_progress, not returning (and authenticated execute revoked)
