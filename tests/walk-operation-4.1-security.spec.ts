@@ -178,6 +178,9 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
     expect(generatedPin).toMatch(/^[0-9]{6}$/);
 
     // 2. Arrive at pickup (required for confirm_pickup)
+    // We need to be in heading_to_pickup first
+    await supabaseAdmin.from('walk_sessions').update({ current_status: 'heading_to_pickup', status: 'heading_to_pickup' }).eq('id', sessionId);
+    
     const { error: arriveErr } = await supabaseWalker.rpc('petwalker_arrive_pickup', {
       _session_id: sessionId,
       _lat: -23.5505,
