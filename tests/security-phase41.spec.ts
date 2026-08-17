@@ -134,7 +134,7 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       // Forçar expiração via Admin
       await admin.from('walk_pickup_codes').update({ expires_at: new Date(Date.now() - 1000).toISOString() }).eq('session_id', session.id);
       
-      const { error: expErr } = await ownerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin1.data });
+      const { error: expErr } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin1.data });
       expect(expErr?.message).toContain('expirado');
       log("Validação de Expiração: PASS");
 
