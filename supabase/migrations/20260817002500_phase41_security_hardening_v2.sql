@@ -19,7 +19,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.walk_pickup_codes TO service_role
 -- 2. Revogar acesso PUBLIC/Anon de todas as RPCs operacionais
 REVOKE ALL ON FUNCTION public.customer_get_pickup_code(uuid) FROM public, anon, authenticated;
 REVOKE ALL ON FUNCTION public.petwalker_start_heading(uuid) FROM public, anon, authenticated;
-REVOKE ALL ON FUNCTION public.petwalker_arrive_pickup(uuid, double precision, double precision, double precision) FROM public, anon, authenticated;
+DROP FUNCTION IF EXISTS public.petwalker_arrive_pickup(uuid, numeric, numeric, numeric);
 REVOKE ALL ON FUNCTION public.petwalker_confirm_pickup(uuid, text) FROM public, anon, authenticated;
 
 -- 3. customer_get_pickup_code: Gera ou recupera PIN de 6 dígitos
