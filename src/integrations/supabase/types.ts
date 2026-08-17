@@ -1354,7 +1354,10 @@ export type Database = {
         Args: { _session_id: string }
         Returns: boolean
       }
-      customer_get_pickup_code: { Args: { walk_id: string }; Returns: string }
+      customer_get_pickup_code: {
+        Args: { _session_id: string }
+        Returns: string
+      }
       customer_request_return: {
         Args: { _session_id: string }
         Returns: boolean
