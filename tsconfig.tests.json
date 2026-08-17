@@ -6,6 +6,8 @@
     "baseUrl": ".",
     "types": ["node", "@playwright/test"],
     "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "lib": ["ESNext", "DOM"],
     "downlevelIteration": true,
     "noEmit": true,
