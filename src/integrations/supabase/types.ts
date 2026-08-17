@@ -871,21 +871,21 @@ export type Database = {
           attempts: number
           created_at: string
           expires_at: string
-          pickup_code: string
+          pin_hash: string
           session_id: string
         }
         Insert: {
           attempts?: number
           created_at?: string
           expires_at: string
-          pickup_code: string
+          pin_hash: string
           session_id: string
         }
         Update: {
           attempts?: number
           created_at?: string
           expires_at?: string
-          pickup_code?: string
+          pin_hash?: string
           session_id?: string
         }
         Relationships: [
