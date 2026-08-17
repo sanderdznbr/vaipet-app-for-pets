@@ -166,7 +166,7 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
        if (petErr) { throw new Error(`PET_CREATE_ERROR: ${petErr.message}`); }
 
        const { data: session, error: sessErr } = await admin.from("walk_sessions").insert({
-         customer_id: uid, walker_id: uid, pet_id: pet.id, current_status: "accepted", status: "accepted",
+         customer_id: uid, walker_id: uid, pet_id: pet.id, current_status: "arrived", status: "arrived",
          walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId,
          start_time: new Date().toISOString(),
          meeting_point_geom: `SRID=4326;POINT(0 0)`
