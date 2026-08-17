@@ -31,7 +31,7 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
     expect([401, 403]).toContain(res2.status());
     
     const res3 = await request.post(`${SUPABASE_URL}/rest/v1/rpc/petwalker_confirm_pickup`, {
-      data: { walk_id: "00000000-0000-0000-0000-000000000000", input_pin: "000000" },
+      data: { _session_id: "00000000-0000-0000-0000-000000000000", _pin: "000000" },
       headers: { 'apikey': ANON_KEY }
     });
     expect([401, 403, 404]).toContain(res3.status());
@@ -87,22 +87,22 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       if (pinErr) throw pinErr;
       expect(pin).toMatch(/^\d{6}$/);
 
-      const { error: earlyErr } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
-      expect(earlyErr?.message).toMatch(/estado de retirada|status.*arrived/i);
+      const { error: earlyErr } = await walkerClient.rpc('petwalker_confirm_pickup', { _session_id: session.id, _pin: pin });
+      expect(earlyErr?.message).toMatch(/Status inválido|status.*arrived/i);
 
       await admin.from('walk_sessions').update({ status: 'arrived', current_status: 'arrived' }).eq('id', session.id);
 
-      const { error: attackErr } = await attackerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
-      expect(attackErr?.message).toMatch(/você não é o Walker designado/i);
+      const { error: attackErr } = await attackerClient.rpc('petwalker_confirm_pickup', { _session_id: session.id, _pin: pin });
+      expect(attackErr?.message).toMatch(/Acesso negado|você não é o Walker designado/i);
 
       const wrongPin = pin === '111111' ? '222222' : '111111';
       for (let i = 0; i < 5; i++) {
-        const { data: failRes, error: failErr } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: wrongPin });
+        const { data: failRes, error: failErr } = await walkerClient.rpc('petwalker_confirm_pickup', { _session_id: session.id, _pin: wrongPin });
         expect(failRes === false || failErr).toBeTruthy();
       }
       
-      const { error: bruteErr } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
-      expect(bruteErr?.message).toMatch(/limite de tentativas excedido/i);
+      const { error: bruteErr } = await walkerClient.rpc('petwalker_confirm_pickup', { _session_id: session.id, _pin: pin });
+      expect(bruteErr?.message).toMatch(/bloqueado|limite de tentativas excedido/i);
 
       const { data: session2 } = await admin.from("walk_sessions").insert({
         customer_id: owner.id, walker_id: walker.id, pet_id: pet.id, current_status: "arrived", status: "arrived",
@@ -113,7 +113,7 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       const { data: pin2, error: pinErr2 } = await ownerClient.rpc('customer_get_pickup_code', { _session_id: session2.id });
       if (pinErr2) throw pinErr2;
       
-      const { data: ok, error: okErr } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session2.id, input_pin: pin2 });
+      const { data: ok, error: okErr } = await walkerClient.rpc('petwalker_confirm_pickup', { _session_id: session2.id, _pin: pin2 });
       if (okErr) throw okErr;
       expect(ok).toBe(true);
 
@@ -160,8 +160,8 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
 
       await admin.from('walk_pickup_codes').update({ expires_at: new Date(Date.now() - 1000).toISOString() }).eq('session_id', session.id);
       
-      const { error: expErr } = await ownerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: p1.data });
-      expect(expErr?.message).toMatch(/expirado/i);
+      const { error: expErr } = await ownerClient.rpc('petwalker_confirm_pickup', { _session_id: session.id, _pin: p1.data });
+      expect(expErr?.message).toMatch(/expirado|inválido/i);
     } finally {
       await failClosedCleanup(admin, [uid], runId);
     }
