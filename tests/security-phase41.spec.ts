@@ -36,24 +36,25 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
         email_confirm: true, 
         user_metadata: { e2e_test: true, e2e_run_id: runId } 
     });
-    if (uErr) throw uErr;
+    if (uErr) { log(`USER_CREATE_ERROR: ${JSON.stringify(uErr)}`); throw uErr; }
     const ownerId = uData.user!.id;
 
     try {
+      // Usar uma consulta SQL direta via admin.rpc('exec_sql') se disponível, 
+      // ou apenas omitir colunas problemáticas se possível.
+      // O erro PGRST204 indica que o PostgREST não viu a coluna.
       const { data: pet, error: petErr } = await admin.from("pets").insert({ 
-          owner_id: ownerId, name: "SecPet", breed: "SRD", e2e_run_id: runId 
+          owner_id: ownerId, name: "SecPet", breed: "SRD"
       }).select().single();
-      if (petErr) throw petErr;
+      if (petErr) { log(`PET_CREATE_ERROR: ${JSON.stringify(petErr)}`); throw petErr; }
       
       const { data: session, error: sessErr } = await admin.from("walk_sessions").insert({
         customer_id: ownerId, pet_id: pet.id, current_status: "accepted", status: "accepted",
         walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId,
         meeting_point_geom: `SRID=4326;POINT(0 0)`
       }).select().single();
-      if (sessErr) throw sessErr;
+      if (sessErr) { log(`SESS_CREATE_ERROR: ${JSON.stringify(sessErr)}`); throw sessErr; }
 
-      // Usando admin (service_role) para testar a lógica da RPC, simulando uid via trigger de sessão se necessário, 
-      // mas o service_role bypassa RLS, o que nos permite testar a lógica de concorrência/idempotência interna.
       const r1 = await admin.rpc('customer_get_pickup_code', { walk_id: session.id });
       const r2 = await admin.rpc('customer_get_pickup_code', { walk_id: session.id });
 
@@ -79,22 +80,28 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
         email_confirm: true, 
         user_metadata: { e2e_test: true, e2e_run_id: runId } 
     });
-    if (uErr) throw uErr;
+    if (uErr) { log(`USER_CREATE_ERROR: ${JSON.stringify(uErr)}`); throw uErr; }
     const walkerId = uData.user!.id;
 
     try {
+      const { data: pet, error: petErr } = await admin.from("pets").insert({ 
+          owner_id: walkerId, name: "SecPetErr", breed: "SRD"
+      }).select().single();
+      if (petErr) { log(`PET_CREATE_ERROR: ${JSON.stringify(petErr)}`); throw petErr; }
+
       const { data: session, error: sessErr } = await admin.from("walk_sessions").insert({
         customer_id: walkerId,
         walker_id: walkerId,
+        pet_id: pet.id,
         current_status: "accepted",
         status: "accepted",
         walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId,
         meeting_point_geom: `SRID=4326;POINT(0 0)`
       }).select().single();
-      if (sessErr) throw sessErr;
+      if (sessErr) { log(`SESS_CREATE_ERROR: ${JSON.stringify(sessErr)}`); throw sessErr; }
 
       const { data: pin, error: pinErr } = await admin.rpc('customer_get_pickup_code', { walk_id: session.id });
-      if (pinErr) throw pinErr;
+      if (pinErr) { log(`PIN_ERROR: ${JSON.stringify(pinErr)}`); throw pinErr; }
       
       for (let i = 0; i < 5; i++) {
         const { data: success, error: confErr } = await admin.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: '000000' });
@@ -123,19 +130,24 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
          email_confirm: true, 
          user_metadata: { e2e_test: true, e2e_run_id: runId } 
      });
-     if (uErr) throw uErr;
+     if (uErr) { log(`USER_CREATE_ERROR: ${JSON.stringify(uErr)}`); throw uErr; }
      const uid = uData.user!.id;
 
      try {
+       const { data: pet, error: petErr } = await admin.from("pets").insert({ 
+           owner_id: uid, name: "SecPetSync", breed: "SRD"
+       }).select().single();
+       if (petErr) { log(`PET_CREATE_ERROR: ${JSON.stringify(petErr)}`); throw petErr; }
+
        const { data: session, error: sessErr } = await admin.from("walk_sessions").insert({
-         customer_id: uid, walker_id: uid, current_status: "accepted", status: "accepted",
+         customer_id: uid, walker_id: uid, pet_id: pet.id, current_status: "accepted", status: "accepted",
          walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId,
          meeting_point_geom: `SRID=4326;POINT(0 0)`
        }).select().single();
-       if (sessErr) throw sessErr;
+       if (sessErr) { log(`SESS_CREATE_ERROR: ${JSON.stringify(sessErr)}`); throw sessErr; }
 
        const { data: pin, error: pinErr } = await admin.rpc('customer_get_pickup_code', { walk_id: session.id });
-       if (pinErr) throw pinErr;
+       if (pinErr) { log(`PIN_ERROR: ${JSON.stringify(pinErr)}`); throw pinErr; }
        
        await admin.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
        
