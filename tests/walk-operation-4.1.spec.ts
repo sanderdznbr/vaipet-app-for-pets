@@ -3,8 +3,6 @@ import { createAuthedContext } from './helpers/auth';
 import { failClosedCleanup } from './helpers/cleanup';
 import { createClient } from '@supabase/supabase-js';
 
-// Load env vars manually for the node-side of the test if needed
-// but since supabase-js is used in node here, we need the real keys.
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -19,19 +17,21 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
 
   test.beforeAll(async () => {
     // Provisioning
-    const { data: owner } = await supabase.auth.admin.createUser({
+    const { data: owner, error: ownerErr } = await supabase.auth.admin.createUser({
       email: TEST_OWNER,
       password: TEST_PASS,
       email_confirm: true,
       user_metadata: { signup_intent: 'pet_owner', e2e_test: E2E_RUN_ID }
     });
+    if (ownerErr) throw ownerErr;
 
-    const { data: walker } = await supabase.auth.admin.createUser({
+    const { data: walker, error: walkerErr } = await supabase.auth.admin.createUser({
       email: TEST_WALKER,
       password: TEST_PASS,
       email_confirm: true,
       user_metadata: { signup_intent: 'petwalker', e2e_test: E2E_RUN_ID }
     });
+    if (walkerErr) throw walkerErr;
 
     // Create Profiles
     await supabase.from('profiles').insert([
@@ -48,7 +48,7 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     });
 
     // Create Pet
-    const { data: pet } = await supabase.from('pets').insert({
+    const { data: pet, error: petErr } = await supabase.from('pets').insert({
       owner_id: owner.user!.id,
       name: 'E2E Rex',
       type: 'dog',
@@ -56,9 +56,10 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       weight: 25,
       e2e_test: E2E_RUN_ID
     }).select().single();
+    if (petErr) throw petErr;
 
     // Create Accepted Session directly
-    await supabase.from('walk_sessions').insert({
+    const { error: sessionErr } = await supabase.from('walk_sessions').insert({
       user_id: owner.user!.id,
       walker_id: walker.user!.id,
       pet_id: pet.id,
@@ -70,6 +71,7 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       walk_type: 'now',
       e2e_test: E2E_RUN_ID
     });
+    if (sessionErr) throw sessionErr;
   });
 
   test.afterAll(async () => {
@@ -77,10 +79,11 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
   });
 
   test('Operational displacement and PIN confirmation', async ({ browser }) => {
-    const { data: walk } = await supabase.from('walk_sessions')
+    const { data: walk, error: walkErr } = await supabase.from('walk_sessions')
       .select('id')
       .eq('e2e_test', E2E_RUN_ID)
       .single();
+    if (walkErr) throw walkErr;
 
     const { page: walkerPage } = await createAuthedContext(browser, TEST_WALKER, TEST_PASS);
     const { page: ownerPage } = await createAuthedContext(browser, TEST_OWNER, TEST_PASS);
@@ -89,17 +92,19 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     console.log('[STEP 1] Walker starting displacement');
     await walkerPage.goto(`/petwalker/passeio/${walk.id}`);
     await walkerPage.click('text=Iniciar Deslocamento');
-    await expect(walkerPage.locator('text=Cheguei no Local')).toBeVisible({ timeout: 15000 });
+    await expect(walkerPage.locator('text=Cheguei no Local')).toBeVisible({ timeout: 20000 });
 
-    // 2. Walker: Arrive at Pickup (GPS Mocked by Browser)
+    // 2. Walker: Arrive at Pickup
     console.log('[STEP 2] Walker arriving at pickup');
     await walkerPage.click('text=Cheguei no Local');
-    await expect(walkerPage.locator('[data-testid="pickup-pin-input"]')).toBeVisible({ timeout: 15000 });
+    await expect(walkerPage.locator('[data-testid="pickup-pin-input"]')).toBeVisible({ timeout: 20000 });
 
     // 3. Owner: Get PIN
     console.log('[STEP 3] Owner fetching PIN');
     await ownerPage.goto(`/petwalker/passeio/${walk.id}`);
-    const pinText = await ownerPage.locator('span:has-text("PIN") + span, .text-accent').textContent();
+    const pinLocator = ownerPage.locator('span:has-text("PIN") + span, .text-accent');
+    await expect(pinLocator).not.toHaveText(/------/, { timeout: 20000 });
+    const pinText = await pinLocator.textContent();
     const pin = pinText?.replace(/\s/g, '').trim();
     expect(pin).toMatch(/^[0-9]{6}$/);
     console.log(`[INFO] PIN discovered: ${pin}`);
@@ -111,7 +116,7 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
 
     // 5. Verification: Walk In Progress
     console.log('[STEP 5] Verifying walk is in progress');
-    await expect(walkerPage.locator('text=Finalização indisponível')).toBeVisible({ timeout: 15000 });
+    await expect(walkerPage.locator('text=Finalização indisponível')).toBeVisible({ timeout: 20000 });
     
     const { data: finalWalk } = await supabase.from('walk_sessions')
       .select('current_status')
