@@ -47,7 +47,6 @@ BEGIN
 
     IF v_code IS NULL THEN
         -- Gerar PIN criptograficamente aleatório de 6 dígitos (regex ^[0-9]{6}$)
-        -- Usando random() para os dígitos e garantindo zeros à esquerda
         v_code := lpad(floor(random() * 1000000)::text, 6, '0');
         
         -- Expiração obrigatória (30 min)
