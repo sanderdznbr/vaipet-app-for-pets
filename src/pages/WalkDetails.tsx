@@ -49,8 +49,8 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
     setPinError(null);
     try {
       const { data, error } = await supabase.rpc('petwalker_confirm_pickup', {
-        _session_id: walk.id,
-        _pin: pinValue
+        walk_id: walk.id,
+        input_pin: pinValue
       });
       if (error) {
         setPinError(error.message);
@@ -400,7 +400,7 @@ const PickupCode: React.FC<{ session_id: string }> = ({ session_id }) => {
   
   useEffect(() => {
     const fetchCode = async () => {
-      const { data, error } = await supabase.rpc('customer_get_pickup_code', { _session_id: session_id });
+      const { data, error } = await supabase.rpc('customer_get_pickup_code', { walk_id: session_id });
       if (!error && data) setCode(data);
       else if (error) console.error('PickupCode error:', error.message);
 
