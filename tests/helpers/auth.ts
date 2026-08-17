@@ -2,8 +2,7 @@ import { test, expect, Browser } from '@playwright/test';
 
 /**
  * Cria um contexto autenticado seguindo o fluxo real da UI.
- * Não aceita /auth como destino final para testes operacionais.
- * /onboarding é aceito apenas se o teste for explicitamente sobre onboarding.
+ * Não aceita /onboarding como sucesso operacional.
  */
 export async function createAuthedContext(browser: Browser, email: string, pass: string, expectedPath?: string) {
   const context = await browser.newContext({
@@ -20,15 +19,14 @@ export async function createAuthedContext(browser: Browser, email: string, pass:
   await page.click('button[type="submit"]');
 
   // Espera o carregamento e redirecionamento inicial
-  // Aumentamos o timeout para garantir que o redirecionamento pós-auth ocorra
-  await page.waitForURL(/.*(inicio|petwalker|onboarding)/, { timeout: 45000 });
+  await page.waitForURL(/.*(inicio|petwalker|onboarding|auth)/, { timeout: 30000 });
   
   const finalUrl = page.url();
   console.log(`[AUTH] Destino inicial: ${finalUrl}`);
 
-  // Se ainda estiver em /auth após 45s, algo deu errado
-  if (finalUrl.includes('/auth')) {
-    throw new Error(`[FAIL-AUTH] Usuário ${email} preso em /auth após login.`);
+  // Bloqueio: /onboarding ou /auth NÃO são sucessos para testes operacionais
+  if (finalUrl.includes('/onboarding') || finalUrl.includes('/auth')) {
+    throw new Error(`[FAIL-AUTH] Usuário ${email} bloqueado em rota não operacional: ${finalUrl}. Provisionamento E2E falhou.`);
   }
 
   // Validação opcional de rota específica
@@ -38,3 +36,4 @@ export async function createAuthedContext(browser: Browser, email: string, pass:
   
   return { context, page };
 }
+

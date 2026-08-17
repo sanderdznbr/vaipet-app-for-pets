@@ -7,6 +7,10 @@ import { type SupabaseClient } from "@supabase/supabase-js";
  * @param runId Opcional: ID da execução para validação extra.
  */
 export async function failClosedCleanup(admin: SupabaseClient, ids: string[], runId: string) {
+  if (ids.length === 0) {
+    console.warn(`[cleanup] AVISO: Lista de IDs vazia para runId ${runId}.`);
+  }
+
   if (!ids || ids.length === 0) return;
   
   console.log(`[cleanup] Iniciando fail-closed cleanup para ${ids.length} IDs.`);

@@ -366,10 +366,12 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
                 </div>
               )}
               <div className="bg-ink/5 border border-ink/10 rounded-2xl p-4 mb-1 text-center">
-                <p className="text-xs font-bold text-ink/60">Finalização indisponível na Phase 4.1</p>
+                <p className="text-xs font-bold text-ink/60" data-testid="walk-in-progress-marker">Aviso de passeio em andamento</p>
+                <p className="text-[10px] text-ink/40">Finalização indisponível na Phase 4.1</p>
               </div>
             </>
           )}
+
 
           <button 
             onClick={() => navigate('/petwalker')}
