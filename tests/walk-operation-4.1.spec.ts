@@ -4,8 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
 
 const E2E_RUN_ID = `4.1-op-${Date.now()}`;
 
@@ -237,7 +238,7 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
 
     // Tentar confirmar PIN novamente (Replay)
     const { data: { session: walkerSession } } = await supabase.auth.signInWithPassword({ email: TEST_WALKER, password: TEST_PASS });
-    const walkerAuthClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+    const walkerAuthClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
     await walkerAuthClient.auth.setSession(walkerSession!);
     
     const { error: replayErr } = await walkerAuthClient.rpc('petwalker_confirm_pickup', { session_id: sessionId, pin_code: pin });
