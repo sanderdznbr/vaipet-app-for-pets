@@ -244,6 +244,7 @@ export type Database = {
           behavioral_notes: string | null
           breed: string
           created_at: string | null
+          e2e_test: boolean | null
           emergency_contact: string | null
           gender: string | null
           id: string
@@ -260,6 +261,7 @@ export type Database = {
           behavioral_notes?: string | null
           breed: string
           created_at?: string | null
+          e2e_test?: boolean | null
           emergency_contact?: string | null
           gender?: string | null
           id?: string
@@ -276,6 +278,7 @@ export type Database = {
           behavioral_notes?: string | null
           breed?: string
           created_at?: string | null
+          e2e_test?: boolean | null
           emergency_contact?: string | null
           gender?: string | null
           id?: string
