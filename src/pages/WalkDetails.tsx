@@ -319,8 +319,16 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
           {walk.current_status === 'heading_to_pickup' && (
             <button 
               onClick={async () => {
-                const { error } = await supabase.rpc('petwalker_arrive_pickup', { _session_id: walk.id });
-                if (!error) window.location.reload();
+                navigator.geolocation.getCurrentPosition(async (pos) => {
+                  const { error } = await supabase.rpc('petwalker_arrive_pickup', { 
+                    _session_id: walk.id,
+                    _lat: pos.coords.latitude,
+                    _lng: pos.coords.longitude,
+                    _accuracy: pos.coords.accuracy
+                  });
+                  if (!error) window.location.reload();
+                  else alert(`Erro: ${error.message}`);
+                }, (err) => alert(`GPS Erro: ${err.message}`));
               }}
               className="w-full bg-blue-500 text-white font-extrabold py-4 rounded-2xl shadow-xl active:scale-95 transition-transform"
             >
@@ -329,13 +337,10 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
           )}
           {walk.current_status === 'arrived' && (
             <button 
-              onClick={async () => {
-                const { error } = await supabase.rpc('petwalker_start_walk', { _session_id: walk.id });
-                if (!error) window.location.reload();
-              }}
+              onClick={() => navigate(`/petwalker/passeio/${walk.id}`)}
               className="w-full bg-orange-500 text-white font-extrabold py-4 rounded-2xl shadow-xl active:scale-95 transition-transform"
             >
-              Iniciar Passeio
+              Inserir PIN de Retirada
             </button>
           )}
           {walk.current_status === 'in_progress' && (
