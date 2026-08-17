@@ -1,7 +1,45 @@
 -- migration 20260817034000: Correct Phase 4.1 Security and Storage
 
--- 1. Renomear pin_hash para pin_code
-ALTER TABLE public.walk_pickup_codes RENAME COLUMN pin_hash TO pin_code;
+-- 1. Renomear pin_hash para pin_code (Reconciliação Idempotente)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'walk_pickup_codes'
+          AND column_name = 'pin_hash'
+    )
+    AND NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'walk_pickup_codes'
+          AND column_name = 'pin_code'
+    ) THEN
+        ALTER TABLE public.walk_pickup_codes
+        RENAME COLUMN pin_hash TO pin_code;
+    ELSIF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'walk_pickup_codes'
+          AND column_name = 'pin_hash'
+    )
+    AND EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'walk_pickup_codes'
+          AND column_name = 'pin_code'
+    ) THEN
+        UPDATE public.walk_pickup_codes
+        SET pin_code = COALESCE(pin_code, pin_hash)
+        WHERE pin_hash IS NOT NULL;
+        ALTER TABLE public.walk_pickup_codes
+        DROP COLUMN pin_hash;
+    END IF;
+END $$;
 
 -- 2. Restringir acesso total à tabela walk_pickup_codes
 REVOKE ALL ON public.walk_pickup_codes FROM PUBLIC, anon, authenticated;
