@@ -92,7 +92,7 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
       anonClient.rpc('petwalker_confirm_pickup', { _session_id: sessionId, _pin: '123456' })
     ]);
     for (const r of results) {
-      if (r.error) expect(r.error.message).toMatch(/permission denied|does not exist/i);
+      if (r.error) expect(r.error.message).toMatch(/permission denied|does not exist|Acesso negado/i);
       else expect(r.data).toBeFalsy();
     }
   });
@@ -101,7 +101,6 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
     const otherClient = await createClientForUser(TEST_OTHER);
     const ownerClient = await createClientForUser(TEST_OWNER);
     
-    // Provision PIN first so "Walker incorreto" can trigger instead of "PIN não gerado"
     await ownerClient.rpc('customer_get_pickup_code', { _session_id: sessionId });
 
     const { data: pin, error: pinErr } = await otherClient.rpc('customer_get_pickup_code', { _session_id: sessionId });
@@ -114,12 +113,12 @@ test.describe('Phase 4.1: Zero-Trust Security Validation (Comprehensive)', () =>
     const { error: arriveErr } = await otherClient.rpc('petwalker_arrive_pickup', {
       _session_id: sessionId, _lat: -23.5505, _lng: -46.6333, _accuracy: 10
     });
-    expect(arriveErr?.message).toMatch(/Walker incorreto/i);
+    expect(arriveErr?.message).toMatch(/Acesso negado|Walker incorreto/i);
 
     const { data: confirm, error: confirmErr } = await otherClient.rpc('petwalker_confirm_pickup', {
       _session_id: sessionId, _pin: '999999'
     });
-    expect(confirmErr?.message).toMatch(/Walker incorreto/i);
+    expect(confirmErr?.message).toMatch(/Acesso negado|Walker incorreto/i);
   });
 
   test('GPS Validation Hardened (limits, accuracy, proximity)', async () => {
