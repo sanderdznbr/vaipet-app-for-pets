@@ -1,8 +1,5 @@
 import { expect, type Browser, type BrowserContext } from '@playwright/test';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+import { createClient } from '@supabase/supabase-js';
 
 export async function createAuthedContext(browser: Browser, email: string, pass: string, coords?: { lng: number; lat: number }) {
   const context = await browser.newContext({
