@@ -135,13 +135,17 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       if (pinErr) throw new Error(`PIN fetch failed: ${pinErr.message}`);
       expect(pin).toMatch(/^\d{6}$/);
 
-      // Transição forçada para arrived via admin
-      const { error: upErr } = await admin.from('walk_sessions').update({ 
-        status: 'arrived', 
-        current_status: 'arrived',
-        arrived_at: new Date().toISOString()
-      }).eq('id', session.id);
-      if (upErr) throw new Error(`Admin status update to arrived failed: ${upErr.message}`);
+      // Transição segura para arrived via RPCs
+      const { error: startErr } = await walkerClient.rpc('petwalker_start_heading', { _session_id: session.id });
+      if (startErr) throw new Error(`petwalker_start_heading failed: ${startErr.message}`);
+      
+      const { error: arriveErr } = await walkerClient.rpc('petwalker_arrive_pickup', { 
+        _session_id: session.id, 
+        _lat: -23.5505, 
+        _lng: -46.6333, 
+        _accuracy: 10 
+      });
+      if (arriveErr) throw new Error(`petwalker_arrive_pickup failed: ${arriveErr.message}`);
 
       const { data: pickupCodesData, error: pickupCodesError } = await admin.from('walk_pickup_codes').select('*').eq('session_id', session.id);
       if (pickupCodesError) throw new Error(`Verification of walk_pickup_codes error failed: ${pickupCodesError.message}`);
@@ -188,13 +192,23 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       expect(finalSess.current_status).toBe('arrived');
       expect(finalSess.pickup_confirmed_at).toBeNull();
 
+      // Inserção para o segundo teste de aceite real
       const { data: session2, error: sessErr2 } = await admin.from("walk_sessions").insert({
-        customer_id: owner.id, walker_id: walker.id, pet_id: pet.id, current_status: "arrived", status: "arrived",
+        customer_id: owner.id, walker_id: walker.id, pet_id: pet.id, current_status: "accepted", status: "accepted",
         walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId, e2e_test: true,
         start_time: oldStartTime,
-        arrived_at: new Date().toISOString()
+        home_location: { lat: -23.5505, lng: -46.6333 }
       }).select().single();
       if (sessErr2) throw new Error(`Session 2 insertion failed: ${sessErr2.message}`);
+
+      // Leva session2 para arrived
+      await walkerClient.rpc('petwalker_start_heading', { _session_id: session2.id });
+      await walkerClient.rpc('petwalker_arrive_pickup', { 
+        _session_id: session2.id, 
+        _lat: -23.5505, 
+        _lng: -46.6333, 
+        _accuracy: 10 
+      });
 
       const { data: pin2, error: pinErr2 } = await ownerClient.rpc('customer_get_pickup_code', { _session_id: session2.id });
       if (pinErr2) throw new Error(`PIN 2 fetch failed: ${pinErr2.message}`);
@@ -251,12 +265,24 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       if (petErr) throw new Error(`Pet creation failed: ${petErr.message}`);
       
       const { data: session, error: sessErr } = await admin.from("walk_sessions").insert({
-        customer_id: uid, walker_id: uid, pet_id: pet.id, current_status: 'arrived', status: 'arrived',
+        customer_id: uid, walker_id: uid, pet_id: pet.id, current_status: 'accepted', status: 'accepted',
         walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId, e2e_test: true,
         start_time: new Date().toISOString(),
-        arrived_at: new Date().toISOString()
+        home_location: { lat: -23.5505, lng: -46.6333 }
       }).select().single();
       if (sessErr) throw new Error(`Session creation failed: ${sessErr.message}`);
+
+      // Como o walker é o mesmo que o owner (simplificação do teste), podemos usar o admin para forçar o status se necessário,
+      // mas vamos tentar a via correta para validar as RPCs.
+      // Precisamos logar como walker também (mesmo uid)
+      const walkerClient = ownerClient;
+      await walkerClient.rpc('petwalker_start_heading', { _session_id: session.id });
+      await walkerClient.rpc('petwalker_arrive_pickup', { 
+        _session_id: session.id, 
+        _lat: -23.5505, 
+        _lng: -46.6333, 
+        _accuracy: 10 
+      });
 
       const { data: pin, error: pinFetchErr } = await ownerClient.rpc('customer_get_pickup_code', { _session_id: session.id });
       if (pinFetchErr) throw new Error(`PIN fetch failed: ${pinFetchErr.message}`);
