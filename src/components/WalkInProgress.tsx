@@ -2719,11 +2719,11 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
                     </div>
                     <h3 className="text-lg font-extrabold" style={{ color: ink }}>{walkerName} chegou!</h3>
                     <p className="text-sm mt-1 mb-5" style={{ color: inkSoft }}>
-                      Confirme o código que <b style={{ color: ink }}>{walkerName}</b> está mostrando para iniciar o passeio com {petName}.
+                      Peça o código de 6 dígitos que o <b>cliente</b> está visualizando para confirmar a retirada.
                     </p>
 
-                    <div className="flex gap-2 mb-3">
-                      {[0,1,2,3].map(i => (
+                    <div className="flex gap-1.5 mb-3">
+                      {[0, 1, 2, 3, 4, 5].map(i => (
                         <input
                           key={i}
                           inputMode="numeric"
@@ -2731,12 +2731,12 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
                           value={codeInput[i] || ''}
                           onChange={(e) => {
                             const v = e.target.value.replace(/\D/g, '').slice(-1);
-                            const arr = codeInput.padEnd(4, ' ').split('');
+                            const arr = codeInput.padEnd(6, ' ').split('');
                             arr[i] = v || ' ';
                             setCodeInput(arr.join('').trimEnd());
                             if (v && e.target.nextElementSibling) (e.target.nextElementSibling as HTMLInputElement).focus();
                           }}
-                          className="w-12 h-14 text-center text-2xl font-extrabold rounded-xl border-2 focus:outline-none transition-colors"
+                          className="w-10 h-14 text-center text-xl font-extrabold rounded-xl border-2 focus:outline-none transition-colors"
                           style={{
                             background: inputBg,
                             color: ink,
