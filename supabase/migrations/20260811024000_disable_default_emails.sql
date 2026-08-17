@@ -1,15 +1,25 @@
 -- Desativa o envio de emails padrão do Supabase para forçar o uso do Hook/Resend
 -- E configura o Hook para a função resend-auth-hook
 
-UPDATE auth.instances 
-SET 
-  config = config || 
-  jsonb_build_object(
-    'mailer_otp_exp', 600,
-    'external_email_enabled', true,
-    'smtp_admin_email', 'noreply@vaipet.app',
-    'smtp_sender_name', 'VaiPet'
-  );
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'auth'
+      AND table_name = 'instances'
+      AND column_name = 'config'
+  ) THEN
+    UPDATE auth.instances
+    SET config = config ||
+      jsonb_build_object(
+        'mailer_otp_exp', 600,
+        'external_email_enabled', true,
+        'smtp_admin_email', 'noreply@vaipet.app',
+        'smtp_sender_name', 'VaiPet'
+      );
+  END IF;
+END $$;
 
 -- Garante que o hook de envio de email está apontando para a nossa função
 -- O Lovable Cloud gerencia a URL base das functions, mas precisamos garantir que o hook está habilitado no nível do banco se possível via SQL, 
