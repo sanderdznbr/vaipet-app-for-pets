@@ -172,7 +172,7 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
 
     await supabaseAdmin.from('walk_pickup_codes').upsert({
       session_id: sessionId,
-      pickup_code: '123456',
+      pin_hash: '123456',
       attempts: 0,
       expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
     });
