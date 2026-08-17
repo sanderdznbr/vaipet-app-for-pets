@@ -11,7 +11,11 @@ const TEST_OWNER = `owner-op-${E2E_RUN_ID}@example.com`;
 const TEST_WALKER = `walker-op-${E2E_RUN_ID}@example.com`;
 const TEST_PASS = 'VaiPet@2026';
 
-test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
+  test.afterAll(async () => {
+    await failClosedCleanup(supabase, [ownerId, walkerId].filter(Boolean) as string[], E2E_RUN_ID);
+  });
+
+  test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
   test.setTimeout(180000);
   let ownerId: string;
   let walkerId: string;
@@ -57,11 +61,11 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     if (profWalkerErr) throw profWalkerErr;
 
     // Provisionamos as roles e o perfil técnico do walker para evitar redirecionamentos ao onboarding
-    await supabase.from('user_roles').upsert([
+    const { error: roleErr } = await supabase.from('user_roles').upsert([
       { user_id: ownerId, role: 'user' },
       { user_id: walkerId, role: 'user' },
       { user_id: walkerId, role: 'petwalker' }
-    ]);
+    if (roleErr) throw roleErr;
 
     // Colunas reais de petwalker_profiles saneadas conforme inspeção (public_bio, service_radius_km)
     const { error: walkerProfErr } = await supabase.from('petwalker_profiles').upsert({
@@ -104,12 +108,25 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       request_mode: 'now',
       e2e_test: true,
       e2e_run_id: E2E_RUN_ID,
-      start_time: new Date().toISOString(),
-      pickup_confirmed_at: null
+      start_time: null,
+      pickup_confirmed_at: null,
+      started_at: null
     }).select().single();
     
     if (walkErr) throw walkErr;
     sessionId = walk!.id;
+
+    // Auditoria read-only pós-criação
+    const { data: audit0, error: err0 } = await supabase.from('walk_sessions')
+      .select('status, current_status, start_time, pickup_confirmed_at, walker_id')
+      .eq('id', sessionId)
+      .single();
+    
+    if (err0 || audit0?.status !== 'accepted' || audit0?.current_status !== 'accepted' || 
+        audit0?.start_time !== null || audit0?.pickup_confirmed_at !== null || audit0?.walker_id !== walkerId) {
+      throw new Error(`Audit creation failed: ${JSON.stringify(audit0)}. Error: ${err0?.message}`);
+    }
+
   });
 
   test('Operational displacement and PIN confirmation', async ({ browser }) => {
@@ -195,6 +212,8 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     expect(finalWalk?.current_status).toBe('in_progress');
     expect(finalWalk?.pickup_confirmed_at).not.toBeNull();
     expect(finalWalk?.start_time).not.toBeNull();
+    expect(finalWalk?.walker_id).toBe(walkerId);
+
 
     // Verificar que walk_pickup_codes não possui mais registro
     const { data: pinRecord, error: pinAuditErr } = await supabase.from('walk_pickup_codes').select('*').eq('session_id', sessionId).maybeSingle();
@@ -205,6 +224,28 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     await walkerPage.goto(`/petwalker/passeio/${sessionId}`);
     await expect(walkerPage.locator('[data-testid="pickup-pin-input"]')).not.toBeVisible();
     await expect(walkerPage.locator('[data-testid="walk-in-progress-marker"]')).toBeVisible();
+
+    // Tentar confirmar PIN novamente com o mesmo código (usando client autenticado)
+    const { data: { session: walkerSession } } = await supabase.auth.signInWithPassword({ email: TEST_WALKER, password: TEST_PASS });
+    const walkerAuthClient = createClient(SUPABASE_URL, '', { auth: { persistSession: false } });
+    await walkerAuthClient.auth.setSession(walkerSession!);
+    
+    const { error: replayErr } = await walkerAuthClient.rpc('petwalker_confirm_pickup', { session_id: sessionId, pin_code: pin });
+    expect(replayErr).toBeDefined();
+
+    // Re-auditar estado (deve continuar in_progress)
+    const { data: auditPostReplay, error: errPostReplay } = await supabase.from('walk_sessions')
+        .select('status, current_status, walker_id')
+        .eq('id', sessionId)
+        .single();
+    
+    expect(auditPostReplay?.status).toBe('in_progress');
+    expect(auditPostReplay?.current_status).toBe('in_progress');
+    expect(auditPostReplay?.walker_id).toBe(walkerId);
+
+    // Re-auditar pickups (deve ser 0)
+    const { count } = await supabase.from('walk_pickup_codes').select('*', { count: 'exact', head: true }).eq('session_id', sessionId);
+    expect(count).toBe(0);
 
     await walkerCtx.context.close();
     await ownerCtx.context.close();
