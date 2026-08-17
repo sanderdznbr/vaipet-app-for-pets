@@ -50,7 +50,7 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
     try {
       const { data, error } = await supabase.rpc('petwalker_confirm_pickup', {
         _session_id: walk.id,
-        _pickup_code: pinValue
+        _pin: pinValue
       });
       if (error) {
         setPinError(error.message);
