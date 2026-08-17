@@ -11,8 +11,8 @@ BEGIN
     SELECT md5(t::text) FROM (SELECT * FROM auth.users WHERE id = user_id_val) t INTO initial_hash;
     
     IF initial_hash IS NULL THEN
-        RAISE EXCEPTION 'User not found';
-    END IF;
+        RAISE NOTICE 'Target user not present; skipping remediation';
+    ELSE
 
     -- 2. Update
     UPDATE auth.users
@@ -29,4 +29,5 @@ BEGIN
     
     -- 3. Validation
     RAISE NOTICE 'Remediation completed successfully. Rows affected: %', affected_rows;
+    END IF;
 END $$;
