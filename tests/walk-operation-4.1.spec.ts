@@ -98,6 +98,7 @@ test.describe('Phase 4.1: Walk Operation (Pickup PIN)', () => {
       start_time: new Date().toISOString(),
       status: 'accepted',
       walk_type: 'now',
+      current_status: 'accepted',
       planned_duration_minutes: 30,
       total_price_cents: 4500,
       meeting_point_address: 'Rua Teste, 123',
