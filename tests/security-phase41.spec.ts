@@ -53,8 +53,8 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
       const r1 = await admin.rpc('customer_get_pickup_code', { walk_id: session.id });
       const r2 = await admin.rpc('customer_get_pickup_code', { walk_id: session.id });
 
-      if (r1.error) { log(`R1 ERROR: ${JSON.stringify(r1.error)}`); throw r1.error; }
-      if (r2.error) { log(`R2 ERROR: ${JSON.stringify(r2.error)}`); throw r2.error; }
+      if (r1.error) { log(`R1 ERROR: ${r1.error.message || JSON.stringify(r1.error)}`); throw r1.error; }
+      if (r2.error) { log(`R2 ERROR: ${r2.error.message || JSON.stringify(r2.error)}`); throw r2.error; }
 
       expect(r1.data).toBe(r2.data);
       expect(r1.data).toMatch(/^\d{6}$/);
