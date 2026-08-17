@@ -38,18 +38,18 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
         email_confirm: true, 
         user_metadata: { e2e_test: true, e2e_run_id: runId } 
     });
-    if (uErr) { log(`USER_CREATE_ERROR: ${JSON.stringify(uErr)}`); throw uErr; }
+    if (uErr) { throw new Error(`USER_CREATE_ERROR: ${uErr.message}`); }
     const ownerId = uData.user!.id;
 
     const ownerClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
     const { error: signInErr } = await ownerClient.auth.signInWithPassword({ email, password });
-    if (signInErr) { log(`SIGNIN_ERROR: ${JSON.stringify(signInErr)}`); throw signInErr; }
+    if (signInErr) { throw new Error(`SIGNIN_ERROR: ${signInErr.message}`); }
 
     try {
       const { data: pet, error: petErr } = await admin.from("pets").insert({ 
           owner_id: ownerId, name: "SecPet", breed: "SRD"
       }).select().single();
-      if (petErr) { log(`PET_CREATE_ERROR: ${JSON.stringify(petErr)}`); throw petErr; }
+      if (petErr) { throw new Error(`PET_CREATE_ERROR: ${petErr.message}`); }
       
       const { data: session, error: sessErr } = await admin.from("walk_sessions").insert({
         customer_id: ownerId, 
@@ -63,18 +63,10 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
         start_time: new Date().toISOString(),
         meeting_point_geom: `SRID=4326;POINT(0 0)`
       }).select().single();
-      if (sessErr) { log(`SESS_CREATE_ERROR: ${JSON.stringify(sessErr)}`); throw sessErr; }
-
-      // Como o service_role deve bypassar RLS mas as RPCs checam auth.uid(), 
-      // precisamos entender por que Not Authenticated acontece mesmo com ownerClient.
-      // Talvez a RPC exija que o usuário esteja no contexto da transação.
-      // No Lovable, service_role DEVE funcionar para pegar o código via admin.rpc.
-      
-      const r1 = await admin.rpc('customer_get_pickup_code', { walk_id: session.id });
-      if (r1.error) { log(`R1 ADMIN ERROR: ${JSON.stringify(r1.error)}`); }
+      if (sessErr) { throw new Error(`SESS_CREATE_ERROR: ${sessErr.message}`); }
 
       const rUser = await ownerClient.rpc('customer_get_pickup_code', { walk_id: session.id });
-      if (rUser.error) { log(`R USER ERROR: ${JSON.stringify(rUser.error)}`); throw new Error(rUser.error.message); }
+      if (rUser.error) { throw new Error(`R USER ERROR: ${rUser.error.message}`); }
 
       expect(rUser.data).toMatch(/^\d{6}$/);
       log("Idempotência de PIN: PASS");
@@ -94,18 +86,18 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
         email_confirm: true, 
         user_metadata: { e2e_test: true, e2e_run_id: runId } 
     });
-    if (uErr) { log(`USER_CREATE_ERROR: ${JSON.stringify(uErr)}`); throw uErr; }
+    if (uErr) { throw new Error(`USER_CREATE_ERROR: ${uErr.message}`); }
     const walkerId = uData.user!.id;
 
     const walkerClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
     const { error: signInErr } = await walkerClient.auth.signInWithPassword({ email, password });
-    if (signInErr) { log(`SIGNIN_ERROR: ${JSON.stringify(signInErr)}`); throw signInErr; }
+    if (signInErr) { throw new Error(`SIGNIN_ERROR: ${signInErr.message}`); }
 
     try {
       const { data: pet, error: petErr } = await admin.from("pets").insert({ 
           owner_id: walkerId, name: "SecPetErr", breed: "SRD"
       }).select().single();
-      if (petErr) { log(`PET_CREATE_ERROR: ${JSON.stringify(petErr)}`); throw petErr; }
+      if (petErr) { throw new Error(`PET_CREATE_ERROR: ${petErr.message}`); }
 
       const { data: session, error: sessErr } = await admin.from("walk_sessions").insert({
         customer_id: walkerId,
@@ -120,38 +112,25 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
         start_time: new Date().toISOString(),
         meeting_point_geom: `SRID=4326;POINT(0 0)`
       }).select().single();
-      if (sessErr) { log(`SESS_CREATE_ERROR: ${JSON.stringify(sessErr)}`); throw sessErr; }
+      if (sessErr) { throw new Error(`SESS_CREATE_ERROR: ${sessErr.message}`); }
 
-      // Pegamos o PIN via admin para poder testar o walker.
-      // Se customer_get_pickup_code exige auth.uid() = customer_id, 
-      // o admin.rpc pode falhar se o Supabase não injetar um contexto.
-      // Mas o admin.rpc costuma bypassar restrições se não houver checagem explícita de NULL.
-      // Na nossa RPC: v_customer_id := auth.uid(); IF v_customer_id IS NULL THEN RAISE EXCEPTION 'Not authenticated';
-      
-      // SOLUÇÃO: Vamos temporariamente habilitar uma RPC de debug ou 
-      // simplesmente usar o owner do walk para pegar o PIN.
-      const { data: pin } = await admin.from('walk_pickup_codes').select('pin_code').eq('session_id', session.id).single();
-      // Se não existir, geramos via SQL direto se possível ou simplesmente falhamos o teste de forma clara.
-      
-      const realPin = pin?.pin_code || '123456';
-      if (!pin) {
-          // Inserir manualmente via admin
-          await admin.from('walk_pickup_codes').insert({
-              session_id: session.id,
-              pin_code: realPin,
-              expires_at: new Date(Date.now() + 30*60*1000).toISOString(),
-              attempts: 0,
-              e2e_run_id: runId
-          });
-      }
+      const realPin = '123456';
+      await admin.from('walk_pickup_codes').insert({
+          session_id: session.id,
+          pin_code: realPin,
+          expires_at: new Date(Date.now() + 30*60*1000).toISOString(),
+          attempts: 0,
+          e2e_run_id: runId
+      });
 
       for (let i = 0; i < 5; i++) {
-        const { data: success, error: confErr } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: '000000' });
+        const { data: success } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: '000000' });
         expect(success).toBe(false);
       }
 
       const { error } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: realPin });
-      expect(error?.message).toContain('Max attempts reached');
+      if (!error) { throw new Error("Should have failed after max attempts"); }
+      expect(error.message).toContain('Max attempts reached');
       
       log("Bloqueio após 5 erros: PASS");
 
@@ -170,30 +149,34 @@ test.describe("Security Phase 4.1: PIN and Status Hardening", () => {
          email_confirm: true, 
          user_metadata: { e2e_test: true, e2e_run_id: runId } 
      });
-     if (uErr) { log(`USER_CREATE_ERROR: ${JSON.stringify(uErr)}`); throw uErr; }
+     if (uErr) { throw new Error(`USER_CREATE_ERROR: ${uErr.message}`); }
      const uid = uData.user!.id;
 
      const userClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
      await userClient.auth.signInWithPassword({ email, password });
 
      try {
-       const { data: pet } = await admin.from("pets").insert({ owner_id: uid, name: "S", breed: "S" }).select().single();
+       const { data: pet, error: petErr } = await admin.from("pets").insert({ owner_id: uid, name: "S", breed: "S" }).select().single();
+       if (petErr) { throw new Error(`PET_CREATE_ERROR: ${petErr.message}`); }
 
-       const { data: session } = await admin.from("walk_sessions").insert({
+       const { data: session, error: sessErr } = await admin.from("walk_sessions").insert({
          customer_id: uid, walker_id: uid, pet_id: pet.id, current_status: "accepted", status: "accepted",
          walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId,
          start_time: new Date().toISOString(),
          meeting_point_geom: `SRID=4326;POINT(0 0)`
        }).select().single();
+       if (sessErr) { throw new Error(`SESS_CREATE_ERROR: ${sessErr.message}`); }
 
        const pin = '111222';
-       await admin.from('walk_pickup_codes').insert({
+       const { error: pinErr } = await admin.from('walk_pickup_codes').insert({
            session_id: session.id, pin_code: pin,
            expires_at: new Date(Date.now() + 30*60*1000).toISOString(),
            attempts: 0, e2e_run_id: runId
        });
+       if (pinErr) { throw new Error(`PIN_INSERT_ERROR: ${pinErr.message}`); }
        
-       const { data: success } = await userClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
+       const { data: success, error: confErr } = await userClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
+       if (confErr) { throw new Error(`CONF_ERR: ${confErr.message}`); }
        expect(success).toBe(true);
        
        const { data: final } = await admin.from("walk_sessions").select("status, current_status").eq("id", session.id).single();
