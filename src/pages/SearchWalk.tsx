@@ -2065,6 +2065,7 @@ const SearchWalk = () => {
                       Voltar
                     </button>
                     <button
+                      data-testid="confirm-walk-type"
                       onClick={() => setStep(3)}
                       disabled={walkType === 'local' && localStops.length === 0}
                       className="flex-1 py-3.5 rounded-full text-white font-extrabold text-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
