@@ -61,6 +61,7 @@ test.describe('Phase 4.1: Zero-Trust Security Validation', () => {
     }).select().single();
 
 
+
     
     if (petErr) throw petErr;
     petId = pet!.id;

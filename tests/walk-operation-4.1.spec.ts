@@ -72,6 +72,7 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     }).select().single();
 
 
+
     if (petErr) throw petErr;
 
     // 3. Criar Sessão em status 'accepted'
