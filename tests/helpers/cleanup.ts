@@ -49,6 +49,7 @@ export async function failClosedCleanup(admin: SupabaseClient, ids: string[], ru
   };
 
   // Ordem de integridade referencial
+  await runOp("walk_pickup_codes", "session_id", sIds);
   await runOp("walker_tracking", "walk_session_id", sIds);
   await runOp("walk_offers", "session_id", sIds);
   await runOp("petwalker_earnings", "walk_session_id", sIds);
@@ -95,6 +96,7 @@ export async function failClosedCleanup(admin: SupabaseClient, ids: string[], ru
     console.log(`[cleanup] Tabela ${table} confirmada: count=0`);
   };
 
+  await checkZero("walk_pickup_codes", "session_id", sIds);
   await checkZero("walker_tracking", "walk_session_id", sIds);
   await checkZero("walk_offers", "session_id", sIds);
   await checkZero("petwalker_earnings", "walk_session_id", sIds);
