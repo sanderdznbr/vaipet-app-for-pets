@@ -423,6 +423,7 @@ export type Database = {
           completed_walks: number | null
           created_at: string | null
           current_walk_id: string | null
+          e2e_test: boolean | null
           experience_years: number | null
           is_accepting_requests: boolean | null
           last_known_location: unknown
@@ -445,6 +446,7 @@ export type Database = {
           completed_walks?: number | null
           created_at?: string | null
           current_walk_id?: string | null
+          e2e_test?: boolean | null
           experience_years?: number | null
           is_accepting_requests?: boolean | null
           last_known_location?: unknown
@@ -467,6 +469,7 @@ export type Database = {
           completed_walks?: number | null
           created_at?: string | null
           current_walk_id?: string | null
+          e2e_test?: boolean | null
           experience_years?: number | null
           is_accepting_requests?: boolean | null
           last_known_location?: unknown
@@ -687,6 +690,7 @@ export type Database = {
           bio: string | null
           birthday: string | null
           created_at: string | null
+          e2e_test: boolean | null
           email: string | null
           full_name: string | null
           id: string
@@ -704,6 +708,7 @@ export type Database = {
           bio?: string | null
           birthday?: string | null
           created_at?: string | null
+          e2e_test?: boolean | null
           email?: string | null
           full_name?: string | null
           id: string
@@ -721,6 +726,7 @@ export type Database = {
           bio?: string | null
           birthday?: string | null
           created_at?: string | null
+          e2e_test?: boolean | null
           email?: string | null
           full_name?: string | null
           id?: string
