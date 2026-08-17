@@ -139,8 +139,10 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       await page.fill('input[type="email"]', email);
       await page.fill('input[type="password"]', pass);
       await page.click('button[type="submit"]');
+      await page.waitForURL('**/inicio**', { timeout: 15000 }).catch(() => {});
       await page.goto(target);
       return { context, page };
+
     };
 
     const [walkerCtx, ownerCtx] = await Promise.all([
