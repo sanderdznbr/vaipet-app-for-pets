@@ -303,6 +303,28 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
           </span>
         </div>
       </div>
+      
+      {!isOperational && walk.current_status === 'arrived' && (
+        <div className="px-4 mt-4">
+          <div className="rounded-2xl border border-border/40 bg-accent/5 p-5 flex flex-col items-center text-center">
+            <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mb-3">
+              <Star className="w-6 h-6 text-accent animate-pulse" />
+            </div>
+            <h3 className="text-base font-extrabold text-foreground mb-1">Código de Retirada</h3>
+            <p className="text-sm text-muted-foreground mb-4">Mostre este código para o passeador iniciar o passeio.</p>
+            <div className="bg-card border-2 border-accent/20 rounded-2xl px-8 py-4 shadow-sm">
+              <span className="text-4xl font-black text-accent tracking-[0.2em]" data-testid="pickup-pin-display">
+                {/* 
+                   Aqui buscamos o código. Como o owner não tem acesso à tabela walk_pickup_codes,
+                   usaremos o RPC customer_get_pickup_code que criamos na migração.
+                */}
+                <PickupCode session_id={walk.id} />
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isOperational && walk.current_status !== 'completed' && walk.current_status !== 'cancelled' && (
         <div className="fixed bottom-6 left-4 right-4 z-50 flex flex-col gap-3">
           {walk.current_status === 'accepted' && (
@@ -380,5 +402,19 @@ const TimelineRow: React.FC<{ icon: React.ReactNode; label: string; value: strin
     </div>
   </div>
 );
+
+const PickupCode: React.FC<{ session_id: string }> = ({ session_id }) => {
+  const [code, setCode] = useState<string>('------');
+  
+  useEffect(() => {
+    const fetchCode = async () => {
+      const { data, error } = await supabase.rpc('customer_get_pickup_code', { _session_id: session_id });
+      if (!error && data) setCode(data);
+    };
+    fetchCode();
+  }, [session_id]);
+
+  return <>{code}</>;
+};
 
 export default WalkDetails;
