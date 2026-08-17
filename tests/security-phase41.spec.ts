@@ -147,9 +147,10 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       });
       if (arriveErr) throw new Error(`petwalker_arrive_pickup failed: ${arriveErr.message}`);
 
-      const { data: pickupCodesData, error: pickupCodesError } = await admin.from('walk_pickup_codes').select('*').eq('session_id', session.id);
+      // Verificação da consulta de walk_pickup_codes (deve retornar vazio por RLS para authenticated)
+      const { data: pickupCodesData, error: pickupCodesError } = await walkerClient.from('walk_pickup_codes').select('*').eq('session_id', session.id);
       if (pickupCodesError) throw new Error(`Verification of walk_pickup_codes error failed: ${pickupCodesError.message}`);
-      expect(pickupCodesData?.length).toBe(0); // RLS prevents visibility to non-service_role
+      expect(pickupCodesData?.length).toBe(0);
 
       const { data: initialPinData, error: pinFetchErr } = await admin.from('walk_pickup_codes').select('attempts').eq('session_id', session.id).single();
       if (pinFetchErr) throw new Error(`Initial PIN code audit failed: ${pinFetchErr.message}`);
@@ -192,7 +193,6 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       expect(finalSess.current_status).toBe('arrived');
       expect(finalSess.pickup_confirmed_at).toBeNull();
 
-      // Inserção para o segundo teste de aceite real
       const { data: session2, error: sessErr2 } = await admin.from("walk_sessions").insert({
         customer_id: owner.id, walker_id: walker.id, pet_id: pet.id, current_status: "accepted", status: "accepted",
         walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId, e2e_test: true,
@@ -201,7 +201,6 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       }).select().single();
       if (sessErr2) throw new Error(`Session 2 insertion failed: ${sessErr2.message}`);
 
-      // Leva session2 para arrived
       await walkerClient.rpc('petwalker_start_heading', { _session_id: session2.id });
       await walkerClient.rpc('petwalker_arrive_pickup', { 
         _session_id: session2.id, 
@@ -255,6 +254,12 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
     
     const { error: pErr } = await admin.from('profiles').upsert({ id: uid, full_name: 'E2E Exp', e2e_test: true });
     if (pErr) throw new Error(`Profile creation failed: ${pErr.message}`);
+
+    const { error: pwErr } = await admin.from('petwalker_profiles').upsert({ user_id: uid, approval_status: 'approved', e2e_test: true });
+    if (pwErr) throw new Error(`Petwalker profile creation failed: ${pwErr.message}`);
+    
+    const { error: rErr } = await admin.from('user_roles').upsert({ user_id: uid, role: 'petwalker' });
+    if (rErr) throw new Error(`Role assignment failed: ${rErr.message}`);
     
     const ownerClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
     const { error: loginErr } = await ownerClient.auth.signInWithPassword({ email: ownerData.user!.email!, password });
@@ -272,9 +277,6 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       }).select().single();
       if (sessErr) throw new Error(`Session creation failed: ${sessErr.message}`);
 
-      // Como o walker é o mesmo que o owner (simplificação do teste), podemos usar o admin para forçar o status se necessário,
-      // mas vamos tentar a via correta para validar as RPCs.
-      // Precisamos logar como walker também (mesmo uid)
       const walkerClient = ownerClient;
       await walkerClient.rpc('petwalker_start_heading', { _session_id: session.id });
       await walkerClient.rpc('petwalker_arrive_pickup', { 
