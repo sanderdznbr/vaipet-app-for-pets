@@ -34,7 +34,10 @@ export const ActiveWalkSheet = ({ activeRequest }: ActiveWalkSheetProps) => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[#31D880] animate-pulse" />
+            <div className={cn(
+              "w-2 h-2 rounded-full",
+              status === 'in_progress' ? "bg-[#31D880] animate-pulse" : "bg-blue-500"
+            )} />
             <h3 className={cn(
               "text-lg font-bold font-space uppercase tracking-tight", 
               isInProgress ? "text-white" : "text-ink"
