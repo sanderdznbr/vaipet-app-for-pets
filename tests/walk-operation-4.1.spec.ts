@@ -115,9 +115,9 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       e2e_test: true,
       e2e_run_id: E2E_RUN_ID,
       start_time: null,
-      pickup_confirmed_at: null,
-      started_at: null
+      pickup_confirmed_at: null
     }).select().single();
+
     
     if (walkErr) throw walkErr;
     sessionId = walk!.id;
