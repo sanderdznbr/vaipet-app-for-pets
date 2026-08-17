@@ -5,6 +5,7 @@ import { MapPin, Navigation } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Database } from '@/integrations/supabase/types';
+import { supabase } from "@/integrations/supabase/client";
 
 type WalkSession = Database['public']['Tables']['walk_sessions']['Row'] & {
   customer?: { full_name: string | null };
