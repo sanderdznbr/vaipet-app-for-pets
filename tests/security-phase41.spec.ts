@@ -98,24 +98,34 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
 
   test("security: Concorrência e Expiração", async () => {
     const runId = `sec_exp_${Date.now()}`;
-    const email = `e2e.owner.${runId}@e2e.vaipet.invalid`;
     const password = "Pass123456!";
-    const { data: uData } = await admin.auth.admin.createUser({ 
-        email, password, email_confirm: true, 
-        user_metadata: { e2e_test: true, e2e_run_id: runId } 
-    });
-    const owner = uData.user!;
-    await admin.from('profiles').insert({ id: owner.id, full_name: 'E2E Owner', e2e_run_id: runId });
+    
+    const create = async (role: string) => {
+        const email = `e2e.${role}.${runId}@e2e.vaipet.invalid`;
+        const { data } = await admin.auth.admin.createUser({ 
+            email, password, email_confirm: true, 
+            user_metadata: { e2e_test: true, e2e_run_id: runId } 
+        });
+        const uid = data.user!.id;
+        await admin.from('profiles').insert({ id: uid, full_name: `E2E ${role}`, e2e_run_id: runId });
+        return data.user!;
+    };
+
+    const owner = await create('owner');
+    const walker = await create('walker');
 
     const ownerClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
-    await ownerClient.auth.signInWithPassword({ email, password });
+    await ownerClient.auth.signInWithPassword({ email: owner.email!, password });
+
+    const walkerClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+    await walkerClient.auth.signInWithPassword({ email: walker.email!, password });
 
     try {
       const { data: pet } = await admin.from("pets").insert({ 
           owner_id: owner.id, name: "P", breed: "P", e2e_run_id: runId, e2e_test: true 
       }).select().single();
       const { data: session } = await admin.from("walk_sessions").insert({
-        customer_id: owner.id, pet_id: pet.id, current_status: "accepted", status: "accepted",
+        customer_id: owner.id, walker_id: walker.id, pet_id: pet.id, current_status: 'arrived', status: 'arrived',
         walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId,
         e2e_test: true,
         start_time: new Date().toISOString(),
