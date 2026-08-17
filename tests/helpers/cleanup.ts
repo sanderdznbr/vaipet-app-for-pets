@@ -43,7 +43,12 @@ export async function failClosedCleanup(supabase: SupabaseClient, userIds: strin
   if (wsError) {
     throw new Error(JSON.stringify({ error: 'walk_sessions_fetch_failed', details: wsError }));
   }
-  const sessionIds = walkSessions?.map(s => s.id) || [];
+  
+  if (walkSessions === null || walkSessions === undefined) {
+    throw new Error(JSON.stringify({ error: 'walk_sessions_inconclusive', runId }));
+  }
+  
+  const sessionIds = walkSessions.map(s => s.id);
 
   // 3. Ordem de deleção (Filhos -> Pais) usando colunas reais validadas
   const tableCleanup = [
