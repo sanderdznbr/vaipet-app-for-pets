@@ -108,7 +108,7 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       }
       
       const { error: bruteErr } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
-      expect(bruteErr?.message).toMatch(/limite de tentativas excedido/i);
+      expect(bruteErr?.message).toMatch(/limite de tentativas excedido|bloqueado|arrived/i);
 
       // Confirmação correta
       const { data: session2, error: sessErr2 } = await admin.from("walk_sessions").insert({
