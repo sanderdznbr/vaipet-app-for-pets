@@ -17,16 +17,17 @@ test.beforeAll(async () => {
 test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
   
   test("security: ACL - Acesso Anon/Public deve ser negado", async ({ request }) => {
+    // PostgREST retorna 401 para anon se não houver grant para anon role
     const res1 = await request.post(`${SUPABASE_URL}/rest/v1/rpc/customer_get_pickup_code`, {
       data: { _session_id: "00000000-0000-0000-0000-000000000000" },
       headers: { 'apikey': ANON_KEY }
     });
-    expect(res1.status()).toBe(403); // Revoke from public
+    expect([401, 403]).toContain(res1.status());
 
     const res2 = await request.get(`${SUPABASE_URL}/rest/v1/walk_pickup_codes`, {
       headers: { 'apikey': ANON_KEY }
     });
-    expect(res2.status()).toBe(403);
+    expect([401, 403]).toContain(res2.status());
     
     log("ACL Hardening: PASS");
   });
@@ -35,13 +36,16 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
     const runId = `sec_id_${Date.now()}`;
     const password = "Pass123456!";
     
-    // Criar Owner, Walker Legítimo e Atacante
+    // Helper para criar usuário e perfil (perfil é necessário para walk_sessions referências)
     const create = async (role: string) => {
         const email = `e2e.${role}.${runId}@e2e.vaipet.invalid`;
         const { data } = await admin.auth.admin.createUser({ 
             email, password, email_confirm: true, 
             user_metadata: { e2e_test: true, e2e_run_id: runId } 
         });
+        const uid = data.user!.id;
+        // Criar perfil manualmente se o trigger não for confiável no ambiente de teste
+        await admin.from('profiles').insert({ id: uid, full_name: `E2E ${role}`, e2e_run_id: runId });
         return data.user!;
     };
 
@@ -56,13 +60,14 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
     await ownerClient.auth.signInWithPassword({ email: owner.email!, password });
 
     try {
-      const { data: pet } = await admin.from("pets").insert({ 
-          owner_id: owner.id, name: "SecPet", breed: "SRD", e2e_run_id: runId 
+      const { data: pet, error: petErr } = await admin.from("pets").insert({ 
+          owner_id: owner.id, name: "SecPet", breed: "SRD", e2e_run_id: runId, e2e_test: true
       }).select().single();
+      if (petErr) throw new Error(`PET_ERR: ${JSON.stringify(petErr)}`);
       
-      const { data: session } = await admin.from("walk_sessions").insert({
+      const { data: session, error: sessErr } = await admin.from("walk_sessions").insert({
         customer_id: owner.id, 
-        walker_id: walker.id, // Walker legítimo é o 'walker'
+        walker_id: walker.id, 
         pet_id: pet.id, 
         current_status: "arrived", 
         status: "arrived",
@@ -70,12 +75,15 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
         planned_duration_minutes: 30, 
         request_mode: "now", 
         e2e_run_id: runId,
+        e2e_test: true,
         start_time: new Date().toISOString(),
         meeting_point_geom: `SRID=4326;POINT(0 0)`
       }).select().single();
+      if (sessErr) throw new Error(`SESS_ERR: ${JSON.stringify(sessErr)}`);
 
       // Owner gera o PIN
-      const { data: pin } = await ownerClient.rpc('customer_get_pickup_code', { _session_id: session.id });
+      const { data: pin, error: pinErr } = await ownerClient.rpc('customer_get_pickup_code', { _session_id: session.id });
+      if (pinErr) throw new Error(`PIN_RPC_ERR: ${JSON.stringify(pinErr)}`);
       expect(pin).toMatch(/^\d{6}$/);
 
       // ATACANTE tenta confirmar
@@ -97,17 +105,19 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
         user_metadata: { e2e_test: true, e2e_run_id: runId } 
     });
     const owner = uData.user!;
+    await admin.from('profiles').insert({ id: owner.id, full_name: 'E2E Owner', e2e_run_id: runId });
 
     const ownerClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
     await ownerClient.auth.signInWithPassword({ email, password });
 
     try {
       const { data: pet } = await admin.from("pets").insert({ 
-          owner_id: owner.id, name: "P", breed: "P", e2e_run_id: runId 
+          owner_id: owner.id, name: "P", breed: "P", e2e_run_id: runId, e2e_test: true 
       }).select().single();
       const { data: session } = await admin.from("walk_sessions").insert({
         customer_id: owner.id, pet_id: pet.id, current_status: "accepted", status: "accepted",
         walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId,
+        e2e_test: true,
         start_time: new Date().toISOString(),
         meeting_point_geom: `SRID=4326;POINT(0 0)`
       }).select().single();
@@ -142,15 +152,17 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
         user_metadata: { e2e_test: true, e2e_run_id: runId } 
     });
     const walker = uData.user!;
+    await admin.from('profiles').insert({ id: walker.id, full_name: 'E2E Walker', e2e_run_id: runId });
 
     const walkerClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
     await walkerClient.auth.signInWithPassword({ email, password });
 
     try {
-      const { data: pet } = await admin.from("pets").insert({ owner_id: walker.id, name: "P", breed: "P", e2e_run_id: runId }).select().single();
+      const { data: pet } = await admin.from("pets").insert({ owner_id: walker.id, name: "P", breed: "P", e2e_run_id: runId, e2e_test: true }).select().single();
       const { data: session } = await admin.from("walk_sessions").insert({
         customer_id: walker.id, walker_id: walker.id, pet_id: pet.id, current_status: "arrived", status: "arrived",
         walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId,
+        e2e_test: true,
         start_time: new Date().toISOString(), meeting_point_geom: `SRID=4326;POINT(0 0)`
       }).select().single();
 
