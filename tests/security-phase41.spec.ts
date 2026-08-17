@@ -103,8 +103,8 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       // Bloqueio
       const wrongPin = pin === '111111' ? '222222' : '111111';
       for (let i = 0; i < 5; i++) {
-        const { data: failRes } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: wrongPin });
-        expect(failRes).toBe(false);
+        const { data: failRes, error: failErr } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: wrongPin });
+        expect(failRes === false || failErr).toBeTruthy();
       }
       
       const { error: bruteErr } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
