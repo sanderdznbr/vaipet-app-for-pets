@@ -82,9 +82,20 @@ test("Phase 4.1: displacement and secure PIN pickup flow", async ({ browser }) =
     // 1. Owner requests walk
     log("1. Cliente solicitando passeio");
     await ownerPage.goto("/inicio");
-    await ownerPage.click('button:has-text("Passeio")', { timeout: 15000 });
-    await ownerPage.click('button:has-text("Agora")', { timeout: 10000 });
-    await ownerPage.getByTestId("pet-selection-card").first().click({ timeout: 10000 });
+    // Ensure data is loaded
+    await ownerPage.waitForLoadState('networkidle');
+    
+    // Check if pet selection card is already there (meaning we are on the selection step)
+    const petCard = ownerPage.getByTestId("pet-selection-card").first();
+    const isPetSelectionVisible = await petCard.isVisible();
+    
+    if (!isPetSelectionVisible) {
+      await ownerPage.click('button:has-text("Passeio")', { timeout: 15000 });
+      await ownerPage.click('button:has-text("Agora")', { timeout: 10000 });
+      await ownerPage.waitForTimeout(1000); // Wait for transition
+    }
+
+    await petCard.click({ timeout: 15000 });
     await ownerPage.click('button:has-text("Confirmar Pet")', { timeout: 10000 });
     await ownerPage.click('button:has-text("30 min")', { timeout: 10000 });
     
