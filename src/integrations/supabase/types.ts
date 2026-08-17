@@ -940,6 +940,7 @@ export type Database = {
           current_status: Database["public"]["Enums"]["walk_status"]
           customer_id: string
           distance_km: number | null
+          e2e_run_id: string | null
           end_time: string | null
           feedback: string | null
           heading_started_at: string | null
@@ -982,6 +983,7 @@ export type Database = {
           current_status?: Database["public"]["Enums"]["walk_status"]
           customer_id: string
           distance_km?: number | null
+          e2e_run_id?: string | null
           end_time?: string | null
           feedback?: string | null
           heading_started_at?: string | null
@@ -1024,6 +1026,7 @@ export type Database = {
           current_status?: Database["public"]["Enums"]["walk_status"]
           customer_id?: string
           distance_km?: number | null
+          e2e_run_id?: string | null
           end_time?: string | null
           feedback?: string | null
           heading_started_at?: string | null
