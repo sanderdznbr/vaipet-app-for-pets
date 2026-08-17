@@ -16,7 +16,6 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
   test.setTimeout(120000);
 
   test.beforeAll(async () => {
-    // Provisioning
     const { data: owner, error: ownerErr } = await supabase.auth.admin.createUser({
       email: TEST_OWNER,
       password: TEST_PASS,
@@ -33,13 +32,11 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     });
     if (walkerErr) throw walkerErr;
 
-    // Create Profiles
     await supabase.from('profiles').insert([
       { id: owner.user!.id, full_name: 'E2E Owner', e2e_test: E2E_RUN_ID },
       { id: walker.user!.id, full_name: 'E2E Walker', e2e_test: E2E_RUN_ID }
     ]);
 
-    // Walker eligibility
     await supabase.from('petwalker_profiles').insert({
       user_id: walker.user!.id,
       status: 'active',
@@ -47,7 +44,6 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
       e2e_test: E2E_RUN_ID
     });
 
-    // Create Pet
     const { data: pet, error: petErr } = await supabase.from('pets').insert({
       owner_id: owner.user!.id,
       name: `E2E Rex ${E2E_RUN_ID}`,
@@ -56,8 +52,6 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     }).select().single();
     if (petErr) throw petErr;
 
-    // Create Accepted Session directly
-    // Use now() for start_time since it's NOT NULL
     const { error: sessionErr } = await supabase.from('walk_sessions').insert({
       customer_id: owner.user!.id,
       walker_id: walker.user!.id,
@@ -98,21 +92,30 @@ test.describe('Phase 4.1: Operational Flow (Displacement & PIN)', () => {
     const { page: walkerPage } = await createAuthedContext(browser, TEST_WALKER, TEST_PASS);
     const { page: ownerPage } = await createAuthedContext(browser, TEST_OWNER, TEST_PASS);
 
+    // Monitor console errors
+    walkerPage.on('console', msg => { if (msg.type() === 'error') console.log(`[WALKER PAGE ERROR] ${msg.text()}`); });
+    ownerPage.on('console', msg => { if (msg.type() === 'error') console.log(`[OWNER PAGE ERROR] ${msg.text()}`); });
+
     // 1. Walker: Start Heading
     console.log('[STEP 1] Walker starting displacement');
     await walkerPage.goto(`/petwalker/passeio/${walk.id}`);
-    await walkerPage.click('text=Iniciar Deslocamento');
+    const headingBtn = walkerPage.locator('text=Iniciar Deslocamento');
+    await expect(headingBtn).toBeVisible({ timeout: 20000 });
+    await headingBtn.click();
+    console.log('[STEP 1.1] Waiting for arrival button');
     await expect(walkerPage.locator('text=Cheguei no Local')).toBeVisible({ timeout: 20000 });
 
     // 2. Walker: Arrive at Pickup
     console.log('[STEP 2] Walker arriving at pickup');
     await walkerPage.click('text=Cheguei no Local');
+    console.log('[STEP 2.1] Waiting for PIN input');
     await expect(walkerPage.locator('[data-testid="pickup-pin-input"]')).toBeVisible({ timeout: 20000 });
 
     // 3. Owner: Get PIN
     console.log('[STEP 3] Owner fetching PIN');
     await ownerPage.goto(`/petwalker/passeio/${walk.id}`);
     const pinLocator = ownerPage.locator('span:has-text("PIN") + span, .text-accent');
+    await expect(pinLocator).toBeVisible({ timeout: 20000 });
     await expect(pinLocator).not.toHaveText(/------/, { timeout: 20000 });
     const pinText = await pinLocator.textContent();
     const pin = pinText?.replace(/\s/g, '').trim();
