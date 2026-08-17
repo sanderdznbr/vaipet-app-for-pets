@@ -69,6 +69,9 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
         if (intent === 'petwalker') {
             const { error: pwErr } = await admin.from('petwalker_profiles').upsert({ user_id: uid, approval_status: 'approved', e2e_test: true });
             if (pwErr) throw new Error(`Petwalker profile creation failed: ${pwErr.message}`);
+            
+            const { error: rErr } = await admin.from('user_roles').upsert({ user_id: uid, role: 'petwalker' });
+            if (rErr) throw new Error(`Role assignment failed: ${rErr.message}`);
         }
         return data.user!;
     };
@@ -219,14 +222,27 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
     const { error: loginErr } = await ownerClient.auth.signInWithPassword({ email: ownerData.user!.email!, password });
     if (loginErr) throw new Error(`Login failed: ${loginErr.message}`);
 
+    const walker = await admin.auth.admin.createUser({ 
+        email: `e2e.walker.exp.${runId}@e2e.vaipet.invalid`, password, email_confirm: true, 
+        user_metadata: { e2e_test: true, e2e_run_id: runId, signup_intent: 'petwalker' } 
+    });
+    const wUid = walker.data.user!.id;
+    await admin.from('profiles').upsert({ id: wUid, full_name: 'E2E Walker Exp', e2e_test: true });
+    await admin.from('petwalker_profiles').upsert({ user_id: wUid, approval_status: 'approved', e2e_test: true });
+    await admin.from('user_roles').upsert({ user_id: wUid, role: 'petwalker' });
+
+    const walkerClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+    await walkerClient.auth.signInWithPassword({ email: walker.data.user!.email!, password });
+
     try {
       const { data: pet, error: petErr } = await admin.from("pets").insert({ owner_id: uid, name: "P", breed: "P", e2e_test: true }).select().single();
       if (petErr) throw new Error(`Pet creation failed: ${petErr.message}`);
       
       const { data: session, error: sessErr } = await admin.from("walk_sessions").insert({
-        customer_id: uid, walker_id: uid, pet_id: pet.id, current_status: 'accepted', status: 'accepted',
+        customer_id: uid, walker_id: wUid, pet_id: pet.id, current_status: 'accepted', status: 'accepted',
         walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId, e2e_test: true,
-        start_time: new Date().toISOString()
+        start_time: new Date().toISOString(),
+        home_location: { lat: -23.5505, lng: -46.6333 }
       }).select().single();
       if (sessErr) throw new Error(`Session creation failed: ${sessErr.message}`);
 
@@ -234,13 +250,17 @@ test.describe("Security Phase 4.1: Hardened PIN and Identity Battery", () => {
       if (pinFetchErr) throw new Error(`PIN fetch failed: ${pinFetchErr.message}`);
       expect(pin).toMatch(/^\d{6}$/);
 
+      // Transição para arrived
+      await walkerClient.rpc('petwalker_start_heading', { _session_id: session.id });
+      await walkerClient.rpc('petwalker_arrive_pickup', { _session_id: session.id, _lat: -23.5505, _lng: -46.6333, _accuracy: 10 });
+
       const { error: expUpErr } = await admin.from('walk_pickup_codes').update({ expires_at: new Date(Date.now() - 1000).toISOString() }).eq('session_id', session.id);
       if (expUpErr) throw new Error(`Forcing expiration failed: ${expUpErr.message}`);
       
-      const { error: expErr } = await ownerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
+      const { error: expErr } = await walkerClient.rpc('petwalker_confirm_pickup', { walk_id: session.id, input_pin: pin });
       expect(expErr?.message).toMatch(/expirado/i);
     } finally {
-      await failClosedCleanup(admin, [uid], runId);
+      await failClosedCleanup(admin, [uid, wUid], runId);
     }
   });
 });
