@@ -317,34 +317,10 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
   useEffect(() => {
     if (!sessionId) return;
     const id = setInterval(async () => {
-      const trail = persistedTrailRef.current;
-      if (trail.length === 0 || trail.length === lastSavedTrailLenRef.current) return;
-      const now = Date.now();
-      if (now - lastTrailSaveAtRef.current < 3500) return;
-      lastTrailSaveAtRef.current = now;
-      const lenSnapshot = trail.length;
-      try {
-        const lastPoint = trail[trail.length - 1];
-        if (lastPoint) {
-          const { data, error } = await supabase.rpc('append_walk_tracking_point', {
-            _session_id: sessionId,
-            _point: lastPoint
-          });
-          if (error) {
-            // Erro real (rede/permissão): registra e mantém o ponto pendente.
-            console.error('Falha ao gravar ponto de rastreamento:', error);
-            return;
-          }
-          // data === false => rejeição normal de frequência: NÃO marcar como salvo.
-          if (data !== true) return;
-        }
-        lastSavedTrailLenRef.current = lenSnapshot;
-      } catch (e) {
-        console.error('Erro inesperado no rastreamento:', e);
-      }
-    }, 6000);
+      // GPS updates are now handled exclusively by the Petwalker via hardened update_walker_location RPC.
+      // The Owner side (this component) is READ-ONLY for tracking to ensure authority isolation.
+    }, 60000);
     return () => clearInterval(id);
-     
   }, [sessionId]);
 
   useEffect(() => {

@@ -431,6 +431,7 @@ export type Database = {
           is_accepting_requests: boolean | null
           last_known_location: unknown
           last_location_at: string | null
+          last_location_captured_at: number | null
           last_online_at: string | null
           price_30_minutes: number | null
           profile_completed: boolean | null
@@ -454,6 +455,7 @@ export type Database = {
           is_accepting_requests?: boolean | null
           last_known_location?: unknown
           last_location_at?: string | null
+          last_location_captured_at?: number | null
           last_online_at?: string | null
           price_30_minutes?: number | null
           profile_completed?: boolean | null
@@ -477,6 +479,7 @@ export type Database = {
           is_accepting_requests?: boolean | null
           last_known_location?: unknown
           last_location_at?: string | null
+          last_location_captured_at?: number | null
           last_online_at?: string | null
           price_30_minutes?: number | null
           profile_completed?: boolean | null
@@ -1103,6 +1106,7 @@ export type Database = {
       walker_tracking: {
         Row: {
           accuracy: number | null
+          captured_at: number | null
           created_at: string | null
           heading: number | null
           id: string
@@ -1114,6 +1118,7 @@ export type Database = {
         }
         Insert: {
           accuracy?: number | null
+          captured_at?: number | null
           created_at?: string | null
           heading?: number | null
           id?: string
@@ -1125,6 +1130,7 @@ export type Database = {
         }
         Update: {
           accuracy?: number | null
+          captured_at?: number | null
           created_at?: string | null
           heading?: number | null
           id?: string
@@ -1325,10 +1331,9 @@ export type Database = {
             }
             Returns: string
           }
-      append_walk_tracking_point: {
-        Args: { _point: Json; _session_id: string }
-        Returns: boolean
-      }
+      append_walk_tracking_point:
+        | { Args: { _point: number[]; _session_id: string }; Returns: boolean }
+        | { Args: { _point: Json; _session_id: string }; Returns: boolean }
       approve_petwalker_application: {
         Args: { application_id: string }
         Returns: undefined
@@ -2285,7 +2290,12 @@ export type Database = {
         Returns: undefined
       }
       update_walker_location: {
-        Args: { _accuracy?: number; _lat: number; _lng: number }
+        Args: {
+          _accuracy?: number
+          _captured_at?: number
+          _lat: number
+          _lng: number
+        }
         Returns: boolean
       }
       updategeometrysrid: {

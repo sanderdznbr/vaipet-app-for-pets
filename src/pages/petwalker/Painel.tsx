@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePetwalkerGps } from '@/hooks/usePetwalkerGps';
 import { supabase } from '@/integrations/supabase/client';
 import { PetwalkerNavigation } from '@/components/petwalker/PetwalkerNavigation';
 import { PetwalkerProtectedRoute } from '@/components/PetwalkerProtectedRoute';
@@ -26,22 +27,26 @@ type WalkSession = Database['public']['Tables']['walk_sessions']['Row'] & {
 type WalkOffer = Database['public']['Functions']['get_available_walk_offers']['Returns'][number];
 
 const Painel = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const routeLayerId = 'walk-route';
   
   const [activeRequest, setActiveRequest] = useState<WalkSession | null>(null);
   const [isOnline, setIsOnline] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [gpsStatus, setGpsStatus] = useState<'requesting' | 'synced' | 'unstable' | 'stale' | 'denied' | 'error'>('requesting');
-  const [lastSync, setLastSync] = useState<Date | null>(null);
+  
+  const { 
+    coords: walkerCoords, 
+    accuracy: walkerAccuracy, 
+    status: gpsStatus, 
+    lastSync, 
+    retry: startTracking 
+  } = usePetwalkerGps(profile?.signup_intent === 'petwalker');
+
   const [showOfferSheet, setShowOfferSheet] = useState<WalkOffer | null>(null);
   const [offerAction, setOfferAction] = useState<'accepting' | 'declining' | null>(null);
-  const [walkerCoords, setWalkerCoords] = useState<[number, number] | null>(null);
-  const [walkerAccuracy, setWalkerAccuracy] = useState<number | null>(null);
   const [isFirstLock, setIsFirstLock] = useState(true);
 
-  const watchId = useRef<number | null>(null);
   const lastUpdateRef = useRef<number>(0);
   const UPDATE_INTERVAL = 10000; // 10s frequency control
 
@@ -161,81 +166,22 @@ const Painel = () => {
     }
   }, []);
 
-  const startTracking = useCallback(() => {
-    if (!navigator.geolocation) {
-      setGpsStatus('error');
-      return;
+  // Auto-centering on first lock
+  useEffect(() => {
+    if (isFirstLock && walkerCoords && mapRef.current) {
+      mapRef.current.easeTo({ 
+        center: walkerCoords, 
+        zoom: 16.5, 
+        pitch: 0,
+        duration: 800,
+        offset: [0, -70]
+      });
+      setIsFirstLock(false);
     }
-    
-    if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
-    
-    watchId.current = window.navigator.geolocation.watchPosition(
-      async (pos) => {
-        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
-        const now = Date.now();
-        
-        // 1. Accuracy check
-        const isUnstable = accuracy > 60;
-        
-        // 2. Update local state for Map component
-        setWalkerCoords([lng, lat]);
-        setWalkerAccuracy(accuracy);
-        
-        // 3. Auto-centering on first lock
-        if (isFirstLock && mapRef.current) {
-          mapRef.current.easeTo({ 
-            center: [lng, lat], 
-            zoom: 16.5, 
-            pitch: 0,
-            duration: 800,
-            offset: [0, -70]
-          });
-          setIsFirstLock(false);
-        }
-
-        // 4. Stale check (if last sync was too long ago)
-        if (lastSync && (now - lastSync.getTime() > 45000)) {
-          setGpsStatus('stale');
-        }
-
-        // 5. Frequency and server sync
-        const shouldUpdate = now - lastUpdateRef.current > UPDATE_INTERVAL;
-        if (shouldUpdate) {
-          const { error } = await supabase.rpc('update_walker_location', { 
-            _lat: lat, 
-            _lng: lng, 
-            _accuracy: accuracy 
-          });
-
-          if (!error) {
-            setGpsStatus(isUnstable ? 'unstable' : 'synced');
-            setLastSync(new Date());
-            lastUpdateRef.current = now;
-          } else {
-            console.error('RPC update_walker_location error:', error);
-            setGpsStatus('error');
-          }
-        } else if (gpsStatus !== 'synced' && !isUnstable && gpsStatus !== 'stale') {
-           // If we're not syncing yet but GPS is fine, keep at least showing we have a lock
-           // but 'synced' only after RPC success as per requirements
-        }
-      },
-      (err) => {
-        setGpsStatus(err.code === 1 ? 'denied' : 'error');
-        if (err.code === 1) toast.error('Permissão de GPS negada');
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  }, [isFirstLock, lastSync, gpsStatus]);
+  }, [walkerCoords, isFirstLock]);
 
   const stopTracking = useCallback(() => {
-    if (watchId.current !== null) {
-      navigator.geolocation.clearWatch(watchId.current);
-      watchId.current = null;
-    }
-    setGpsStatus('requesting');
-    setWalkerCoords(null);
-    setWalkerAccuracy(null);
+    // Redundant now as usePetwalkerGps handles it, but kept for interface compatibility if needed locally
     setIsFirstLock(true);
   }, []);
 
@@ -254,7 +200,9 @@ const Painel = () => {
       await refreshActiveRequest();
       
       // 3. Start GPS if online
-      if (online) startTracking();
+      if (online) {
+        // usePetwalkerGps handles startTracking automatically based on isOnline
+      }
       
       setLoading(false);
     };
@@ -291,9 +239,8 @@ const Painel = () => {
     return () => {
       supabase.removeChannel(offersChannel);
       supabase.removeChannel(sessionsChannel);
-      stopTracking();
     };
-  }, [user, refreshActiveRequest, refreshAvailableOffer, startTracking, stopTracking]);
+  }, [user, refreshActiveRequest, refreshAvailableOffer]);
 
   // Immediate fetch when panel is ready, walker goes online, active walk ends
   useEffect(() => {
@@ -359,9 +306,8 @@ const Painel = () => {
     if (!error) {
       setIsOnline(nextOnline);
       if (nextOnline) {
-        startTracking();
+        // Handled by hook
       } else {
-        stopTracking();
         setShowOfferSheet(null);
       }
       toast.success(nextOnline ? 'Você está online' : 'Você está offline');
