@@ -221,17 +221,20 @@ test.describe('Phase 4.3: Completion Security Hardening', () => {
 
   test('Concurrency: dual confirmation', async () => {
     // Setup new session in returning state
-    const { data: newSession } = await admin.from('walk_sessions').insert({
+    const { data: newSession, error: sErr } = await admin.from('walk_sessions').insert({
       customer_id: ownerId,
       walker_id: walkerId,
       pet_id: petId,
       status: 'returning',
       current_status: 'returning',
       walk_type: 'livre',
-      start_time: now().toISOString(),
+      planned_duration_minutes: 60,
+      start_time: new Date(Date.now() - 3600000 * 2).toISOString(),
       e2e_test: true,
       e2e_run_id: E2E_RUN_ID
     }).select().single();
+    if (sErr) throw sErr;
+
     
     const ownerClient = getClient(ownerId);
     await ownerClient.auth.signInWithPassword({ email: `owner-${E2E_RUN_ID}@test.com`, password: 'VaiPet@2026' });
