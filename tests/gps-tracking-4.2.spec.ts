@@ -125,7 +125,11 @@ test.describe("Phase 4.2 Patch 1C: Hardened GPS Authority & Trials", () => {
       
       const { data: w1 } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
       console.log('Route Coords:', JSON.stringify(w1?.route_coordinates));
-      expect(w1?.route_coordinates).toContainEqual([20.1, 10.1]);
+      // Postgres returns jsonb arrays, which can have varying representation in JS
+      const hasPoint = w1?.route_coordinates?.some((p: any) => 
+        Array.isArray(p) && Math.abs(p[0] - 20.1) < 0.0001 && Math.abs(p[1] - 10.1) < 0.0001
+      );
+      expect(hasPoint).toBe(true);
 
       // 2. Monotonicity check
       const { data: resMono } = await walker.rpc('update_walker_location', { _lat: 11, _lng: 21, _accuracy: 10, _captured_at: t1 - 100 });
