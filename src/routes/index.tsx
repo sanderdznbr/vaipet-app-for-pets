@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 const Index = () => {
   const { user, profile, loading, authStatus } = useAuth();
 
-  if (loading || authStatus === 'loading') {
+  if (loading || authStatus === 'initializing') {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
