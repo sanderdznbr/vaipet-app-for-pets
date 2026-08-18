@@ -5,16 +5,54 @@ import { toast } from 'sonner';
 
 export type GpsStatus = 'requesting' | 'synced' | 'unstable' | 'stale' | 'denied' | 'error';
 
-export const usePetwalkerGps = (isOnline: boolean) => {
+export const usePetwalkerGps = (isPetwalker: boolean) => {
   const { user } = useAuth();
   const [coords, setCoords] = useState<[number, number] | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [status, setStatus] = useState<GpsStatus>('requesting');
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [isOnline, setIsOnline] = useState(false);
 
   const watchId = useRef<number | null>(null);
   const lastUpdateRef = useRef<number>(0);
   const UPDATE_INTERVAL = 10000; // 10s
+
+  // Fetch online status from petwalker_profiles
+  useEffect(() => {
+    if (!user || !isPetwalker) {
+      setIsOnline(false);
+      return;
+    }
+
+    const checkOnline = async () => {
+      const { data } = await supabase
+        .from('petwalker_profiles')
+        .select('availability_status')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      setIsOnline(data?.availability_status === 'available');
+    };
+
+    checkOnline();
+
+    // Subscribe to status changes
+    const channel = supabase
+      .channel('gps-online-status')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'petwalker_profiles',
+        filter: `user_id=eq.${user.id}`
+      }, (payload) => {
+        setIsOnline((payload.new as any).availability_status === 'available');
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, isPetwalker]);
 
   const syncLocation = useCallback(async (lat: number, lng: number, acc: number) => {
     if (!user) return;
