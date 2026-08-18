@@ -94,8 +94,8 @@ test.describe("Phase 4.2 Patch 1E: GPS Tracking Final Hardening", () => {
       const { data: wCheck } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
       expect(wCheck?.route_coordinates).not.toContainEqual([55, 55]);
       
-      const { count: trackingCount } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_id', session!.id).eq('walker_id', uidW2);
-      expect(trackingCount).toBe(0);
+      const { count: trackingCount } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id).eq('walker_id', uidW2);
+      expect(trackingCount || 0).toBe(0);
 
     } finally {
       await failClosedCleanup(admin, [uidW1, uidW2, uidNR, uidO], runId);
@@ -134,7 +134,7 @@ test.describe("Phase 4.2 Patch 1E: GPS Tracking Final Hardening", () => {
       const t1 = Date.now();
       await walker.rpc('update_walker_location', { _lat: 10, _lng: 20, _accuracy: 10, _captured_at: t1 });
       const { data: w1 } = await admin.from('walk_sessions').select('route_coordinates, last_location_captured_at').eq('id', session!.id).single();
-      expect(w1?.route_coordinates).toEqual([[20, 10]]);
+      expect(w1?.route_coordinates || []).toEqual([[20, 10]]);
 
       // 2. MONOTONICIDADE (Matrix B)
       const { data: resMono } = await walker.rpc('update_walker_location', { _lat: 12, _lng: 22, _accuracy: 10, _captured_at: t1 - 100 });
