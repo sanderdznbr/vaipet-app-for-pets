@@ -163,10 +163,10 @@ test.describe('Phase 4.2: Operational Browser GPS Tracking', () => {
     try {
       // 1. Posição A — Baseline Completa
       await walkerPage.goto(`/petwalker/passeio/${sessionId}`);
-      const pollingAPromise = waitForOwnerPollingPosition(ownerPage, posA, 60000);
       await ownerPage.goto(`/search-walk?resume=${sessionId}`);
-      const rowA = await pollingAPromise;
+      const rowA = await waitForOwnerPollingPosition(ownerPage, posA, 60000);
       expect(rowA.lat).toBeCloseTo(posA.latitude, 3);
+      expect(rowA.lng).toBeCloseTo(posA.longitude, 3);
       await expect(ownerPage.locator('[data-testid="active-walker-marker"]')).toBeVisible({ timeout: 30000 });
 
       // Baseline A Auditoria
