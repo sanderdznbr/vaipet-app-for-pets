@@ -156,7 +156,16 @@ export const PetwalkerGpsProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [isActive, lastSync]);
 
   return (
-    <PetwalkerGpsContext.Provider value={{ coords, accuracy, status, lastSync, retry: startTracking }}>
+    <PetwalkerGpsContext.Provider value={{ 
+      coords, 
+      accuracy, 
+      status, 
+      lastSync, 
+      retry: startTracking,
+      isOnline: isActive,
+      setIsOnline: setIsActive
+    }}>
+
       {children}
     </PetwalkerGpsContext.Provider>
   );

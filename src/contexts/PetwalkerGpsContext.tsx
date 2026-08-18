@@ -8,7 +8,10 @@ export interface PetwalkerGpsContextType {
   status: GpsStatus;
   lastSync: Date | null;
   retry: () => void;
+  isOnline: boolean;
+  setIsOnline: (online: boolean) => void;
 }
+
 
 export const PetwalkerGpsContext = createContext<PetwalkerGpsContextType | undefined>(undefined);
 
