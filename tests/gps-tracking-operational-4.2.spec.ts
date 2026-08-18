@@ -158,7 +158,7 @@ test.describe('Phase 4.2: Operational Browser GPS Tracking', () => {
     const { ctx: ownerCtx, p: ownerPage } = await create(TEST_OWNER, posA);
 
     try {
-      // 1. Posição A
+      // 1. Posição A — Baseline Completa
       await walkerPage.goto(`/petwalker/passeio/${sessionId}`);
       const pollingAPromise = waitForOwnerPollingPosition(ownerPage, posA, 60000);
       await ownerPage.goto(`/search-walk?resume=${sessionId}`);
@@ -166,51 +166,88 @@ test.describe('Phase 4.2: Operational Browser GPS Tracking', () => {
       expect(rowA.lat).toBeCloseTo(posA.latitude, 3);
       await expect(ownerPage.locator('[data-testid="active-walker-marker"]')).toBeVisible({ timeout: 30000 });
 
-      // 2. Posição B
-      const { data: profB1, error: eb1 } = await admin.from('petwalker_profiles').select('last_location_captured_at').eq('user_id', walkerId).single();
-      expect(eb1).toBeNull();
-      const lastCapA = BigInt(profB1?.last_location_captured_at || 0);
+      // Baseline A Auditoria
+      const { data: profA, error: ea1 } = await admin.from('petwalker_profiles').select('last_location_captured_at').eq('user_id', walkerId).single();
+      expect(ea1).toBeNull();
+      const lastCapA = BigInt(profA?.last_location_captured_at || 0);
+      expect(lastCapA).toBeGreaterThan(0n);
 
+      const { count: trackingCountA, error: ea2 } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', sessionId).eq('walker_id', walkerId);
+      expect(ea2).toBeNull();
+      expect(trackingCountA!).toBeGreaterThanOrEqual(1);
+
+      const { data: sessA, error: ea3 } = await admin.from('walk_sessions').select('route_coordinates').eq('id', sessionId).single();
+      expect(ea3).toBeNull();
+      const routeLengthA = (sessA?.route_coordinates as any[] || []).length;
+      expect(routeLengthA).toBeGreaterThanOrEqual(1);
+
+      // Wait for the real 10s PetwalkerGpsProvider throttle window.
+      // This is not an arbitrary delay.
+      await walkerPage.waitForTimeout(10500);
+
+      // 2. Posição B — Restaurar Matriz Completa
       const posB = { latitude: -23.5500, longitude: -46.6330 };
       await walkerCtx.setGeolocation(posB);
       const rowB = await waitForOwnerPollingPosition(ownerPage, posB, 60000);
       expect(rowB.lat).toBeCloseTo(posB.latitude, 4);
       
-      const { data: profB2, error: eb2 } = await admin.from('petwalker_profiles').select('last_location_captured_at').eq('user_id', walkerId).single();
-      expect(eb2).toBeNull();
-      expect(BigInt(profB2!.last_location_captured_at)).toBeGreaterThan(lastCapA);
+      const { data: profB, error: eb1 } = await admin.from('petwalker_profiles').select('last_location_captured_at').eq('user_id', walkerId).single();
+      expect(eb1).toBeNull();
+      const lastCapB = BigInt(profB!.last_location_captured_at);
+      expect(lastCapB).toBeGreaterThan(lastCapA);
 
-      // 3. Refresh B
+      const { count: trackingCountB, error: eb2 } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', sessionId).eq('walker_id', walkerId);
+      expect(eb2).toBeNull();
+      expect(trackingCountB!).toBeGreaterThan(trackingCountA!);
+
+      const { data: sessB, error: eb3 } = await admin.from('walk_sessions').select('route_coordinates').eq('id', sessionId).single();
+      expect(eb3).toBeNull();
+      const routeB = sessB?.route_coordinates as any[][];
+      const routeLengthB = routeB.length;
+      expect(routeLengthB).toBeGreaterThan(routeLengthA);
+      
+      const lastPointB = routeB[routeLengthB - 1];
+      expect(Array.isArray(lastPointB)).toBe(true);
+      expect(lastPointB.length).toBe(2);
+      expect(lastPointB[0]).toBeCloseTo(posB.longitude, 4);
+      expect(lastPointB[1]).toBeCloseTo(posB.latitude, 4);
+
+      // 3. Refresh
       const pollingReloadPromise = waitForOwnerPollingPosition(ownerPage, posB, 60000);
       await ownerPage.reload();
       const rowReload = await pollingReloadPromise;
       expect(rowReload.lat).toBeCloseTo(posB.latitude, 4);
       await expect(ownerPage.locator('[data-testid="active-walker-marker"]')).toBeVisible();
 
-      // 4. Posição C + Auditoria Completa
-      const { error: ec1, data: sB } = await admin.from('walk_sessions').select('route_coordinates').eq('id', sessionId).single();
-      expect(ec1).toBeNull();
-      const routeLengthB = (sB?.route_coordinates as any[] || []).length;
-      
+      // Wait for the real 10s PetwalkerGpsProvider throttle window.
+      // This is not an arbitrary delay.
+      await walkerPage.waitForTimeout(10500);
+
+      // 4. Posição C — Matriz Completa
       const posC = { latitude: -23.5495, longitude: -46.6327 };
       await walkerCtx.setGeolocation(posC);
       const rowC = await waitForOwnerPollingPosition(ownerPage, posC, 60000);
       expect(rowC.lat).toBeCloseTo(posC.latitude, 4);
 
       // Auditoria C
-      const { error: ec2, data: sC } = await admin.from('walk_sessions').select('route_coordinates').eq('id', sessionId).single();
+      const { data: profC, error: ec1 } = await admin.from('petwalker_profiles').select('last_location_captured_at').eq('user_id', walkerId).single();
+      expect(ec1).toBeNull();
+      expect(BigInt(profC!.last_location_captured_at)).toBeGreaterThan(lastCapB);
+
+      const { count: trackingCountC, error: ec2 } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', sessionId).eq('walker_id', walkerId);
       expect(ec2).toBeNull();
-      const routeC = sC?.route_coordinates as any[][];
+      expect(trackingCountC!).toBeGreaterThan(trackingCountB!);
+
+      const { data: sessC, error: ec3 } = await admin.from('walk_sessions').select('route_coordinates').eq('id', sessionId).single();
+      expect(ec3).toBeNull();
+      const routeC = sessC?.route_coordinates as any[][];
       expect(routeC.length).toBeGreaterThan(routeLengthB);
+      
       const lastPointC = routeC[routeC.length - 1];
       expect(Array.isArray(lastPointC)).toBe(true);
       expect(lastPointC.length).toBe(2);
-      expect(lastPointC[0]).toBeCloseTo(posC.longitude, 4); // [lng, lat]
+      expect(lastPointC[0]).toBeCloseTo(posC.longitude, 4);
       expect(lastPointC[1]).toBeCloseTo(posC.latitude, 4);
-
-      const { count: countC, error: ec3 } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', sessionId).eq('walker_id', walkerId);
-      expect(ec3).toBeNull();
-      expect(countC).toBeGreaterThan(0);
 
     } finally {
       await walkerCtx.close();
