@@ -124,11 +124,14 @@ test.describe("Phase 4.2 Patch 1C: Hardened GPS Authority & Trials", () => {
       console.log('RPC Res:', res1, 'Error:', err1);
       
       const { data: w1 } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
-      console.log('Route Coords:', JSON.stringify(w1?.route_coordinates));
-      // Postgres returns jsonb arrays, which can have varying representation in JS
-      const hasPoint = w1?.route_coordinates?.some((p: any) => 
-        Array.isArray(p) && Math.abs(p[0] - 20.1) < 0.0001 && Math.abs(p[1] - 10.1) < 0.0001
-      );
+      console.log('Route Coords Raw:', JSON.stringify(w1?.route_coordinates));
+      // Postgres jsonb returns [lng, lat]. In JS it might be [20.1, 10.1] or "[[20.1, 10.1]]"
+      const coords = w1?.route_coordinates || [];
+      const hasPoint = coords.some((p: any) => {
+        const lng = Array.isArray(p) ? p[0] : null;
+        const lat = Array.isArray(p) ? p[1] : null;
+        return lng !== null && Math.abs(lng - 20.1) < 0.0001 && Math.abs(lat - 10.1) < 0.0001;
+      });
       expect(hasPoint).toBe(true);
 
       // 2. Monotonicity check
