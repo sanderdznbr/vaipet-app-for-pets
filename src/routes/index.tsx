@@ -1,8 +1,8 @@
 import { Navigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
-  const { session, userRole, loading } = useAuth();
+  const { session, roles, loading } = useAuth();
 
   if (loading) {
     return (
@@ -17,7 +17,7 @@ const Index = () => {
   }
 
   // Multi-role redirection authority
-  if (userRole === 'petwalker') {
+  if (roles && roles.includes('petwalker')) {
     return <Navigate to="/walker/painel" replace />;
   }
 
