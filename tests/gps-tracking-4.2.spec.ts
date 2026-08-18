@@ -154,9 +154,14 @@ test.describe("Phase 4.2: Hardened GPS Tracking Infrastructure", () => {
 
        // 2. Walker 1 transitions to 'in_progress': route_coordinates MUST grow
        await admin.from('walk_sessions').update({ current_status: 'in_progress', status: 'in_progress' }).eq('id', session!.id);
-       await walker1.rpc('update_walker_location', { _lat: 11, _lng: 21, _accuracy: 10, _captured_at: Date.now() + 1000 });
+       
+       // Force a 6s wait to ensure we bypass the 5s rate limit in append_walk_tracking_point
+       await new Promise(r => setTimeout(r, 6000));
+
+       await walker1.rpc('update_walker_location', { _lat: 11, _lng: 21, _accuracy: 10, _captured_at: Date.now() + 10000 });
        const { data: walk2 } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
        expect(walk2?.route_coordinates).toContainEqual([21, 11]);
+
 
        // 3. Walker 2 tries to update Walker 1's trail: must fail
        const { error: errW2 } = await walker2.rpc('append_walk_tracking_point', { _session_id: session!.id, _point: [0, 0] });
