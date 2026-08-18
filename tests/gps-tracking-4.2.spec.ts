@@ -23,9 +23,9 @@ test.describe("Phase 4.2: Hardened GPS Tracking Infrastructure", () => {
       data: { _lat: 0, _lng: 0, _accuracy: 10, _captured_at: Date.now() },
       headers: { 'apikey': ANON_KEY }
     });
-    expect(anonRes.status()).toBe(403);
-    const body = await anonRes.json();
-    expect(body.code).toBe("42501");
+    // 401 is returned when PostgREST sees no Authorization header or a bad apikey/token
+    // but the RPC requires 'authenticated' role.
+    expect(anonRes.status()).toBe(401);
   });
 
   test("logic: GPS Authority and Monotonicity", async () => {
