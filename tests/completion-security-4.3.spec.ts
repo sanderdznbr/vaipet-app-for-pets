@@ -40,6 +40,9 @@ test.describe('Phase 4.3: Completion Security Hardening', () => {
       }).eq('id', uid);
       if (pErr) throw pErr;
 
+      // Clean existing roles first to avoid collision
+      await admin.from('user_roles').delete().eq('user_id', uid);
+
       const { error: rErr } = await admin.from('user_roles').insert([
         { user_id: uid, role: 'user' },
         ...(intent === 'petwalker' ? [{ user_id: uid, role: 'petwalker' }] : [])
@@ -49,58 +52,66 @@ test.describe('Phase 4.3: Completion Security Hardening', () => {
       return uid;
     };
 
-    ownerId = await create(`owner-${E2E_RUN_ID}@test.com`, 'pet_owner');
-    wrongOwnerId = await create(`wrong-${E2E_RUN_ID}@test.com`, 'pet_owner');
-    walkerId = await create(`walker-${E2E_RUN_ID}@test.com`, 'petwalker');
+    try {
+      ownerId = await create(`owner-${E2E_RUN_ID}@test.com`, 'pet_owner');
+      wrongOwnerId = await create(`wrong-${E2E_RUN_ID}@test.com`, 'pet_owner');
+      walkerId = await create(`walker-${E2E_RUN_ID}@test.com`, 'petwalker');
 
-    // 2. Walker Profile
-    const { error: wpErr } = await admin.from('petwalker_profiles').upsert({
-      user_id: walkerId,
-      approval_status: 'approved',
-      profile_completed: true,
-      availability_status: 'busy',
-      e2e_test: true
-    });
-    if (wpErr) throw wpErr;
+      // 2. Walker Profile
+      const { error: wpErr } = await admin.from('petwalker_profiles').upsert({
+        user_id: walkerId,
+        approval_status: 'approved',
+        profile_completed: true,
+        availability_status: 'busy',
+        e2e_test: true
+      });
+      if (wpErr) throw wpErr;
 
-    // 3. Pet
-    const { data: pet, error: petErr } = await admin.from('pets').insert({
-      owner_id: ownerId,
-      name: 'E2E Security Pet',
-      breed: 'Vira-lata',
-      weight: 10,
-      e2e_test: true,
-      e2e_run_id: E2E_RUN_ID
-    }).select().single();
-    if (petErr) throw petErr;
-    petId = pet.id;
+      // 3. Pet
+      const { data: pet, error: petErr } = await admin.from('pets').insert({
+        owner_id: ownerId,
+        name: 'E2E Security Pet',
+        breed: 'Vira-lata',
+        weight: 10,
+        e2e_test: true,
+        e2e_run_id: E2E_RUN_ID
+      }).select().single();
+      if (petErr) throw petErr;
+      petId = pet.id;
 
-    // 4. Session Setup (Starting at in_progress)
-    const { data: session, error: sErr } = await admin.from('walk_sessions').insert({
-      customer_id: ownerId,
-      walker_id: walkerId,
-      pet_id: petId,
-      status: 'in_progress',
-      current_status: 'in_progress',
-      walk_type: 'livre',
-      start_time: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-      e2e_test: true,
-      e2e_run_id: E2E_RUN_ID
-    }).select().single();
-    if (sErr) throw sErr;
-    sessionId = session.id;
+      // 4. Session Setup (Starting at in_progress)
+      const { data: session, error: sErr } = await admin.from('walk_sessions').insert({
+        customer_id: ownerId,
+        walker_id: walkerId,
+        pet_id: petId,
+        status: 'in_progress',
+        current_status: 'in_progress',
+        walk_type: 'livre',
+        start_time: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+        e2e_test: true,
+        e2e_run_id: E2E_RUN_ID
+      }).select().single();
+      if (sErr) throw sErr;
+      sessionId = session.id;
 
-    // 5. Add tracking points
-    const { error: tErr } = await admin.from('walker_tracking').insert([
-      { walk_session_id: sessionId, walker_id: walkerId, location: 'POINT(-46.6333 -23.5505)', accuracy: 10 },
-      { walk_session_id: sessionId, walker_id: walkerId, location: 'POINT(-46.6343 -23.5515)', accuracy: 10 }
-    ]);
-    if (tErr) throw tErr;
+      // 5. Add tracking points
+      const { error: tErr } = await admin.from('walker_tracking').insert([
+        { walk_session_id: sessionId, walker_id: walkerId, location: 'POINT(-46.6333 -23.5505)', accuracy: 10 },
+        { walk_session_id: sessionId, walker_id: walkerId, location: 'POINT(-46.6343 -23.5515)', accuracy: 10 }
+      ]);
+      if (tErr) throw tErr;
+    } catch (e) {
+      console.error('Setup failed:', e);
+      // Cleanup what was created
+      await failClosedCleanup(admin, [ownerId, wrongOwnerId, walkerId].filter(Boolean) as string[], E2E_RUN_ID);
+      throw e;
+    }
   });
 
   test.afterAll(async () => {
-    await failClosedCleanup(admin, [ownerId, wrongOwnerId, walkerId], E2E_RUN_ID);
+    await failClosedCleanup(admin, [ownerId, wrongOwnerId, walkerId].filter(Boolean) as string[], E2E_RUN_ID);
   });
+
 
   const getClient = (uid: string) => createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: false }
