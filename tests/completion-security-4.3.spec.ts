@@ -233,7 +233,8 @@ test.describe('Phase 4.3: Completion Security Hardening', () => {
       e2e_test: true,
       e2e_run_id: E2E_RUN_ID
     }).select().single();
-    if (sErr) throw sErr;
+    if (sErr || !newSession) throw new Error(JSON.stringify(sErr || 'Insert failed'));
+
 
     
     const ownerClient = getClient(ownerId);
