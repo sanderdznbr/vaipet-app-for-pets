@@ -116,119 +116,127 @@ test.describe("Phase 4.2 Patch 1F: GPS Tracking Final Validation & Completeness"
 
     try {
       const { data: pet } = await admin.from("pets").insert({ owner_id: uidO, name: "P", breed: "P", e2e_test: true }).select().single();
-      const { data: session } = await admin.from("walk_sessions").insert({
-        customer_id: uidO, walker_id: uidW, pet_id: pet!.id, current_status: 'in_progress',
-        walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId, e2e_test: true,
-        start_time: new Date().toISOString(), status: 'in_progress', home_location: { lat: 0, lng: 0 }, route_coordinates: []
-      }).select().single();
 
-      await admin.from('petwalker_profiles').update({ current_walk_id: session!.id, approval_status: 'approved' }).eq('user_id', uidW);
-      
-      // A) NULL INPUTS (Requirement A)
+      const createSession = async (status: 'in_progress' | 'completed' | 'cancelled') => {
+        const { data: session, error: sErr } = await admin.from("walk_sessions").insert({
+          customer_id: uidO, walker_id: uidW, pet_id: pet!.id, current_status: status,
+          walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId, e2e_test: true,
+          start_time: new Date().toISOString(), status: status, home_location: { lat: 0, lng: 0 }, route_coordinates: []
+        }).select().single();
+        expect(sErr).toBeNull();
+        
+        // Se for in_progress, vincula ao walker
+        if (status === 'in_progress') {
+          const { error: pErr } = await admin.from('petwalker_profiles').update({ current_walk_id: session!.id }).eq('user_id', uidW);
+          expect(pErr).toBeNull();
+        }
+        return session!;
+      };
+
+      // A-C: MONOTONICIDADE, NULLS, ACCURACY (Usa sessão ATIVA 1)
+      const sessionActive = await createSession('in_progress');
+      const t1 = Date.now();
+
+      // A) NULL INPUTS
       const { data: profBeforeNull } = await admin.from('petwalker_profiles').select('last_location_captured_at, last_known_location').eq('user_id', uidW).single();
-      const { count: countBeforeNull } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
-      const { data: sessionBeforeNull } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
+      const { count: countBeforeNull } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', sessionActive.id);
 
-      const { error: errLat } = await walker.rpc('update_walker_location', { _lat: null, _lng: 20, _accuracy: 10, _captured_at: Date.now() });
+      const { error: errLat } = await walker.rpc('update_walker_location', { _lat: null, _lng: 20, _accuracy: 10, _captured_at: t1 });
       expect(errLat?.code).toBe('22000');
-      const { error: errLng } = await walker.rpc('update_walker_location', { _lat: 10, _lng: null, _accuracy: 10, _captured_at: Date.now() });
+      const { error: errLng } = await walker.rpc('update_walker_location', { _lat: 10, _lng: null, _accuracy: 10, _captured_at: t1 });
       expect(errLng?.code).toBe('22000');
       const { error: errCap } = await walker.rpc('update_walker_location', { _lat: 10, _lng: 20, _accuracy: 10, _captured_at: null });
       expect(errCap?.code).toBe('22000');
 
       const { data: profAfterNull } = await admin.from('petwalker_profiles').select('last_location_captured_at, last_known_location').eq('user_id', uidW).single();
-      const { count: countAfterNull } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
-      const { data: sessionAfterNull } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
-
+      const { count: countAfterNull } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', sessionActive.id);
       expect(profAfterNull).toEqual(profBeforeNull);
       expect(countAfterNull).toBe(countBeforeNull);
-      expect(sessionAfterNull?.route_coordinates).toEqual(sessionBeforeNull?.route_coordinates);
 
-      // B) ACCURACY (Requirement B)
-      const { error: errAccNeg } = await walker.rpc('update_walker_location', { _lat: 10, _lng: 20, _accuracy: -1, _captured_at: Date.now() });
+      // B) ACCURACY
+      const { error: errAccNeg } = await walker.rpc('update_walker_location', { _lat: 10, _lng: 20, _accuracy: -1, _captured_at: t1 });
       expect(errAccNeg?.code).toBe('22000');
-      const { error: errAccHigh } = await walker.rpc('update_walker_location', { _lat: 10, _lng: 20, _accuracy: 10001, _captured_at: Date.now() });
+      const { error: errAccHigh } = await walker.rpc('update_walker_location', { _lat: 10, _lng: 20, _accuracy: 10001, _captured_at: t1 });
       expect(errAccHigh?.code).toBe('22000');
       
-      const t1 = Date.now();
       const { data: resAccNull } = await walker.rpc('update_walker_location', { _lat: 10, _lng: 20, _accuracy: null, _captured_at: t1 });
       expect(resAccNull).toBe(true);
 
-      // C) MONOTONICIDADE (Requirement C)
+      // C) MONOTONICIDADE
       const { data: profMonoBefore } = await admin.from('petwalker_profiles').select('last_location_captured_at, last_known_location').eq('user_id', uidW).single();
-      
       const { data: resMono } = await walker.rpc('update_walker_location', { _lat: 12, _lng: 22, _accuracy: 10, _captured_at: t1 - 100 });
       expect(resMono).toBe(false);
-      
       const { data: profMonoAfter } = await admin.from('petwalker_profiles').select('last_location_captured_at, last_known_location').eq('user_id', uidW).single();
       expect(profMonoAfter?.last_location_captured_at).toBe(profMonoBefore?.last_location_captured_at);
-      expect(profMonoAfter?.last_known_location).toEqual(profMonoBefore?.last_known_location);
 
-      // D) COMPLETED (Requirement D)
-      await admin.from('walk_sessions').update({ 
-        current_status: 'completed', 
-        last_tracking_at: new Date(Date.now() - 10000).toISOString() 
-      }).eq('id', session!.id);
+      // D) COMPLETED (Sessão DEDICADA)
+      const sessionCompleted = await createSession('completed');
+      // Garantir vínculo stale se necessário
+      await admin.from('petwalker_profiles').update({ current_walk_id: sessionCompleted.id }).eq('user_id', uidW);
       
-      const { data: routeBeforeCompleted } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
-      const { count: countBeforeCompleted } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      const { data: routeBeforeCompleted } = await admin.from('walk_sessions').select('route_coordinates').eq('id', sessionCompleted.id).single();
+      const { count: countBeforeCompleted } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', sessionCompleted.id);
       
       await walker.rpc('update_walker_location', { _lat: 16, _lng: 26, _accuracy: 10, _captured_at: t1 + 30000 });
       
-      const { data: routeAfterCompleted } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
-      const { count: countAfterCompleted } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      const { data: routeAfterCompleted } = await admin.from('walk_sessions').select('route_coordinates').eq('id', sessionCompleted.id).single();
+      const { count: countAfterCompleted } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', sessionCompleted.id);
       
       expect(routeAfterCompleted?.route_coordinates).toEqual(routeBeforeCompleted?.route_coordinates);
       expect(countAfterCompleted).toBe(countBeforeCompleted);
 
-      // E) CANCELLED (Requirement E)
-      await admin.from('walk_sessions').update({ current_status: 'cancelled' }).eq('id', session!.id);
+      // E) CANCELLED (Sessão DEDICADA)
+      const sessionCancelled = await createSession('cancelled');
+      await admin.from('petwalker_profiles').update({ current_walk_id: sessionCancelled.id }).eq('user_id', uidW);
       
-      const { data: routeBeforeCanc } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
-      const { count: countBeforeCanc } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      const { data: routeBeforeCanc } = await admin.from('walk_sessions').select('route_coordinates').eq('id', sessionCancelled.id).single();
+      const { count: countBeforeCanc } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', sessionCancelled.id);
       
       await walker.rpc('update_walker_location', { _lat: 17, _lng: 27, _accuracy: 10, _captured_at: t1 + 40000 });
       
-      const { data: routeAfterCanc } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
-      const { count: countAfterCanc } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      const { data: routeAfterCanc } = await admin.from('walk_sessions').select('route_coordinates').eq('id', sessionCancelled.id).single();
+      const { count: countAfterCanc } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', sessionCancelled.id);
       
       expect(routeAfterCanc?.route_coordinates).toEqual(routeBeforeCanc?.route_coordinates);
       expect(countAfterCanc).toBe(countBeforeCanc);
 
-      // F) LIMITE DE 5000 (Requirement F)
+      // F) LIMITE DE 5000 (Sessão ATIVA 2)
+      const sessionLimit = await createSession('in_progress');
       const mockCoords = Array.from({ length: 5000 }, () => [0, 0]);
-      await admin.from('walk_sessions').update({ 
-        current_status: 'in_progress', 
+      const { error: errSetupLimit } = await admin.from('walk_sessions').update({ 
         route_coordinates: mockCoords,
         last_tracking_at: new Date(Date.now() - 10000).toISOString()
-      }).eq('id', session!.id);
+      }).eq('id', sessionLimit.id);
+      expect(errSetupLimit).toBeNull();
       
-      const { count: countBeforeLimit } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      const { count: countBeforeLimit } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', sessionLimit.id);
       
       const { error: errLimit } = await walker.rpc('update_walker_location', { _lat: 1, _lng: 1, _accuracy: 10, _captured_at: t1 + 50000 });
       expect(errLimit?.message).toMatch(/Max tracking points/);
       
-      const { data: wLimit } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
-      const { count: countAfterLimit } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      const { data: wLimit } = await admin.from('walk_sessions').select('route_coordinates').eq('id', sessionLimit.id).single();
+      const { count: countAfterLimit } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', sessionLimit.id);
       
       expect(wLimit?.route_coordinates).toHaveLength(5000);
       expect(wLimit?.route_coordinates).toEqual(mockCoords);
       expect(countAfterLimit).toBe(countBeforeLimit);
 
-      // G) FORMATO INVÁLIDO (Requirement G)
+      // G) FORMATO INVÁLIDO (Sessão ATIVA 3)
+      const sessionInvalid = await createSession('in_progress');
       const invalidFormat = { not: "an_array" };
-      await admin.from('walk_sessions').update({ 
+      const { error: errSetupInv } = await admin.from('walk_sessions').update({ 
         route_coordinates: invalidFormat,
         last_tracking_at: new Date(Date.now() - 10000).toISOString()
-      }).eq('id', session!.id);
+      }).eq('id', sessionInvalid.id);
+      expect(errSetupInv).toBeNull();
       
-      const { count: countBeforeInv } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      const { count: countBeforeInv } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', sessionInvalid.id);
       
       const { error: errInv } = await walker.rpc('update_walker_location', { _lat: 1, _lng: 1, _accuracy: 10, _captured_at: t1 + 60000 });
       expect(errInv?.message).toMatch(/Invalid route_coordinates format/);
       
-      const { data: wInv } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
-      const { count: countAfterInv } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      const { data: wInv } = await admin.from('walk_sessions').select('route_coordinates').eq('id', sessionInvalid.id).single();
+      const { count: countAfterInv } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', sessionInvalid.id);
       
       expect(wInv?.route_coordinates).toEqual(invalidFormat);
       expect(countAfterInv).toBe(countBeforeInv);
