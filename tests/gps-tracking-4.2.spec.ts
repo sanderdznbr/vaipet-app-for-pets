@@ -145,10 +145,9 @@ test.describe("Phase 4.2 Patch 1E: GPS Tracking Final Hardening", () => {
       // Explicitly wait for DB to settle and verify sync status
       await new Promise(r => setTimeout(r, 1000));
       
-      const { data: w1, error: w1Err } = await admin.from('walk_sessions').select('route_coordinates, last_location_captured_at').eq('id', session!.id).single();
+      const { data: w1, error: w1Err } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
       if (w1Err) console.error("Audit W1 Error:", w1Err);
       
-      // Probing the reason for empty array: check tracking log count
       const { count: trackCount } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
       console.log(`Initial Sync Audit - Trail: ${JSON.stringify(w1?.route_coordinates)}, Logs: ${trackCount}`);
 
