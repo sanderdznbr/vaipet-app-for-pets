@@ -19,6 +19,7 @@
     "test:e2e:walk:concurrency": "npx playwright test tests/walk-concurrency.spec.ts",
     "test:e2e:phase41:security": "npx playwright test tests/security-phase41.spec.ts",
     "test:e2e:phase41:operational": "playwright test tests/walk-operation-4.1.spec.ts",
+    "test:e2e:phase42:operational": "playwright test tests/gps-tracking-operational-4.2.spec.ts",
     "typecheck:tests": "tsc -p tsconfig.tests.json"
   },
   "dependencies": {
