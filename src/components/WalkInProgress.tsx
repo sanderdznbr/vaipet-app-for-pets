@@ -317,12 +317,9 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
   useEffect(() => {
     if (!sessionId) return;
     const id = setInterval(async () => {
-      const trail = persistedTrailRef.current;
-      if (trail.length === 0 || trail.length === lastSavedTrailLenRef.current) return;
       // GPS updates are now handled exclusively by the Petwalker via hardened update_walker_location RPC.
-      // The Owner no longer writes to the trail to prevent authority conflicts.
-      lastSavedTrailLenRef.current = trail.length;
-    }, 6000);
+      // The Owner side (this component) is READ-ONLY for tracking to ensure authority isolation.
+    }, 60000);
     return () => clearInterval(id);
   }, [sessionId]);
 
