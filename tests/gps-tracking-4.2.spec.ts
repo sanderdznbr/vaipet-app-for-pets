@@ -152,8 +152,11 @@ test.describe("Phase 4.2: Hardened GPS Tracking Infrastructure", () => {
        const { data: walk1 } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
        expect(walk1?.route_coordinates).toEqual([]);
 
-       // 2. Walker 1 transitions to 'in_progress': route_coordinates MUST grow
-       await admin.from('walk_sessions').update({ current_status: 'in_progress', status: 'in_progress' }).eq('id', session!.id);
+       // 2. Walker 1 transitions through states: accepted -> heading_to_pickup -> arrived -> in_progress
+       // This ensures we respect the trigger state machine
+       await admin.from('walk_sessions').update({ current_status: 'heading_to_pickup' }).eq('id', session!.id);
+       await admin.from('walk_sessions').update({ current_status: 'arrived' }).eq('id', session!.id);
+       await admin.from('walk_sessions').update({ current_status: 'in_progress' }).eq('id', session!.id);
        
        // Force a 6s wait to ensure we bypass the 5s rate limit in append_walk_tracking_point
        await new Promise(r => setTimeout(r, 6000));
@@ -161,6 +164,7 @@ test.describe("Phase 4.2: Hardened GPS Tracking Infrastructure", () => {
        await walker1.rpc('update_walker_location', { _lat: 11, _lng: 21, _accuracy: 10, _captured_at: Date.now() + 10000 });
        const { data: walk2 } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
        expect(walk2?.route_coordinates).toContainEqual([21, 11]);
+
 
 
        // 3. Walker 2 tries to update Walker 1's trail: must fail
