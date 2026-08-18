@@ -323,9 +323,11 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
   test('15. distance 0 points', async () => {
     const session = await createSession('returning');
     const client = await getAuthenticatedClient(ownerEmail);
-    const { error } = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
+    const { data, error } = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
     expect(error).toBeNull();
-    const { data: s } = await admin.from('walk_sessions').select('distance_km').eq('id', session.id).single();
+    expect(data).toBe(true);
+    const { data: s, error: sErr } = await admin.from('walk_sessions').select('distance_km').eq('id', session.id).single();
+    expect(sErr).toBeNull();
     expect(s.distance_km).toBe(0);
   });
 
@@ -340,9 +342,11 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     });
     expect(iErr).toBeNull();
     const client = await getAuthenticatedClient(ownerEmail);
-    const { error } = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
+    const { data, error } = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
     expect(error).toBeNull();
-    const { data: s } = await admin.from('walk_sessions').select('distance_km').eq('id', session.id).single();
+    expect(data).toBe(true);
+    const { data: s, error: sErr } = await admin.from('walk_sessions').select('distance_km').eq('id', session.id).single();
+    expect(sErr).toBeNull();
     expect(s.distance_km).toBe(0);
   });
 
@@ -358,9 +362,11 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
       expect(iErr).toBeNull();
     }
     const client = await getAuthenticatedClient(ownerEmail);
-    const { error } = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
+    const { data, error } = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
     expect(error).toBeNull();
-    const { data: s } = await admin.from('walk_sessions').select('distance_km').eq('id', session.id).single();
+    expect(data).toBe(true);
+    const { data: s, error: sErr } = await admin.from('walk_sessions').select('distance_km').eq('id', session.id).single();
+    expect(sErr).toBeNull();
     expect(s.distance_km).toBeGreaterThan(0);
   });
 
