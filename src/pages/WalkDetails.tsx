@@ -10,6 +10,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { usePetwalkerGps } from '@/hooks/usePetwalkerGps';
+import { toast } from 'sonner';
 
 const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2FuZGVyY29sb21iZXMiLCJhIjoiY21kNDBuaHZ4MGF3bjJtb2dwNHdsMWR1aCJ9.D_kYvjRu2iigL2uziaEomQ';
 
@@ -37,6 +39,9 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
   const [loading, setLoading] = useState(true);
   const [concluding, setConcluding] = useState(false);
   const [concludeError, setConcludeError] = useState<string | null>(null);
+  const [arriving, setArriving] = useState(false);
+
+  const { coords, accuracy, status: gpsStatus } = usePetwalkerGps();
 
   // PIN states
   const [pinValue, setPinValue] = useState('');
@@ -341,20 +346,32 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
           {walk.current_status === 'heading_to_pickup' && (
             <button 
               onClick={async () => {
-                navigator.geolocation.getCurrentPosition(async (pos) => {
-                  const { error } = await supabase.rpc('petwalker_arrive_pickup', { 
-                    _session_id: walk.id,
-                    _lat: pos.coords.latitude,
-                    _lng: pos.coords.longitude,
-                    _accuracy: pos.coords.accuracy
-                  });
-                  if (!error) window.location.reload();
-                  else alert(`Erro: ${error.message}`);
-                }, (err) => alert(`GPS Erro: ${err.message}`));
+                if (!coords || accuracy === null) {
+                  toast.error("Aguardando localização GPS. Tente novamente em alguns segundos.");
+                  return;
+                }
+                setArriving(true);
+                const [lng, lat] = coords;
+                const { data, error } = await supabase.rpc('petwalker_arrive_pickup', { 
+                  _session_id: walk.id,
+                  _lat: lat,
+                  _lng: lng,
+                  _accuracy: accuracy
+                });
+                
+                if (error) {
+                  toast.error(`Erro: ${error.message}`);
+                  setArriving(false);
+                } else if (data === true) {
+                  window.location.reload();
+                } else {
+                  setArriving(false);
+                }
               }}
-              className="w-full bg-blue-500 text-white font-extrabold py-4 rounded-2xl shadow-xl active:scale-95 transition-transform"
+              disabled={arriving}
+              className="w-full bg-blue-500 text-white font-extrabold py-4 rounded-2xl shadow-xl active:scale-95 transition-transform disabled:opacity-50"
             >
-              Cheguei no Local
+              {arriving ? 'Processando...' : (!coords || accuracy === null ? 'Aguardando GPS...' : 'Cheguei no Local')}
             </button>
           )}
 
