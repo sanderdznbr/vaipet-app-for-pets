@@ -132,7 +132,9 @@ test.describe("Phase 4.2 Patch 1E: GPS Tracking Final Hardening", () => {
 
       // 1. Trail Format: [] -> [[lng, lat]]
       const t1 = Date.now();
-      await walker.rpc('update_walker_location', { _lat: 10, _lng: 20, _accuracy: 10, _captured_at: t1 });
+      const { data: resInit, error: errInit } = await walker.rpc('update_walker_location', { _lat: 10, _lng: 20, _accuracy: 10, _captured_at: t1 });
+      if (errInit) console.error("RPC Error:", errInit);
+      expect(resInit).toBe(true);
       const { data: w1 } = await admin.from('walk_sessions').select('route_coordinates, last_location_captured_at').eq('id', session!.id).single();
       expect(w1?.route_coordinates || []).toEqual([[20, 10]]);
 
