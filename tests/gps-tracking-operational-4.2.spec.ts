@@ -193,6 +193,7 @@ test.describe('Phase 4.2: Operational Browser GPS Tracking', () => {
       await walkerCtx.setGeolocation(posB);
       const rowB = await waitForOwnerPollingPosition(ownerPage, posB, 60000);
       expect(rowB.lat).toBeCloseTo(posB.latitude, 4);
+      expect(rowB.lng).toBeCloseTo(posB.longitude, 4);
       
       const { data: profB, error: eb1 } = await admin.from('petwalker_profiles').select('last_location_captured_at').eq('user_id', walkerId).single();
       expect(eb1).toBeNull();
