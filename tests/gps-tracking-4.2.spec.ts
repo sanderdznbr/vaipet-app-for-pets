@@ -128,8 +128,11 @@ test.describe("Phase 4.2 Patch 1E: GPS Tracking Final Hardening", () => {
         start_time: new Date().toISOString(), status: 'in_progress', home_location: { lat: 0, lng: 0 }, route_coordinates: []
       }).select().single();
 
-      // Ensure profile points to session
-      await admin.from('petwalker_profiles').update({ current_walk_id: session!.id }).eq('user_id', uidW);
+      // Ensure profile points to session AND is approved
+      await admin.from('petwalker_profiles').update({ 
+        current_walk_id: session!.id,
+        approval_status: 'approved' 
+      }).eq('user_id', uidW);
       
       // Wait for propagation
       await new Promise(r => setTimeout(r, 1000));
