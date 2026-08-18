@@ -138,6 +138,7 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     const { data, error: sErr } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
     expect(sErr).toBeNull();
     expect(data.status).toBe('in_progress');
+    expect(data.current_status).toBe('in_progress');
   });
 
   // 2. transição válida ambos -> returning
@@ -148,6 +149,10 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
       current_status: 'returning'
     }).eq('id', session.id);
     expect(error).toBeNull();
+    const { data, error: sErr } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
+    expect(sErr).toBeNull();
+    expect(data.status).toBe('returning');
+    expect(data.current_status).toBe('returning');
   });
 
   // 3. Owner request_return
