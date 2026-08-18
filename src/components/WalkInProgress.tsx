@@ -316,12 +316,11 @@ export const WalkInProgress: React.FC<WalkInProgressProps> = ({
   // tab switches, etc.
   useEffect(() => {
     if (!sessionId) return;
-    const id = setInterval(async () => {
-      // GPS updates are now handled exclusively by the Petwalker via hardened update_walker_location RPC.
-      // The Owner side (this component) is READ-ONLY for tracking to ensure authority isolation.
-    }, 60000);
-    return () => clearInterval(id);
+    // Note: Owner side is READ-ONLY for tracking.
+    // Real-time location updates are received via standard Supabase subscription
+    // handled by the parent component or local realtime logic.
   }, [sessionId]);
+
 
   useEffect(() => {
     phaseRef.current = phase;

@@ -32,16 +32,17 @@ const Painel = () => {
   const routeLayerId = 'walk-route';
   
   const [activeRequest, setActiveRequest] = useState<WalkSession | null>(null);
-  const [isOnline, setIsOnline] = useState(false);
   const [loading, setLoading] = useState(true);
   
+  // Consume continuous GPS context authority
   const { 
     coords: walkerCoords, 
     accuracy: walkerAccuracy, 
     status: gpsStatus, 
-    lastSync, 
-    retry: startTracking 
-  } = usePetwalkerGps(profile?.signup_intent === 'petwalker');
+    lastSync,
+    isOnline,
+    setIsOnline
+  } = usePetwalkerGps();
 
   const [showOfferSheet, setShowOfferSheet] = useState<WalkOffer | null>(null);
   const [offerAction, setOfferAction] = useState<'accepting' | 'declining' | null>(null);
@@ -49,6 +50,7 @@ const Painel = () => {
 
   const lastUpdateRef = useRef<number>(0);
   const UPDATE_INTERVAL = 10000; // 10s frequency control
+
 
   // Offer polling / stale-response protection
   const offerRequestIdRef = useRef(0);
@@ -181,9 +183,9 @@ const Painel = () => {
   }, [walkerCoords, isFirstLock]);
 
   const stopTracking = useCallback(() => {
-    // Redundant now as usePetwalkerGps handles it, but kept for interface compatibility if needed locally
     setIsFirstLock(true);
   }, []);
+
 
   // --- Effects ---
 
@@ -191,7 +193,7 @@ const Painel = () => {
     if (!user) return;
     
     const init = async () => {
-      // 1. Availability
+      // 1. Initial State Sync
       const { data: profile } = await supabase.from('petwalker_profiles').select('availability_status').eq('user_id', user.id).single();
       const online = profile?.availability_status === 'available';
       setIsOnline(online);
@@ -199,13 +201,9 @@ const Painel = () => {
       // 2. Active Session
       await refreshActiveRequest();
       
-      // 3. Start GPS if online
-      if (online) {
-        // usePetwalkerGps handles startTracking automatically based on isOnline
-      }
-      
       setLoading(false);
     };
+
 
     init();
 
@@ -305,14 +303,13 @@ const Painel = () => {
     const { error } = await supabase.rpc('set_petwalker_availability', { _status: nextOnline ? 'available' : 'offline' });
     if (!error) {
       setIsOnline(nextOnline);
-      if (nextOnline) {
-        // Handled by hook
-      } else {
+      if (!nextOnline) {
         setShowOfferSheet(null);
       }
       toast.success(nextOnline ? 'Você está online' : 'Você está offline');
     }
   };
+
 
   const handleAcceptWalk = async () => {
     if (!showOfferSheet || offerAction) return;
@@ -426,7 +423,7 @@ const Painel = () => {
             onToggleOnline={handleToggleOnline} 
             gpsStatus={gpsStatus} 
             lastSync={lastSync}
-            onRetryGps={startTracking}
+            onRetryGps={() => {}} // Controlled by Runtime
           />
         )}
 
