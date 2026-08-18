@@ -41,7 +41,7 @@ const Painel = () => {
     status: gpsStatus, 
     lastSync, 
     retry: startTracking 
-  } = usePetwalkerGps(isOnline);
+  } = usePetwalkerGps(profile?.signup_intent === 'petwalker');
 
   const [showOfferSheet, setShowOfferSheet] = useState<WalkOffer | null>(null);
   const [offerAction, setOfferAction] = useState<'accepting' | 'declining' | null>(null);
