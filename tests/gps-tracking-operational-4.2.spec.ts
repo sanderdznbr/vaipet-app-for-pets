@@ -27,15 +27,28 @@ function parseWalkerLocationResponse(body: any) {
 async function waitForOwnerPollingPosition(page: any, target: { latitude: number, longitude: number }, timeout: number) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
-    const response = await page.waitForResponse(
-      (r: any) => r.url().includes('/rest/v1/rpc/get_active_walker_location') && r.request().method() === 'POST',
-      { timeout: 15000 }
-    );
-    if (response.status() !== 200) continue;
-    const body = await response.json();
-    const row = parseWalkerLocationResponse(body);
-    if (Math.abs(row.lat - target.latitude) < 0.001 && Math.abs(row.lng - target.longitude) < 0.001) {
-      return row;
+    try {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) break;
+      
+      const response = await page.waitForResponse(
+        (r: any) => r.url().includes('/rest/v1/rpc/get_active_walker_location') && r.request().method() === 'POST',
+        { timeout: Math.min(remaining, 15000) }
+      );
+      
+      if (response.status() !== 200) continue;
+      const body = await response.json();
+      const row = parseWalkerLocationResponse(body);
+      
+      if (Math.abs(row.lat - target.latitude) < 0.001 && Math.abs(row.lng - target.longitude) < 0.001) {
+        return row;
+      }
+    } catch (e: any) {
+      // Small hardening: capture individual timeout and continue until global deadline
+      if (e.name === 'TimeoutError' || e.message.includes('timeout')) {
+        continue;
+      }
+      throw e; // Fail-closed on other errors (parse/HTTP/format)
     }
   }
   throw new Error(`waitForOwnerPollingPosition: Timed out after ${timeout}ms without receiving position near [${target.latitude}, ${target.longitude}]`);
