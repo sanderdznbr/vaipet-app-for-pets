@@ -134,16 +134,21 @@ test.describe("Phase 4.2 Patch 1E: GPS Tracking Final Hardening", () => {
       // Wait for propagation
       await new Promise(r => setTimeout(r, 1000));
 
-      // 1. Trail Format: [] -> [[lng, lat]]
       const t1 = Date.now();
       const { data: resInit, error: errInit } = await walker.rpc('update_walker_location', { _lat: 10, _lng: 20, _accuracy: 10, _captured_at: t1 });
       if (errInit) console.error("RPC Error:", errInit);
       expect(resInit).toBe(true);
 
-      // Explicitly wait for DB to settle
+      // Explicitly wait for DB to settle and verify sync status
       await new Promise(r => setTimeout(r, 1000));
       
-      const { data: w1 } = await admin.from('walk_sessions').select('route_coordinates, last_location_captured_at').eq('id', session!.id).single();
+      const { data: w1, error: w1Err } = await admin.from('walk_sessions').select('route_coordinates, last_location_captured_at').eq('id', session!.id).single();
+      if (w1Err) console.error("Audit W1 Error:", w1Err);
+      
+      // Probing the reason for empty array: check tracking log count
+      const { count: trackCount } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      console.log(`Initial Sync Audit - Trail: ${JSON.stringify(w1?.route_coordinates)}, Logs: ${trackCount}`);
+
       expect(w1?.route_coordinates || []).toEqual([[20, 10]]);
 
       // 2. MONOTONICIDADE (Matrix B)
@@ -153,12 +158,13 @@ test.describe("Phase 4.2 Patch 1E: GPS Tracking Final Hardening", () => {
       expect(Number(profMono?.last_location_captured_at)).toBe(t1);
 
       // 3. SEGUNDO PONTO VÁLIDO (Matrix C) - deterministically bypass rate limit
-      // Force last_tracking_at to bypass the 5s check
+      // Force last_tracking_at back to bypass the 5s check
       await admin.from('walk_sessions').update({ last_tracking_at: new Date(Date.now() - 10000).toISOString() }).eq('id', session!.id);
       
-      const { data: resSec, error: errSec } = await walker.rpc('update_walker_location', { _lat: 11, _lng: 21, _accuracy: 10, _captured_at: t1 + 1000 });
+      const { data: resSec } = await walker.rpc('update_walker_location', { _lat: 11, _lng: 21, _accuracy: 10, _captured_at: t1 + 1000 });
       expect(resSec).toBe(true);
       
+      await new Promise(r => setTimeout(r, 500));
       const { data: w2 } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
       expect(w2?.route_coordinates).toEqual([[20, 10], [21, 11]]);
 
