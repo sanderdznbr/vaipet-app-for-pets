@@ -27,7 +27,7 @@ type WalkSession = Database['public']['Tables']['walk_sessions']['Row'] & {
 type WalkOffer = Database['public']['Functions']['get_available_walk_offers']['Returns'][number];
 
 const Painel = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const routeLayerId = 'walk-route';
   
