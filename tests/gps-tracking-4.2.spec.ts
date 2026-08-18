@@ -135,6 +135,10 @@ test.describe("Phase 4.2 Patch 1E: GPS Tracking Final Hardening", () => {
       const { data: resInit, error: errInit } = await walker.rpc('update_walker_location', { _lat: 10, _lng: 20, _accuracy: 10, _captured_at: t1 });
       if (errInit) console.error("RPC Error:", errInit);
       expect(resInit).toBe(true);
+
+      // Explicitly wait for DB to settle
+      await new Promise(r => setTimeout(r, 1000));
+      
       const { data: w1 } = await admin.from('walk_sessions').select('route_coordinates, last_location_captured_at').eq('id', session!.id).single();
       expect(w1?.route_coordinates || []).toEqual([[20, 10]]);
 
@@ -145,8 +149,12 @@ test.describe("Phase 4.2 Patch 1E: GPS Tracking Final Hardening", () => {
       expect(Number(profMono?.last_location_captured_at)).toBe(t1);
 
       // 3. SEGUNDO PONTO VÁLIDO (Matrix C) - deterministically bypass rate limit
-      await admin.from('walk_sessions').update({ last_tracking_at: Math.floor(Date.now() / 1000) - 10 }).eq('id', session!.id);
-      await walker.rpc('update_walker_location', { _lat: 11, _lng: 21, _accuracy: 10, _captured_at: t1 + 1000 });
+      // Force last_tracking_at to bypass the 5s check
+      await admin.from('walk_sessions').update({ last_tracking_at: new Date(Date.now() - 10000).toISOString() }).eq('id', session!.id);
+      
+      const { data: resSec, error: errSec } = await walker.rpc('update_walker_location', { _lat: 11, _lng: 21, _accuracy: 10, _captured_at: t1 + 1000 });
+      expect(resSec).toBe(true);
+      
       const { data: w2 } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
       expect(w2?.route_coordinates).toEqual([[20, 10], [21, 11]]);
 
