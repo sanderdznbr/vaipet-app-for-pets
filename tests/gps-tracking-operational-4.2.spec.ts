@@ -36,7 +36,10 @@ async function waitForOwnerPollingPosition(page: any, target: { latitude: number
         { timeout: Math.min(remaining, 15000) }
       );
       
-      if (response.status() !== 200) continue;
+      if (response.status() !== 200) {
+        throw new Error(`get_active_walker_location returned HTTP ${response.status()}`);
+      }
+      
       const body = await response.json();
       const row = parseWalkerLocationResponse(body);
       
@@ -45,10 +48,10 @@ async function waitForOwnerPollingPosition(page: any, target: { latitude: number
       }
     } catch (e: any) {
       // Small hardening: capture individual timeout and continue until global deadline
-      if (e.name === 'TimeoutError' || e.message.includes('timeout')) {
+      if (e?.name === 'TimeoutError') {
         continue;
       }
-      throw e; // Fail-closed on other errors (parse/HTTP/format)
+      throw e; // Fail-closed on other errors (HTTP, JSON, body/structure invalid)
     }
   }
   throw new Error(`waitForOwnerPollingPosition: Timed out after ${timeout}ms without receiving position near [${target.latitude}, ${target.longitude}]`);
