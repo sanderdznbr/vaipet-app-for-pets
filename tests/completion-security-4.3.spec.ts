@@ -376,40 +376,63 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     const { error: upErr } = await admin.from('petwalker_profiles').update({ current_walk_id: session.id }).eq('user_id', walkerId);
     expect(upErr).toBeNull();
     
+    const { data: profBefore, error: pErrBefore } = await admin.from('petwalker_profiles').select('current_walk_id').eq('user_id', walkerId).single();
+    expect(pErrBefore).toBeNull();
+    expect(profBefore.current_walk_id).toBe(session.id);
+    
     const walkerClient = await getAuthenticatedClient(walkerEmail);
     const capturedAt = Date.now();
-    const { error: locErr } = await walkerClient.rpc('update_walker_location', {
+    const { data: preLocData, error: locErr } = await walkerClient.rpc('update_walker_location', {
       _lat: -23.5505,
       _lng: -46.6333,
       _accuracy: 10,
       _captured_at: capturedAt
     });
     expect(locErr).toBeNull();
+    expect(preLocData).toBe(true);
     
     const { data: sessionBefore, error: sbErr } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session.id).single();
     expect(sbErr).toBeNull();
+    expect(Array.isArray(sessionBefore.route_coordinates)).toBe(true);
+    expect(sessionBefore.route_coordinates.length).toBeGreaterThan(0);
+    
     const trackingBefore = await admin.from('walker_tracking').select('id').eq('walk_session_id', session.id);
     expect(trackingBefore.error).toBeNull();
+    expect(trackingBefore.data!.length).toBeGreaterThan(0);
+    const trackingBeforeCount = trackingBefore.data!.length;
+    const routeBefore = sessionBefore.route_coordinates;
     
     const ownerClient = await getAuthenticatedClient(ownerEmail);
-    const { error: confirmErr } = await ownerClient.rpc('customer_confirm_arrival', { _session_id: session.id });
+    const { data: cData, error: confirmErr } = await ownerClient.rpc('customer_confirm_arrival', { _session_id: session.id });
     expect(confirmErr).toBeNull();
+    expect(cData).toBe(true);
+    
+    const { data: sAfter, error: saErr1 } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
+    expect(saErr1).toBeNull();
+    expect(sAfter.status).toBe('completed');
+    expect(sAfter.current_status).toBe('completed');
+    
+    const { data: profAfter, error: paErr } = await admin.from('petwalker_profiles').select('current_walk_id').eq('user_id', walkerId).single();
+    expect(paErr).toBeNull();
+    expect(profAfter.current_walk_id).toBeNull();
     
     // GPS post completion
-    await walkerClient.rpc('update_walker_location', {
+    const { data: postData, error: postErr } = await walkerClient.rpc('update_walker_location', {
       _lat: -23.5515,
       _lng: -46.6343,
       _accuracy: 10,
       _captured_at: capturedAt + 10000
     });
+    expect(postErr).toBeNull();
+    expect(postData).toBe(true);
     
-    const { data: sessionAfter, error: saErr } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session.id).single();
-    expect(saErr).toBeNull();
+    const { data: sessionAfter, error: saErr2 } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session.id).single();
+    expect(saErr2).toBeNull();
     const trackingAfter = await admin.from('walker_tracking').select('id').eq('walk_session_id', session.id);
     expect(trackingAfter.error).toBeNull();
     
-    expect(trackingAfter.data?.length).toBe(trackingBefore.data?.length);
-    expect(sessionAfter.route_coordinates).toEqual(sessionBefore.route_coordinates);
+    expect(trackingAfter.data!.length).toBe(trackingBeforeCount);
+    expect(sessionAfter.route_coordinates).toEqual(routeBefore);
   });
 
   // 20. current_walk_id release
