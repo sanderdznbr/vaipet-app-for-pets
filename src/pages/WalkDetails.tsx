@@ -10,6 +10,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { usePetwalkerGps } from '@/hooks/usePetwalkerGps';
+import { toast } from 'sonner';
 
 const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2FuZGVyY29sb21iZXMiLCJhIjoiY21kNDBuaHZ4MGF3bjJtb2dwNHdsMWR1aCJ9.D_kYvjRu2iigL2uziaEomQ';
 
@@ -37,6 +39,9 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
   const [loading, setLoading] = useState(true);
   const [concluding, setConcluding] = useState(false);
   const [concludeError, setConcludeError] = useState<string | null>(null);
+  const [arriving, setArriving] = useState(false);
+
+  const { coords, accuracy, status: gpsStatus } = usePetwalkerGps();
 
   // PIN states
   const [pinValue, setPinValue] = useState('');
@@ -191,7 +196,7 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
     );
   }
 
-  const coords = (walk.route_coordinates as [number, number][] | null) || [];
+  const trailPoints = (walk.route_coordinates as [number, number][] | null) || [];
   const duration = walk.actual_duration_minutes || walk.planned_duration_minutes;
   const distance = Number(walk.distance_km || 0);
   const price = walk.total_price_cents ? walk.total_price_cents / 100 : 0;
@@ -218,7 +223,7 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
       {/* Trajeto */}
       <div className="px-4">
         <div className="rounded-3xl overflow-hidden border border-border/40 bg-card relative" style={{ height: 320 }}>
-          {coords.length >= 2 ? (
+          {trailPoints.length >= 2 ? (
             <div ref={mapContainer} className="absolute inset-0" />
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-6">
@@ -227,10 +232,10 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
               <p className="text-[11px] text-muted-foreground/60">Este passeio não armazenou pontos GPS.</p>
             </div>
           )}
-          {coords.length >= 2 && (
+          {trailPoints.length >= 2 && (
             <div className="absolute bottom-3 left-3 right-3 rounded-2xl bg-background/85 backdrop-blur px-3 py-2 flex items-center justify-between text-[11px] font-semibold">
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-accent/30" /> Início</span>
-              <span className="text-muted-foreground">{coords.length} pontos</span>
+              <span className="text-muted-foreground">{trailPoints.length} pontos</span>
               <span className="flex items-center gap-1.5">Fim <span className="w-2 h-2 rounded-full bg-accent" /></span>
             </div>
           )}
@@ -341,20 +346,32 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
           {walk.current_status === 'heading_to_pickup' && (
             <button 
               onClick={async () => {
-                navigator.geolocation.getCurrentPosition(async (pos) => {
-                  const { error } = await supabase.rpc('petwalker_arrive_pickup', { 
-                    _session_id: walk.id,
-                    _lat: pos.coords.latitude,
-                    _lng: pos.coords.longitude,
-                    _accuracy: pos.coords.accuracy
-                  });
-                  if (!error) window.location.reload();
-                  else alert(`Erro: ${error.message}`);
-                }, (err) => alert(`GPS Erro: ${err.message}`));
+                if (!coords || accuracy === null) {
+                  toast.error("Aguardando localização GPS. Tente novamente em alguns segundos.");
+                  return;
+                }
+                setArriving(true);
+                const [lng, lat] = coords;
+                const { data, error } = await supabase.rpc('petwalker_arrive_pickup', { 
+                  _session_id: walk.id,
+                  _lat: lat,
+                  _lng: lng,
+                  _accuracy: accuracy
+                });
+                
+                if (error) {
+                  toast.error(`Erro: ${error.message}`);
+                  setArriving(false);
+                } else if (data === true) {
+                  window.location.reload();
+                } else {
+                  setArriving(false);
+                }
               }}
-              className="w-full bg-blue-500 text-white font-extrabold py-4 rounded-2xl shadow-xl active:scale-95 transition-transform"
+              disabled={arriving}
+              className="w-full bg-blue-500 text-white font-extrabold py-4 rounded-2xl shadow-xl active:scale-95 transition-transform disabled:opacity-50"
             >
-              Cheguei no Local
+              {arriving ? 'Processando...' : (!coords || accuracy === null ? 'Aguardando GPS...' : 'Cheguei no Local')}
             </button>
           )}
 
