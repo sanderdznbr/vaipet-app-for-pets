@@ -1,8 +1,8 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
-const Index = () => {
-  const { user, profile, loading, authStatus } = useAuth();
+const RedirectIndex = () => {
+  const { user, loading, authStatus, profile } = useAuth();
 
   if (loading || authStatus === 'initializing') {
     return (
@@ -12,18 +12,14 @@ const Index = () => {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  // Redireciona usuários autenticados para /inicio respeitando onboarding
-  if (profile?.onboarding_completed) {
+  if (user) {
+    if (profile && !profile.onboarding_completed) {
+      return <Navigate to="/onboarding" replace />;
+    }
     return <Navigate to="/inicio" replace />;
   }
 
-  // Se não completou onboarding mas está logado, vai para /inicio também 
-  // (ou você pode definir uma rota de onboarding específica se existir)
-  return <Navigate to="/inicio" replace />;
+  return <Navigate to="/auth" replace />;
 };
 
-export default Index;
+export default RedirectIndex;
