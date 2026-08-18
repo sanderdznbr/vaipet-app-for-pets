@@ -1331,9 +1331,10 @@ export type Database = {
             }
             Returns: string
           }
-      append_walk_tracking_point:
-        | { Args: { _point: number[]; _session_id: string }; Returns: boolean }
-        | { Args: { _point: Json; _session_id: string }; Returns: boolean }
+      append_walk_tracking_point: {
+        Args: { _point: Json; _session_id: string }
+        Returns: boolean
+      }
       approve_petwalker_application: {
         Args: { application_id: string }
         Returns: undefined

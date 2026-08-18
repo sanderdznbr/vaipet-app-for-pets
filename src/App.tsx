@@ -19,7 +19,7 @@ import PetwalkerPerfil from "./pages/petwalker/perfil";
 import PetwalkerGanhos from "./pages/petwalker/ganhos";
 import PetwalkerHistorico from "./pages/petwalker/historico";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
-import { usePetwalkerGps } from "./hooks/usePetwalkerGps";
+import { PetwalkerGpsProvider } from "./components/PetwalkerGpsProvider";
 import SearchWalk from "./pages/SearchWalk";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
@@ -89,7 +89,7 @@ const App = () => {
   return (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <GpsRuntime>
+      <PetwalkerGpsProvider>
         <TooltipProvider>
       <Toaster />
       <Sonner />
@@ -177,22 +177,11 @@ const App = () => {
         </Routes>
       </BrowserRouter>
       </TooltipProvider>
-      </GpsRuntime>
+      </PetwalkerGpsProvider>
     </AuthProvider>
   </QueryClientProvider>
   );
 };
 
-const GpsRuntime = ({ children }: { children: React.ReactNode }) => {
-  const { user, profile } = useAuth();
-  const isPetwalker = profile?.signup_intent === 'petwalker';
-  
-  // availability_status is on petwalker_profiles, but we can approximate online state
-  // Or just pass the intent and handle logic inside the hook if needed.
-  // For now, we'll keep it simple and rely on the hook to check petwalker context.
-  usePetwalkerGps(isPetwalker);
-  
-  return <>{children}</>;
-};
 
 export default App;
