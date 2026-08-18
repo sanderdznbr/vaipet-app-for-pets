@@ -217,10 +217,13 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     const { data, error } = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
     expect(error).toBeNull();
     expect(data).toBe(true);
-    const { data: s } = await admin.from('walk_sessions').select('status, end_time, actual_duration_minutes').eq('id', session.id).single();
+    const { data: s, error: sErr } = await admin.from('walk_sessions').select('status, current_status, end_time, actual_duration_minutes, distance_km').eq('id', session.id).single();
+    expect(sErr).toBeNull();
     expect(s.status).toBe('completed');
+    expect(s.current_status).toBe('completed');
     expect(s.end_time).not.toBeNull();
     expect(s.actual_duration_minutes).toBeGreaterThanOrEqual(1);
+    expect(s.distance_km).toBeGreaterThanOrEqual(0);
   });
 
   // 8. confirm before returning
@@ -230,8 +233,10 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     const { data, error } = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
     expect(error).toBeNull();
     expect(data).toBe(false);
-    const { data: s } = await admin.from('walk_sessions').select('status').eq('id', session.id).single();
+    const { data: s, error: sErr } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
+    expect(sErr).toBeNull();
     expect(s.status).toBe('in_progress');
+    expect(s.current_status).toBe('in_progress');
   });
 
   // 9. Wrong Owner confirm
@@ -241,6 +246,10 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     const { error } = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
     expect(error).not.toBeNull();
     expect(error?.code).toBe('42501');
+    const { data: s, error: sErr } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
+    expect(sErr).toBeNull();
+    expect(s.status).toBe('returning');
+    expect(s.current_status).toBe('returning');
   });
 
   // 10. Walker confirm
@@ -250,6 +259,10 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     const { error } = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
     expect(error).not.toBeNull();
     expect(error?.code).toBe('42501');
+    const { data: s, error: sErr } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
+    expect(sErr).toBeNull();
+    expect(s.status).toBe('returning');
+    expect(s.current_status).toBe('returning');
   });
 
   // 11. replay confirm
@@ -262,6 +275,10 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     const r2 = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
     expect(r2.error).toBeNull();
     expect(r2.data).toBe(false);
+    const { data: s, error: sErr } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
+    expect(sErr).toBeNull();
+    expect(s.status).toBe('completed');
+    expect(s.current_status).toBe('completed');
   });
 
   // 12. petwalker_complete_walk authenticated bloqueado
@@ -271,6 +288,10 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     const { error } = await client.rpc('petwalker_complete_walk', { _session_id: session.id });
     expect(error).not.toBeNull();
     expect(error?.code).toBe('42501');
+    const { data: s, error: sErr } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
+    expect(sErr).toBeNull();
+    expect(s.status).toBe('returning');
+    expect(s.current_status).toBe('returning');
   });
 
   // 13. petwalker_complete_walk anon bloqueado
@@ -280,6 +301,10 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     const { error } = await anon.rpc('petwalker_complete_walk', { _session_id: session.id });
     expect(error).not.toBeNull();
     expect(error?.code).toBe('42501');
+    const { data: s, error: sErr } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
+    expect(sErr).toBeNull();
+    expect(s.status).toBe('returning');
+    expect(s.current_status).toBe('returning');
   });
 
   // 14. service_role in_progress completion bloqueado
@@ -288,8 +313,10 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     const { data, error } = await admin.rpc('petwalker_complete_walk', { _session_id: session.id });
     expect(error).toBeNull();
     expect(data).toBe(false);
-    const { data: s } = await admin.from('walk_sessions').select('status').eq('id', session.id).single();
+    const { data: s, error: sErr } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
+    expect(sErr).toBeNull();
     expect(s.status).toBe('in_progress');
+    expect(s.current_status).toBe('in_progress');
   });
 
   // 15. distance 0 points
