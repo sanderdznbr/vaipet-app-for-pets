@@ -293,7 +293,7 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
       walk_session_id: session.id,
       walker_id: walkerId,
       location: 'POINT(-46.6333 -23.5505)',
-      captured_at: new Date().toISOString()
+      captured_at: Date.now()
     });
     expect(iErr).toBeNull();
     const client = await getAuthenticatedClient(ownerEmail);
@@ -307,8 +307,8 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
   test('17. distance 2+ points', async () => {
     const session = await createSession('returning');
     const points = [
-      { walk_session_id: session.id, walker_id: walkerId, location: 'POINT(-46.6333 -23.5505)', captured_at: new Date(Date.now() - 10000).toISOString() },
-      { walk_session_id: session.id, walker_id: walkerId, location: 'POINT(-46.6343 -23.5515)', captured_at: new Date().toISOString() }
+      { walk_session_id: session.id, walker_id: walkerId, location: 'POINT(-46.6333 -23.5505)', captured_at: Date.now() - 10000 },
+      { walk_session_id: session.id, walker_id: walkerId, location: 'POINT(-46.6343 -23.5515)', captured_at: Date.now() }
     ];
     for (const p of points) {
       const { error: iErr } = await admin.from('walker_tracking').insert(p);
