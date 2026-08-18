@@ -36,7 +36,10 @@ async function waitForOwnerPollingPosition(page: any, target: { latitude: number
         { timeout: Math.min(remaining, 15000) }
       );
       
-      if (response.status() !== 200) continue;
+      if (response.status() !== 200) {
+        throw new Error(`get_active_walker_location returned HTTP ${response.status()}`);
+      }
+      
       const body = await response.json();
       const row = parseWalkerLocationResponse(body);
       
@@ -45,10 +48,10 @@ async function waitForOwnerPollingPosition(page: any, target: { latitude: number
       }
     } catch (e: any) {
       // Small hardening: capture individual timeout and continue until global deadline
-      if (e.name === 'TimeoutError' || e.message.includes('timeout')) {
+      if (e?.name === 'TimeoutError') {
         continue;
       }
-      throw e; // Fail-closed on other errors (parse/HTTP/format)
+      throw e; // Fail-closed on other errors (HTTP, JSON, body/structure invalid)
     }
   }
   throw new Error(`waitForOwnerPollingPosition: Timed out after ${timeout}ms without receiving position near [${target.latitude}, ${target.longitude}]`);
@@ -160,10 +163,10 @@ test.describe('Phase 4.2: Operational Browser GPS Tracking', () => {
     try {
       // 1. Posição A — Baseline Completa
       await walkerPage.goto(`/petwalker/passeio/${sessionId}`);
-      const pollingAPromise = waitForOwnerPollingPosition(ownerPage, posA, 60000);
       await ownerPage.goto(`/search-walk?resume=${sessionId}`);
-      const rowA = await pollingAPromise;
+      const rowA = await waitForOwnerPollingPosition(ownerPage, posA, 60000);
       expect(rowA.lat).toBeCloseTo(posA.latitude, 3);
+      expect(rowA.lng).toBeCloseTo(posA.longitude, 3);
       await expect(ownerPage.locator('[data-testid="active-walker-marker"]')).toBeVisible({ timeout: 30000 });
 
       // Baseline A Auditoria
@@ -190,6 +193,7 @@ test.describe('Phase 4.2: Operational Browser GPS Tracking', () => {
       await walkerCtx.setGeolocation(posB);
       const rowB = await waitForOwnerPollingPosition(ownerPage, posB, 60000);
       expect(rowB.lat).toBeCloseTo(posB.latitude, 4);
+      expect(rowB.lng).toBeCloseTo(posB.longitude, 4);
       
       const { data: profB, error: eb1 } = await admin.from('petwalker_profiles').select('last_location_captured_at').eq('user_id', walkerId).single();
       expect(eb1).toBeNull();
@@ -212,11 +216,12 @@ test.describe('Phase 4.2: Operational Browser GPS Tracking', () => {
       expect(lastPointB[0]).toBeCloseTo(posB.longitude, 4);
       expect(lastPointB[1]).toBeCloseTo(posB.latitude, 4);
 
-      // 3. Refresh
-      const pollingReloadPromise = waitForOwnerPollingPosition(ownerPage, posB, 60000);
-      await ownerPage.reload();
-      const rowReload = await pollingReloadPromise;
+      // 3. Refresh — Provar Polling Pós-Reload
+      await ownerPage.reload({ waitUntil: 'domcontentloaded' });
+      expect(ownerPage.url()).toContain(`/search-walk?resume=${sessionId}`);
+      const rowReload = await waitForOwnerPollingPosition(ownerPage, posB, 60000);
       expect(rowReload.lat).toBeCloseTo(posB.latitude, 4);
+      expect(rowReload.lng).toBeCloseTo(posB.longitude, 4);
       await expect(ownerPage.locator('[data-testid="active-walker-marker"]')).toBeVisible();
 
       // Wait for the real 10s PetwalkerGpsProvider throttle window.
@@ -228,6 +233,7 @@ test.describe('Phase 4.2: Operational Browser GPS Tracking', () => {
       await walkerCtx.setGeolocation(posC);
       const rowC = await waitForOwnerPollingPosition(ownerPage, posC, 60000);
       expect(rowC.lat).toBeCloseTo(posC.latitude, 4);
+      expect(rowC.lng).toBeCloseTo(posC.longitude, 4);
 
       // Auditoria C
       const { data: profC, error: ec1 } = await admin.from('petwalker_profiles').select('last_location_captured_at').eq('user_id', walkerId).single();
