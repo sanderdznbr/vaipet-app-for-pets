@@ -40,8 +40,7 @@ const Painel = () => {
     accuracy: walkerAccuracy, 
     status: gpsStatus, 
     lastSync,
-    isOnline,
-    setIsOnline
+    isOnline
   } = usePetwalkerGps();
 
   const [showOfferSheet, setShowOfferSheet] = useState<WalkOffer | null>(null);
@@ -193,17 +192,10 @@ const Painel = () => {
     if (!user) return;
     
     const init = async () => {
-      // 1. Initial State Sync
-      const { data: profile } = await supabase.from('petwalker_profiles').select('availability_status').eq('user_id', user.id).single();
-      const online = profile?.availability_status === 'available';
-      setIsOnline(online);
-      
-      // 2. Active Session
+      // 1. Initial Session Check
       await refreshActiveRequest();
-      
       setLoading(false);
     };
-
 
     init();
 
@@ -299,14 +291,13 @@ const Painel = () => {
   // --- Handlers ---
 
   const handleToggleOnline = async () => {
-    const nextOnline = !isOnline;
-    const { error } = await supabase.rpc('set_petwalker_availability', { _status: nextOnline ? 'available' : 'offline' });
+    const nextStatus = isOnline ? 'offline' : 'available';
+    const { error } = await supabase.rpc('set_petwalker_availability', { _status: nextStatus });
     if (!error) {
-      setIsOnline(nextOnline);
-      if (!nextOnline) {
+      if (nextStatus === 'offline') {
         setShowOfferSheet(null);
       }
-      toast.success(nextOnline ? 'Você está online' : 'Você está offline');
+      toast.success(nextStatus === 'available' ? 'Você está online' : 'Você está offline');
     }
   };
 

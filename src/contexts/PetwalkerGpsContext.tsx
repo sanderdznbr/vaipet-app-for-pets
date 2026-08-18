@@ -9,7 +9,6 @@ export interface PetwalkerGpsContextType {
   lastSync: Date | null;
   retry: () => void;
   isOnline: boolean;
-  setIsOnline: (online: boolean) => void;
 }
 
 
