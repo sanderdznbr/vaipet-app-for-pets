@@ -196,7 +196,7 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
     );
   }
 
-  const coords = (walk.route_coordinates as [number, number][] | null) || [];
+  const trailPoints = (walk.route_coordinates as [number, number][] | null) || [];
   const duration = walk.actual_duration_minutes || walk.planned_duration_minutes;
   const distance = Number(walk.distance_km || 0);
   const price = walk.total_price_cents ? walk.total_price_cents / 100 : 0;
@@ -223,7 +223,7 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
       {/* Trajeto */}
       <div className="px-4">
         <div className="rounded-3xl overflow-hidden border border-border/40 bg-card relative" style={{ height: 320 }}>
-          {coords.length >= 2 ? (
+          {trailPoints.length >= 2 ? (
             <div ref={mapContainer} className="absolute inset-0" />
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-6">
@@ -232,10 +232,10 @@ export const WalkDetails: React.FC<{ isOperational?: boolean }> = ({ isOperation
               <p className="text-[11px] text-muted-foreground/60">Este passeio não armazenou pontos GPS.</p>
             </div>
           )}
-          {coords.length >= 2 && (
+          {trailPoints.length >= 2 && (
             <div className="absolute bottom-3 left-3 right-3 rounded-2xl bg-background/85 backdrop-blur px-3 py-2 flex items-center justify-between text-[11px] font-semibold">
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-accent/30" /> Início</span>
-              <span className="text-muted-foreground">{coords.length} pontos</span>
+              <span className="text-muted-foreground">{trailPoints.length} pontos</span>
               <span className="flex items-center gap-1.5">Fim <span className="w-2 h-2 rounded-full bg-accent" /></span>
             </div>
           )}
