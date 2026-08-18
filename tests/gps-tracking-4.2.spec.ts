@@ -121,7 +121,6 @@ test.describe("Phase 4.2 Patch 1E: GPS Tracking Final Hardening", () => {
     await walker.auth.signInWithPassword({ email: emailW, password });
 
     try {
-    try {
       const { data: pet } = await admin.from("pets").insert({ owner_id: uidO, name: "P", breed: "P", e2e_test: true }).select().single();
       const { data: session } = await admin.from("walk_sessions").insert({
         customer_id: uidO, walker_id: uidW, pet_id: pet!.id, current_status: 'in_progress',
