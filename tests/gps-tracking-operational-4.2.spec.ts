@@ -76,25 +76,73 @@ test.describe('Phase 4.2: Operational Browser GPS Tracking', () => {
     const { error: p2 } = await admin.from('profiles').update({ onboarding_completed: true, e2e_test: true, signup_intent: 'petwalker', role: 'petwalker' }).eq('id', walkerId);
     expect(p2).toBeNull();
 
-    const { error: r1 } = await admin.from('user_roles').insert([{ user_id: ownerId, role: 'user' }, { user_id: walkerId, role: 'petwalker' }, { user_id: walkerId, role: 'user' }]);
+    const { error: deleteRoleErr } = await admin.from('user_roles').delete().in('user_id', [ownerId, walkerId]);
+    expect(deleteRoleErr).toBeNull();
+
+    const { error: r1 } = await admin.from('user_roles').insert([
+      { user_id: ownerId, role: 'user' },
+      { user_id: walkerId, role: 'user' },
+      { user_id: walkerId, role: 'petwalker' }
+    ]);
     expect(r1).toBeNull();
     
-    const { error: wp1 } = await admin.from('petwalker_profiles').upsert({ user_id: walkerId, approval_status: 'approved', profile_completed: true, is_accepting_requests: true, availability_status: 'available', e2e_test: true });
+    const { error: wp1 } = await admin.from('petwalker_profiles').upsert({ 
+      user_id: walkerId, 
+      approval_status: 'approved', 
+      profile_completed: true, 
+      is_accepting_requests: true, 
+      availability_status: 'available', 
+      e2e_test: true 
+    });
     expect(wp1).toBeNull();
 
-    const { data: pet, error: petErr } = await admin.from('pets').insert({ owner_id: ownerId, name: 'Dog', e2e_test: true, e2e_run_id: E2E_RUN_ID }).select().single();
+    const { data: pet, error: petErr } = await admin.from('pets').insert({ 
+      owner_id: ownerId, 
+      name: 'Dog', 
+      breed: 'Vira-lata',
+      weight: 10,
+      e2e_test: true, 
+      e2e_run_id: E2E_RUN_ID 
+    }).select().single();
     expect(petErr).toBeNull();
 
     const { data: walk, error: walkErr } = await admin.from('walk_sessions').insert({
-      customer_id: ownerId, walker_id: walkerId, pet_id: pet!.id, status: 'in_progress', current_status: 'in_progress', 
-      start_time: new Date().toISOString(), pickup_confirmed_at: new Date().toISOString(), route_coordinates: [],
-      e2e_test: true, e2e_run_id: E2E_RUN_ID
+      customer_id: ownerId, 
+      walker_id: walkerId, 
+      pet_id: pet!.id, 
+      status: 'in_progress', 
+      current_status: 'in_progress', 
+      walk_type: 'livre',
+      planned_duration_minutes: 30,
+      request_mode: 'now',
+      home_location: {
+        lat: -23.5505,
+        lng: -46.6333
+      },
+      start_time: new Date().toISOString(), 
+      pickup_confirmed_at: new Date().toISOString(), 
+      route_coordinates: [],
+      e2e_test: true, 
+      e2e_run_id: E2E_RUN_ID
     }).select().single();
     expect(walkErr).toBeNull();
     sessionId = walk!.id;
 
     const { error: linkErr } = await admin.from('petwalker_profiles').update({ current_walk_id: sessionId }).eq('user_id', walkerId);
     expect(linkErr).toBeNull();
+
+    // 4. Auditoria Pré-Browser
+    const { data: walkAudit, error: walkAuditErr } = await admin.from('walk_sessions').select('*').eq('id', sessionId).single();
+    expect(walkAuditErr).toBeNull();
+    expect(walkAudit.status).toBe('in_progress');
+    expect(walkAudit.current_status).toBe('in_progress');
+    expect(walkAudit.walker_id).toBe(walkerId);
+    expect(walkAudit.customer_id).toBe(ownerId);
+
+    const { data: profileAudit, error: profileAuditErr } = await admin.from('petwalker_profiles').select('*').eq('user_id', walkerId).single();
+    expect(profileAuditErr).toBeNull();
+    expect(profileAudit.current_walk_id).toBe(sessionId);
+    expect(profileAudit.approval_status).toBe('approved');
   });
 
   test('GPS Operational Flow', async ({ browser }) => {
