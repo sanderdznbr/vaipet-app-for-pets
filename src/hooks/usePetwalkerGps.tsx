@@ -5,6 +5,11 @@ import { toast } from 'sonner';
 
 export type GpsStatus = 'requesting' | 'synced' | 'unstable' | 'stale' | 'denied' | 'error';
 
+/**
+ * usePetwalkerGps
+ * Shared GPS infrastructure for Petwalkers.
+ * Walker is the SOLE authority for producing GPS tracking.
+ */
 export const usePetwalkerGps = (isPetwalker: boolean) => {
   const { user } = useAuth();
   const [coords, setCoords] = useState<[number, number] | null>(null);
@@ -15,7 +20,7 @@ export const usePetwalkerGps = (isPetwalker: boolean) => {
 
   const watchId = useRef<number | null>(null);
   const lastUpdateRef = useRef<number>(0);
-  const UPDATE_INTERVAL = 10000; // 10s
+  const UPDATE_INTERVAL = 10000; // 10s throttle per Phase 4.2 specs
 
   // Fetch online status from petwalker_profiles
   useEffect(() => {
@@ -36,7 +41,7 @@ export const usePetwalkerGps = (isPetwalker: boolean) => {
 
     checkOnline();
 
-    // Subscribe to status changes
+    // Subscribe to status changes to enable/disable GPS reactively
     const channel = supabase
       .channel('gps-online-status')
       .on('postgres_changes', {
@@ -58,13 +63,14 @@ export const usePetwalkerGps = (isPetwalker: boolean) => {
     if (!user) return;
     const now = Date.now();
     
-    // Accuracy check (> 60m is unstable)
+    // Accuracy check (> 60m is considered unstable for high-trust tracking)
     const isUnstable = acc > 60;
     
-    // Frequency control
+    // Frequency control: don't hammer the database
     if (now - lastUpdateRef.current < UPDATE_INTERVAL) return;
 
     try {
+      // Hardened RPC: handles profile update, tracking log, and auto-trail append
       const { error } = await supabase.rpc('update_walker_location', {
         _lat: lat,
         _lng: lng,
@@ -77,11 +83,11 @@ export const usePetwalkerGps = (isPetwalker: boolean) => {
         setLastSync(new Date());
         lastUpdateRef.current = now;
       } else {
-        console.error('RPC update_walker_location error:', error);
+        console.error('GPS Sync failed:', error);
         setStatus('error');
       }
     } catch (e) {
-      console.error('Sync error:', e);
+      console.error('GPS Sync exception:', e);
       setStatus('error');
     }
   }, [user]);
@@ -103,7 +109,7 @@ export const usePetwalkerGps = (isPetwalker: boolean) => {
       },
       (err) => {
         setStatus(err.code === 1 ? 'denied' : 'error');
-        if (err.code === 1) toast.error('Permissão de GPS negada');
+        if (err.code === 1) toast.error('Permissão de GPS necessária para trabalhar');
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
@@ -128,7 +134,7 @@ export const usePetwalkerGps = (isPetwalker: boolean) => {
     return () => stopTracking();
   }, [isOnline, user, startTracking, stopTracking]);
 
-  // Stale check
+  // Stale check: if last sync was > 45s ago, mark as stale
   useEffect(() => {
     if (!isOnline) return;
     const interval = setInterval(() => {

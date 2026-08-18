@@ -98,8 +98,9 @@ test.describe("Phase 4.2: Hardened GPS Tracking Infrastructure", () => {
        const { data: session } = await admin.from("walk_sessions").insert({
          customer_id: uid, walker_id: uid, pet_id: pet!.id, current_status: 'in_progress', status: 'in_progress',
          walk_type: "individual", planned_duration_minutes: 30, request_mode: "now", e2e_run_id: runId, e2e_test: true,
-         start_time: new Date().toISOString(), home_location: { lat: 0, lng: 0 }
-       }).select().single();
+          start_time: new Date().toISOString(), home_location: { lat: 0, lng: 0 },
+          route_coordinates: []
+        }).select().single();
 
        // Set current_walk_id on walker profile
        await admin.from('petwalker_profiles').update({ current_walk_id: session!.id }).eq('user_id', uid);
