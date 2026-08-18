@@ -87,8 +87,9 @@ test.describe('Phase 4.3: Completion Security Hardening', () => {
         status: 'in_progress',
         current_status: 'in_progress',
         walk_type: 'livre',
-        start_time: new Date(Date.now() - 3600000 * 2).toISOString(), // 2 hours ago to satisfy 15m minimum
-        planned_duration_minutes: 30,
+        start_time: new Date(Date.now() - 3600000 * 2).toISOString(), // 2 hours ago
+        planned_duration_minutes: 60, // Multiple of 15
+
 
         e2e_test: true,
         e2e_run_id: E2E_RUN_ID
