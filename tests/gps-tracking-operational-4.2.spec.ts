@@ -216,11 +216,12 @@ test.describe('Phase 4.2: Operational Browser GPS Tracking', () => {
       expect(lastPointB[0]).toBeCloseTo(posB.longitude, 4);
       expect(lastPointB[1]).toBeCloseTo(posB.latitude, 4);
 
-      // 3. Refresh
-      const pollingReloadPromise = waitForOwnerPollingPosition(ownerPage, posB, 60000);
-      await ownerPage.reload();
-      const rowReload = await pollingReloadPromise;
+      // 3. Refresh — Provar Polling Pós-Reload
+      await ownerPage.reload({ waitUntil: 'domcontentloaded' });
+      expect(ownerPage.url()).toContain(`/search-walk?resume=${sessionId}`);
+      const rowReload = await waitForOwnerPollingPosition(ownerPage, posB, 60000);
       expect(rowReload.lat).toBeCloseTo(posB.latitude, 4);
+      expect(rowReload.lng).toBeCloseTo(posB.longitude, 4);
       await expect(ownerPage.locator('[data-testid="active-walker-marker"]')).toBeVisible();
 
       // Wait for the real 10s PetwalkerGpsProvider throttle window.
