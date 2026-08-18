@@ -21,7 +21,10 @@ async function getAuthenticatedClient(email: string): Promise<SupabaseClient> {
     email,
     password: 'VaiPet@2026'
   });
-  if (error) throw error;
+  if (error) {
+    console.error(`SignIn failed for ${email}:`, error);
+    throw error;
+  }
   if (!data.session) throw new Error(`Failed to establish session for ${email}`);
   return client;
 }
@@ -290,8 +293,7 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
       walk_session_id: session.id,
       walker_id: walkerId,
       location: 'POINT(-46.6333 -23.5505)',
-      captured_at: new Date().toISOString(),
-      e2e_test: true
+      captured_at: new Date().toISOString()
     });
     expect(iErr).toBeNull();
     const client = await getAuthenticatedClient(ownerEmail);
@@ -305,8 +307,8 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
   test('17. distance 2+ points', async () => {
     const session = await createSession('returning');
     const points = [
-      { walk_session_id: session.id, walker_id: walkerId, location: 'POINT(-46.6333 -23.5505)', captured_at: new Date(Date.now() - 10000).toISOString(), e2e_test: true },
-      { walk_session_id: session.id, walker_id: walkerId, location: 'POINT(-46.6343 -23.5515)', captured_at: new Date().toISOString(), e2e_test: true }
+      { walk_session_id: session.id, walker_id: walkerId, location: 'POINT(-46.6333 -23.5505)', captured_at: new Date(Date.now() - 10000).toISOString() },
+      { walk_session_id: session.id, walker_id: walkerId, location: 'POINT(-46.6343 -23.5515)', captured_at: new Date().toISOString() }
     ];
     for (const p of points) {
       const { error: iErr } = await admin.from('walker_tracking').insert(p);
