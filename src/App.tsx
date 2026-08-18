@@ -176,8 +176,8 @@ const App = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
-      </GpsRuntime>
       </TooltipProvider>
+      </GpsRuntime>
     </AuthProvider>
   </QueryClientProvider>
   );
