@@ -121,6 +121,7 @@ test.describe("Phase 4.2 Patch 1E: GPS Tracking Final Hardening", () => {
     await walker.auth.signInWithPassword({ email: emailW, password });
 
     try {
+    try {
       const { data: pet } = await admin.from("pets").insert({ owner_id: uidO, name: "P", breed: "P", e2e_test: true }).select().single();
       const { data: session } = await admin.from("walk_sessions").insert({
         customer_id: uidO, walker_id: uidW, pet_id: pet!.id, current_status: 'in_progress',
@@ -128,7 +129,11 @@ test.describe("Phase 4.2 Patch 1E: GPS Tracking Final Hardening", () => {
         start_time: new Date().toISOString(), status: 'in_progress', home_location: { lat: 0, lng: 0 }, route_coordinates: []
       }).select().single();
 
+      // Ensure profile points to session
       await admin.from('petwalker_profiles').update({ current_walk_id: session!.id }).eq('user_id', uidW);
+      
+      // Wait for propagation
+      await new Promise(r => setTimeout(r, 1000));
 
       // 1. Trail Format: [] -> [[lng, lat]]
       const t1 = Date.now();
