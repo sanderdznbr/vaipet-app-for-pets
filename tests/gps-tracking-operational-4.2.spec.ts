@@ -67,7 +67,9 @@ test.describe('Phase 4.2: Operational Browser GPS Tracking', () => {
     expect(p2).toBeNull();
 
     // Roles
-    await admin.from('user_roles').delete().in('user_id', [ownerId, walkerId]);
+    const { error: delRolesErr } = await admin.from('user_roles').delete().in('user_id', [ownerId, walkerId]);
+    expect(delRolesErr).toBeNull();
+    
     const { error: r1 } = await admin.from('user_roles').insert([
       { user_id: ownerId, role: 'user' },
       { user_id: walkerId, role: 'user' },
