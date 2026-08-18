@@ -151,6 +151,18 @@ test.describe("Phase 4.2 Patch 1E: GPS Tracking Final Hardening", () => {
       const { count: trackCount } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
       console.log(`Initial Sync Audit - Trail: ${JSON.stringify(w1?.route_coordinates)}, Logs: ${trackCount}`);
 
+      // Probe check: Does the session really exist and have the right walker?
+      const { data: sCheck } = await admin.from('walk_sessions').select('walker_id, current_status').eq('id', session!.id).single();
+      const { data: pCheck } = await admin.from('petwalker_profiles').select('current_walk_id, approval_status').eq('user_id', uidW).single();
+      const { data: rCheck } = await admin.from('user_roles').select('role').eq('user_id', uidW).eq('role', 'petwalker').single();
+      
+      console.log(`Pre-Assertion Context:
+        Session: ${JSON.stringify(sCheck)}
+        Profile: ${JSON.stringify(pCheck)}
+        Role: ${JSON.stringify(rCheck)}
+        AuthUID: ${uidW}
+      `);
+
       expect(w1?.route_coordinates || []).toEqual([[20, 10]]);
 
       // 2. MONOTONICIDADE (Matrix B)
