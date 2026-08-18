@@ -368,13 +368,18 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     const session = await createSession('returning');
     const { error: upErr } = await admin.from('petwalker_profiles').update({ current_walk_id: session.id }).eq('user_id', walkerId);
     expect(upErr).toBeNull();
+    const { data: profBefore, error: pErr1 } = await admin.from('petwalker_profiles').select('current_walk_id').eq('user_id', walkerId).single();
+    expect(pErr1).toBeNull();
+    expect(profBefore.current_walk_id).toBe(session.id);
     
     const ownerClient = await getAuthenticatedClient(ownerEmail);
-    await ownerClient.rpc('customer_confirm_arrival', { _session_id: session.id });
+    const { data: cData, error: cErr } = await ownerClient.rpc('customer_confirm_arrival', { _session_id: session.id });
+    expect(cErr).toBeNull();
+    expect(cData).toBe(true);
     
-    const { data: prof, error: pErr } = await admin.from('petwalker_profiles').select('current_walk_id').eq('user_id', walkerId).single();
-    expect(pErr).toBeNull();
-    expect(prof.current_walk_id).toBeNull();
+    const { data: profAfter, error: pErr2 } = await admin.from('petwalker_profiles').select('current_walk_id').eq('user_id', walkerId).single();
+    expect(pErr2).toBeNull();
+    expect(profAfter.current_walk_id).toBeNull();
   });
 
   // 21. dual confirmation concurrency
@@ -382,6 +387,9 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     const session = await createSession('returning');
     const { error: upErr } = await admin.from('petwalker_profiles').update({ current_walk_id: session.id }).eq('user_id', walkerId);
     expect(upErr).toBeNull();
+    const { data: pBefore, error: pErr1 } = await admin.from('petwalker_profiles').select('current_walk_id').eq('user_id', walkerId).single();
+    expect(pErr1).toBeNull();
+    expect(pBefore.current_walk_id).toBe(session.id);
     
     const ownerClient = await getAuthenticatedClient(ownerEmail);
     const [res1, res2] = await Promise.all([
@@ -395,7 +403,14 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     expect(results.filter(v => v === true)).toHaveLength(1);
     expect(results.filter(v => v === false)).toHaveLength(1);
     
-    const { data: s } = await admin.from('walk_sessions').select('status').eq('id', session.id).single();
+    const { data: s, error: sErr } = await admin.from('walk_sessions').select('status, current_status, end_time').eq('id', session.id).single();
+    expect(sErr).toBeNull();
     expect(s.status).toBe('completed');
+    expect(s.current_status).toBe('completed');
+    expect(s.end_time).not.toBeNull();
+    
+    const { data: pAfter, error: pErr2 } = await admin.from('petwalker_profiles').select('current_walk_id').eq('user_id', walkerId).single();
+    expect(pErr2).toBeNull();
+    expect(pAfter.current_walk_id).toBeNull();
   });
 });
