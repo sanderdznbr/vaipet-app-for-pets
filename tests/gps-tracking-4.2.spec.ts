@@ -111,13 +111,21 @@ test.describe("Phase 4.2 Patch 1C: Hardened GPS Authority & Trials", () => {
         start_time: new Date().toISOString(), status: 'in_progress', home_location: { lat: 0, lng: 0 }, route_coordinates: []
       }).select().single();
 
+      // Ensure profile links to session
       await admin.from('petwalker_profiles').update({ current_walk_id: session!.id }).eq('user_id', uidW);
+
+      // Verify profile is set
+      const { data: prof } = await admin.from('petwalker_profiles').select('current_walk_id').eq('user_id', uidW).single();
+      console.log('Profile current_walk_id:', prof?.current_walk_id);
 
       // 1. Valid update: trial grows
       const t1 = Date.now();
-      await walker.rpc('update_walker_location', { _lat: 10, _lng: 20, _accuracy: 10, _captured_at: t1 });
+      const { data: res1, error: err1 } = await walker.rpc('update_walker_location', { _lat: 10.1, _lng: 20.1, _accuracy: 10, _captured_at: t1 });
+      console.log('RPC Res:', res1, 'Error:', err1);
+      
       const { data: w1 } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
-      expect(w1?.route_coordinates).toContainEqual([20, 10]);
+      console.log('Route Coords:', JSON.stringify(w1?.route_coordinates));
+      expect(w1?.route_coordinates).toContainEqual([20.1, 10.1]);
 
       // 2. Monotonicity check
       const { data: resMono } = await walker.rpc('update_walker_location', { _lat: 11, _lng: 21, _accuracy: 10, _captured_at: t1 - 100 });
@@ -126,21 +134,15 @@ test.describe("Phase 4.2 Patch 1C: Hardened GPS Authority & Trials", () => {
       // 3. Completed Session isolation
       await admin.from('walk_sessions').update({ current_status: 'completed' }).eq('id', session!.id);
       
-      const countBefore = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('session_id', session!.id);
-      await walker.rpc('update_walker_location', { _lat: 12, _lng: 22, _accuracy: 10, _captured_at: t1 + 1000 });
-      const countAfter = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('session_id', session!.id);
+      const t2 = t1 + 1000;
+      await walker.rpc('update_walker_location', { _lat: 12, _lng: 22, _accuracy: 10, _captured_at: t2 });
       
-      // route_coordinates must NOT grow
       const { data: wFinal } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
       expect(wFinal?.route_coordinates).not.toContainEqual([22, 12]);
       
-      // walker_tracking must NOT grow for session_id (it was security defined but session is completed)
-      // Note: update_walker_location will still insert into walker_tracking but with session_id being linked to a completed walk, 
-      // the INTERNAL helper append_walk_tracking_point should fail because of current_status.
-      // Actually, my RPC inserts into walker_tracking using _profile.current_walk_id.
-      // If we want to be strict: walker_tracking records should only exist for active sessions.
-      // The requirement says: session completed -> update_walker_location NÃO cria novo walker_tracking.
-      // My RPC needs to be updated to check session status before INSERT into walker_tracking if session_id is present.
+      // walker_tracking check
+      const { count: trackingCount } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id).eq('captured_at', t2);
+      expect(trackingCount).toBe(0);
       
     } finally {
       await failClosedCleanup(admin, [uidW, uidO], runId);
