@@ -233,6 +233,7 @@ test.describe('Phase 4.2: Operational Browser GPS Tracking', () => {
       await walkerCtx.setGeolocation(posC);
       const rowC = await waitForOwnerPollingPosition(ownerPage, posC, 60000);
       expect(rowC.lat).toBeCloseTo(posC.latitude, 4);
+      expect(rowC.lng).toBeCloseTo(posC.longitude, 4);
 
       // Auditoria C
       const { data: profC, error: ec1 } = await admin.from('petwalker_profiles').select('last_location_captured_at').eq('user_id', walkerId).single();
