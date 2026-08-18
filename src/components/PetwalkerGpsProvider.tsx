@@ -75,21 +75,24 @@ export const PetwalkerGpsProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     try {
       // Hardened RPC: handles monotonicity and authority checks
-      const { error } = await supabase.rpc('update_walker_location', {
+      const { data, error } = await supabase.rpc('update_walker_location', {
         _lat: lat,
         _lng: lng,
         _accuracy: acc,
         _captured_at: capturedAt
       });
 
-      if (!error) {
-        setStatus(isUnstable ? 'unstable' : 'synced');
-        setLastSync(new Date());
-        lastUpdateRef.current = now;
-      } else {
-        console.error('GPS Sync failed:', error);
-        setStatus('error');
+      // Point rejected by server (monotonicity, busy logic, etc.) OR error
+      if (error || data !== true) {
+        if (error) console.error('GPS Sync failed:', error);
+        setStatus(error ? 'error' : 'unstable');
+        return;
       }
+
+      // Success: data === true
+      setStatus(isUnstable ? 'unstable' : 'synced');
+      setLastSync(new Date());
+      lastUpdateRef.current = now;
     } catch (e) {
       console.error('GPS Sync exception:', e);
       setStatus('error');
@@ -162,8 +165,7 @@ export const PetwalkerGpsProvider: React.FC<{ children: React.ReactNode }> = ({ 
       status, 
       lastSync, 
       retry: startTracking,
-      isOnline: isActive,
-      setIsOnline: setIsActive
+      isOnline: isActive
     }}>
 
       {children}

@@ -2292,8 +2292,8 @@ export type Database = {
       }
       update_walker_location: {
         Args: {
-          _accuracy?: number
-          _captured_at?: number
+          _accuracy: number
+          _captured_at: number
           _lat: number
           _lng: number
         }
