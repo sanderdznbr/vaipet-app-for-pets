@@ -125,12 +125,24 @@ test.describe("Phase 4.2 Patch 1F: GPS Tracking Final Validation & Completeness"
       await admin.from('petwalker_profiles').update({ current_walk_id: session!.id, approval_status: 'approved' }).eq('user_id', uidW);
       
       // A) NULL INPUTS (Requirement A)
+      const { data: profBeforeNull } = await admin.from('petwalker_profiles').select('last_location_captured_at, last_known_location').eq('user_id', uidW).single();
+      const { count: countBeforeNull } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      const { data: sessionBeforeNull } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
+
       const { error: errLat } = await walker.rpc('update_walker_location', { _lat: null, _lng: 20, _accuracy: 10, _captured_at: Date.now() });
       expect(errLat?.code).toBe('22000');
       const { error: errLng } = await walker.rpc('update_walker_location', { _lat: 10, _lng: null, _accuracy: 10, _captured_at: Date.now() });
       expect(errLng?.code).toBe('22000');
       const { error: errCap } = await walker.rpc('update_walker_location', { _lat: 10, _lng: 20, _accuracy: 10, _captured_at: null });
       expect(errCap?.code).toBe('22000');
+
+      const { data: profAfterNull } = await admin.from('petwalker_profiles').select('last_location_captured_at, last_known_location').eq('user_id', uidW).single();
+      const { count: countAfterNull } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      const { data: sessionAfterNull } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
+
+      expect(profAfterNull).toEqual(profBeforeNull);
+      expect(countAfterNull).toBe(countBeforeNull);
+      expect(sessionAfterNull?.route_coordinates).toEqual(sessionBeforeNull?.route_coordinates);
 
       // B) ACCURACY (Requirement B)
       const { error: errAccNeg } = await walker.rpc('update_walker_location', { _lat: 10, _lng: 20, _accuracy: -1, _captured_at: Date.now() });
@@ -143,25 +155,44 @@ test.describe("Phase 4.2 Patch 1F: GPS Tracking Final Validation & Completeness"
       expect(resAccNull).toBe(true);
 
       // C) MONOTONICIDADE (Requirement C)
+      const { data: profMonoBefore } = await admin.from('petwalker_profiles').select('last_location_captured_at, last_known_location').eq('user_id', uidW).single();
+      
       const { data: resMono } = await walker.rpc('update_walker_location', { _lat: 12, _lng: 22, _accuracy: 10, _captured_at: t1 - 100 });
       expect(resMono).toBe(false);
-      const { data: profMono } = await admin.from('petwalker_profiles').select('last_location_captured_at, last_known_location').eq('user_id', uidW).single();
-      expect(Number(profMono?.last_location_captured_at)).toBe(t1);
+      
+      const { data: profMonoAfter } = await admin.from('petwalker_profiles').select('last_location_captured_at, last_known_location').eq('user_id', uidW).single();
+      expect(profMonoAfter?.last_location_captured_at).toBe(profMonoBefore?.last_location_captured_at);
+      expect(profMonoAfter?.last_known_location).toEqual(profMonoBefore?.last_known_location);
 
       // D) COMPLETED (Requirement D)
-      await admin.from('walk_sessions').update({ current_status: 'completed', last_tracking_at: new Date(Date.now() - 10000).toISOString() }).eq('id', session!.id);
-      const { count: countBeforeComp } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      await admin.from('walk_sessions').update({ 
+        current_status: 'completed', 
+        last_tracking_at: new Date(Date.now() - 10000).toISOString() 
+      }).eq('id', session!.id);
+      
+      const { data: routeBeforeCompleted } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
+      const { count: countBeforeCompleted } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      
       await walker.rpc('update_walker_location', { _lat: 16, _lng: 26, _accuracy: 10, _captured_at: t1 + 30000 });
-      const { data: wComp } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
-      const { count: countAfterComp } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
-      expect(wComp?.route_coordinates).toEqual(expect.anything()); // Trail shouldn't grow
-      expect(countAfterComp).toBe(countBeforeComp);
+      
+      const { data: routeAfterCompleted } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
+      const { count: countAfterCompleted } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      
+      expect(routeAfterCompleted?.route_coordinates).toEqual(routeBeforeCompleted?.route_coordinates);
+      expect(countAfterCompleted).toBe(countBeforeCompleted);
 
       // E) CANCELLED (Requirement E)
       await admin.from('walk_sessions').update({ current_status: 'cancelled' }).eq('id', session!.id);
+      
+      const { data: routeBeforeCanc } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
       const { count: countBeforeCanc } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      
       await walker.rpc('update_walker_location', { _lat: 17, _lng: 27, _accuracy: 10, _captured_at: t1 + 40000 });
+      
+      const { data: routeAfterCanc } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
       const { count: countAfterCanc } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      
+      expect(routeAfterCanc?.route_coordinates).toEqual(routeBeforeCanc?.route_coordinates);
       expect(countAfterCanc).toBe(countBeforeCanc);
 
       // F) LIMITE DE 5000 (Requirement F)
@@ -172,21 +203,35 @@ test.describe("Phase 4.2 Patch 1F: GPS Tracking Final Validation & Completeness"
         last_tracking_at: new Date(Date.now() - 10000).toISOString()
       }).eq('id', session!.id);
       
+      const { count: countBeforeLimit } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      
       const { error: errLimit } = await walker.rpc('update_walker_location', { _lat: 1, _lng: 1, _accuracy: 10, _captured_at: t1 + 50000 });
       expect(errLimit?.message).toMatch(/Max tracking points/);
       
       const { data: wLimit } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
+      const { count: countAfterLimit } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      
       expect(wLimit?.route_coordinates).toHaveLength(5000);
+      expect(wLimit?.route_coordinates).toEqual(mockCoords);
+      expect(countAfterLimit).toBe(countBeforeLimit);
 
       // G) FORMATO INVÁLIDO (Requirement G)
+      const invalidFormat = { not: "an_array" };
       await admin.from('walk_sessions').update({ 
-        route_coordinates: { not: "an_array" },
+        route_coordinates: invalidFormat,
         last_tracking_at: new Date(Date.now() - 10000).toISOString()
       }).eq('id', session!.id);
+      
+      const { count: countBeforeInv } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      
       const { error: errInv } = await walker.rpc('update_walker_location', { _lat: 1, _lng: 1, _accuracy: 10, _captured_at: t1 + 60000 });
       expect(errInv?.message).toMatch(/Invalid route_coordinates format/);
+      
       const { data: wInv } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session!.id).single();
-      expect(wInv?.route_coordinates).toEqual({ not: "an_array" });
+      const { count: countAfterInv } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session!.id);
+      
+      expect(wInv?.route_coordinates).toEqual(invalidFormat);
+      expect(countAfterInv).toBe(countBeforeInv);
 
     } finally {
       await failClosedCleanup(admin, [uidW, uidO], runId);
