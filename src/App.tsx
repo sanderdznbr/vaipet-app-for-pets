@@ -186,10 +186,11 @@ const App = () => {
 const GpsRuntime = ({ children }: { children: React.ReactNode }) => {
   const { user, profile } = useAuth();
   const isPetwalker = profile?.signup_intent === 'petwalker';
-  const isOnline = isPetwalker && profile?.availability_status === 'available';
   
-  // The hook handles the side effects of watching GPS and syncing to DB
-  usePetwalkerGps(isOnline);
+  // availability_status is on petwalker_profiles, but we can approximate online state
+  // Or just pass the intent and handle logic inside the hook if needed.
+  // For now, we'll keep it simple and rely on the hook to check petwalker context.
+  usePetwalkerGps(isPetwalker);
   
   return <>{children}</>;
 };
