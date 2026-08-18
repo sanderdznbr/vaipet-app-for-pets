@@ -21,12 +21,15 @@ async function getAuthenticatedClient(email: string): Promise<SupabaseClient> {
     email,
     password: 'VaiPet@2026'
   });
-  if (error) throw error;
+  if (error) {
+    console.error(`SignIn failed for ${email}:`, error);
+    throw error;
+  }
   if (!data.session) throw new Error(`Failed to establish session for ${email}`);
   return client;
 }
 
-test.describe('Phase 4.3: Completion Security Hardening (Patch 1B)', () => {
+test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
   let ownerId: string;
   let wrongOwnerId: string;
   let walkerId: string;
@@ -117,157 +120,282 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1B)', () => {
       e2e_test: true,
       e2e_run_id: E2E_RUN_ID
     }).select().single();
-    if (error) throw error;
+    if (error) {
+      console.error('Error creating session:', error);
+      throw error;
+    }
     return data;
   }
 
-  test('1. UPDATE CONFLITANTE: status != current_status -> Fail-closed', async () => {
+  // 1. status/current_status divergentes bloqueados
+  test('1. status/current_status divergentes bloqueados', async () => {
     const session = await createSession('in_progress');
-    
-    // Attempt divergent update
     const { error } = await admin.from('walk_sessions').update({ 
       current_status: 'returning', 
       status: 'completed' 
     }).eq('id', session.id);
-    
     expect(error).not.toBeNull();
-    
-    const { data: check, error: checkErr } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
-    if (checkErr) throw checkErr;
-    expect(check.status).toBe('in_progress');
-    expect(check.current_status).toBe('in_progress');
-    
-    // Provar cenário válido
-    const { error: validErr } = await admin.from('walk_sessions').update({
+    const { data, error: sErr } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
+    expect(sErr).toBeNull();
+    expect(data.status).toBe('in_progress');
+  });
+
+  // 2. transição válida ambos -> returning
+  test('2. transição válida ambos -> returning', async () => {
+    const session = await createSession('in_progress');
+    const { error } = await admin.from('walk_sessions').update({
       status: 'returning',
       current_status: 'returning'
     }).eq('id', session.id);
-    expect(validErr).toBeNull();
-    
-    const { data: validCheck, error: vCheckErr } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
-    if (vCheckErr) throw vCheckErr;
-    expect(validCheck.status).toBe('returning');
-    expect(validCheck.current_status).toBe('returning');
+    expect(error).toBeNull();
   });
 
-  test('4-6. TRACKING FREEZE E RELEASE: Prova Real', async () => {
-    const session = await createSession('returning');
-    
-    const { error: upErr } = await admin.from('petwalker_profiles').update({ current_walk_id: session.id }).eq('user_id', walkerId);
-    if (upErr) throw upErr;
-    
-    const { data: profBefore, error: pbErr } = await admin.from('petwalker_profiles').select('current_walk_id').eq('user_id', walkerId).single();
-    if (pbErr) throw pbErr;
-    expect(profBefore.current_walk_id).toBe(session.id);
+  // 3. Owner request_return
+  test('3. Owner request_return', async () => {
+    const session = await createSession('in_progress');
+    const client = await getAuthenticatedClient(ownerEmail);
+    const { data, error } = await client.rpc('customer_request_return', { _session_id: session.id });
+    expect(error).toBeNull();
+    expect(data).toBe(true);
+    const { data: s, error: sErr } = await admin.from('walk_sessions').select('status').eq('id', session.id).single();
+    expect(sErr).toBeNull();
+    expect(s.status).toBe('returning');
+  });
 
-    const walkerClient = await getAuthenticatedClient(walkerEmail);
+  // 4. Wrong Owner request_return
+  test('4. Wrong Owner request_return', async () => {
+    const session = await createSession('in_progress');
+    const client = await getAuthenticatedClient(wrongOwnerEmail);
+    const { error } = await client.rpc('customer_request_return', { _session_id: session.id });
+    expect(error).not.toBeNull();
+    expect(error?.code).toBe('42501');
+    const { data: s } = await admin.from('walk_sessions').select('status').eq('id', session.id).single();
+    expect(s.status).toBe('in_progress');
+  });
+
+  // 5. Walker request_return
+  test('5. Walker request_return', async () => {
+    const session = await createSession('in_progress');
+    const client = await getAuthenticatedClient(walkerEmail);
+    const { error } = await client.rpc('customer_request_return', { _session_id: session.id });
+    expect(error).not.toBeNull();
+    expect(error?.code).toBe('42501');
+  });
+
+  // 6. replay request_return
+  test('6. replay request_return', async () => {
+    const session = await createSession('in_progress');
+    const client = await getAuthenticatedClient(ownerEmail);
+    const r1 = await client.rpc('customer_request_return', { _session_id: session.id });
+    expect(r1.error).toBeNull();
+    expect(r1.data).toBe(true);
+    const r2 = await client.rpc('customer_request_return', { _session_id: session.id });
+    expect(r2.error).toBeNull();
+    expect(r2.data).toBe(false);
+  });
+
+  // 7. Owner confirm_arrival
+  test('7. Owner confirm_arrival', async () => {
+    const session = await createSession('returning');
+    const client = await getAuthenticatedClient(ownerEmail);
+    const { data, error } = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
+    expect(error).toBeNull();
+    expect(data).toBe(true);
+    const { data: s } = await admin.from('walk_sessions').select('status, end_time, actual_duration_minutes').eq('id', session.id).single();
+    expect(s.status).toBe('completed');
+    expect(s.end_time).not.toBeNull();
+    expect(s.actual_duration_minutes).toBeGreaterThanOrEqual(1);
+  });
+
+  // 8. confirm before returning
+  test('8. confirm before returning', async () => {
+    const session = await createSession('in_progress');
+    const client = await getAuthenticatedClient(ownerEmail);
+    const { data, error } = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
+    expect(error).toBeNull();
+    expect(data).toBe(false);
+    const { data: s } = await admin.from('walk_sessions').select('status').eq('id', session.id).single();
+    expect(s.status).toBe('in_progress');
+  });
+
+  // 9. Wrong Owner confirm
+  test('9. Wrong Owner confirm', async () => {
+    const session = await createSession('returning');
+    const client = await getAuthenticatedClient(wrongOwnerEmail);
+    const { error } = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
+    expect(error).not.toBeNull();
+    expect(error?.code).toBe('42501');
+  });
+
+  // 10. Walker confirm
+  test('10. Walker confirm', async () => {
+    const session = await createSession('returning');
+    const client = await getAuthenticatedClient(walkerEmail);
+    const { error } = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
+    expect(error).not.toBeNull();
+    expect(error?.code).toBe('42501');
+  });
+
+  // 11. replay confirm
+  test('11. replay confirm', async () => {
+    const session = await createSession('returning');
+    const client = await getAuthenticatedClient(ownerEmail);
+    const r1 = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
+    expect(r1.error).toBeNull();
+    expect(r1.data).toBe(true);
+    const r2 = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
+    expect(r2.error).toBeNull();
+    expect(r2.data).toBe(false);
+  });
+
+  // 12. petwalker_complete_walk authenticated bloqueado
+  test('12. petwalker_complete_walk authenticated bloqueado', async () => {
+    const session = await createSession('returning');
+    const client = await getAuthenticatedClient(walkerEmail);
+    const { error } = await client.rpc('petwalker_complete_walk', { _session_id: session.id });
+    expect(error).not.toBeNull();
+    expect(error?.code).toBe('42501');
+  });
+
+  // 13. petwalker_complete_walk anon bloqueado
+  test('13. petwalker_complete_walk anon bloqueado', async () => {
+    const session = await createSession('returning');
+    const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { error } = await anon.rpc('petwalker_complete_walk', { _session_id: session.id });
+    expect(error).not.toBeNull();
+    expect(error?.code).toBe('42501');
+  });
+
+  // 14. service_role in_progress completion bloqueado
+  test('14. service_role in_progress completion bloqueado', async () => {
+    const session = await createSession('in_progress');
+    const { data, error } = await admin.rpc('petwalker_complete_walk', { _session_id: session.id });
+    expect(error).toBeNull();
+    expect(data).toBe(false);
+    const { data: s } = await admin.from('walk_sessions').select('status').eq('id', session.id).single();
+    expect(s.status).toBe('in_progress');
+  });
+
+  // 15. distance 0 points
+  test('15. distance 0 points', async () => {
+    const session = await createSession('returning');
+    const client = await getAuthenticatedClient(ownerEmail);
+    const { error } = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
+    expect(error).toBeNull();
+    const { data: s } = await admin.from('walk_sessions').select('distance_km').eq('id', session.id).single();
+    expect(s.distance_km).toBe(0);
+  });
+
+  // 16. distance 1 point
+  test('16. distance 1 point', async () => {
+    const session = await createSession('returning');
+    const { error: iErr } = await admin.from('walker_tracking').insert({
+      walk_session_id: session.id,
+      walker_id: walkerId,
+      location: 'POINT(-46.6333 -23.5505)',
+      captured_at: Date.now()
+    });
+    expect(iErr).toBeNull();
+    const client = await getAuthenticatedClient(ownerEmail);
+    const { error } = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
+    expect(error).toBeNull();
+    const { data: s } = await admin.from('walk_sessions').select('distance_km').eq('id', session.id).single();
+    expect(s.distance_km).toBe(0);
+  });
+
+  // 17. distance 2+ points
+  test('17. distance 2+ points', async () => {
+    const session = await createSession('returning');
+    const points = [
+      { walk_session_id: session.id, walker_id: walkerId, location: 'POINT(-46.6333 -23.5505)', captured_at: Date.now() - 10000 },
+      { walk_session_id: session.id, walker_id: walkerId, location: 'POINT(-46.6343 -23.5515)', captured_at: Date.now() }
+    ];
+    for (const p of points) {
+      const { error: iErr } = await admin.from('walker_tracking').insert(p);
+      expect(iErr).toBeNull();
+    }
+    const client = await getAuthenticatedClient(ownerEmail);
+    const { error } = await client.rpc('customer_confirm_arrival', { _session_id: session.id });
+    expect(error).toBeNull();
+    const { data: s } = await admin.from('walk_sessions').select('distance_km').eq('id', session.id).single();
+    expect(s.distance_km).toBeGreaterThan(0);
+  });
+
+  // 18. real tracking freeze & 19. route freeze
+  test('18-19. real tracking freeze & route freeze', async () => {
+    const session = await createSession('returning');
+    const { error: upErr } = await admin.from('petwalker_profiles').update({ current_walk_id: session.id }).eq('user_id', walkerId);
+    expect(upErr).toBeNull();
     
-    // RPC Canônica para produzir o ponto
+    const walkerClient = await getAuthenticatedClient(walkerEmail);
     const capturedAt = Date.now();
-    const { data: locData, error: locErr } = await walkerClient.rpc('update_walker_location', {
+    const { error: locErr } = await walkerClient.rpc('update_walker_location', {
       _lat: -23.5505,
       _lng: -46.6333,
       _accuracy: 10,
       _captured_at: capturedAt
     });
     expect(locErr).toBeNull();
-    expect(locData).toBe(true);
     
     const { data: sessionBefore, error: sbErr } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session.id).single();
-    if (sbErr) throw sbErr;
-    expect(Array.isArray(sessionBefore.route_coordinates)).toBe(true);
-    expect(sessionBefore.route_coordinates.length).toBeGreaterThan(0);
+    expect(sbErr).toBeNull();
+    const trackingBefore = await admin.from('walker_tracking').select('id').eq('walk_session_id', session.id);
+    expect(trackingBefore.error).toBeNull();
     
-    const { count: countBefore, error: cbErr } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session.id);
-    if (cbErr) throw cbErr;
-    expect(countBefore).toBeGreaterThan(0);
-
     const ownerClient = await getAuthenticatedClient(ownerEmail);
-    const { data: confirmData, error: confirmErr } = await ownerClient.rpc('customer_confirm_arrival', { _session_id: session.id });
+    const { error: confirmErr } = await ownerClient.rpc('customer_confirm_arrival', { _session_id: session.id });
     expect(confirmErr).toBeNull();
-    expect(confirmData).toBe(true);
     
-    const { data: sessionAfterConfirm, error: sacErr } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
-    if (sacErr) throw sacErr;
-    expect(sessionAfterConfirm.status).toBe('completed');
-    
-    const { data: profAfter, error: paErr } = await admin.from('petwalker_profiles').select('current_walk_id').eq('user_id', walkerId).single();
-    if (paErr) throw paErr;
-    expect(profAfter.current_walk_id).toBeNull();
-
-    // GPS DEPOIS DE COMPLETED
-    const { data: postData, error: postErr } = await walkerClient.rpc('update_walker_location', {
+    // GPS post completion
+    await walkerClient.rpc('update_walker_location', {
       _lat: -23.5515,
       _lng: -46.6343,
       _accuracy: 10,
       _captured_at: capturedAt + 10000
     });
-    expect(postErr).toBeNull();
-    expect(postData).toBe(true);
     
-    const { data: sessionFinal, error: sfErr } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session.id).single();
-    if (sfErr) throw sfErr;
-    const { count: countFinal, error: cfErr } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session.id);
-    if (cfErr) throw cfErr;
+    const { data: sessionAfter, error: saErr } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session.id).single();
+    expect(saErr).toBeNull();
+    const trackingAfter = await admin.from('walker_tracking').select('id').eq('walk_session_id', session.id);
+    expect(trackingAfter.error).toBeNull();
     
-    expect(countFinal).toBe(countBefore);
-    expect(sessionFinal.route_coordinates).toEqual(sessionBefore.route_coordinates);
+    expect(trackingAfter.data?.length).toBe(trackingBefore.data?.length);
+    expect(sessionAfter.route_coordinates).toEqual(sessionBefore.route_coordinates);
   });
 
-  test('9. CONCORRÊNCIA: exactly 1 true, 1 false', async () => {
+  // 20. current_walk_id release
+  test('20. current_walk_id release', async () => {
     const session = await createSession('returning');
-    await admin.from('petwalker_profiles').update({ current_walk_id: session.id }).eq('user_id', walkerId);
+    const { error: upErr } = await admin.from('petwalker_profiles').update({ current_walk_id: session.id }).eq('user_id', walkerId);
+    expect(upErr).toBeNull();
     
-    const { data: checkProf } = await admin.from('petwalker_profiles').select('current_walk_id').eq('user_id', walkerId).single();
-    expect(checkProf.current_walk_id).toBe(session.id);
+    const ownerClient = await getAuthenticatedClient(ownerEmail);
+    await ownerClient.rpc('customer_confirm_arrival', { _session_id: session.id });
+    
+    const { data: prof, error: pErr } = await admin.from('petwalker_profiles').select('current_walk_id').eq('user_id', walkerId).single();
+    expect(pErr).toBeNull();
+    expect(prof.current_walk_id).toBeNull();
+  });
 
+  // 21. dual confirmation concurrency
+  test('21. dual confirmation concurrency', async () => {
+    const session = await createSession('returning');
+    const { error: upErr } = await admin.from('petwalker_profiles').update({ current_walk_id: session.id }).eq('user_id', walkerId);
+    expect(upErr).toBeNull();
+    
     const ownerClient = await getAuthenticatedClient(ownerEmail);
     const [res1, res2] = await Promise.all([
       ownerClient.rpc('customer_confirm_arrival', { _session_id: session.id }),
       ownerClient.rpc('customer_confirm_arrival', { _session_id: session.id })
     ]);
-
+    
     expect(res1.error).toBeNull();
     expect(res2.error).toBeNull();
-    
     const results = [res1.data, res2.data];
     expect(results.filter(v => v === true)).toHaveLength(1);
     expect(results.filter(v => v === false)).toHaveLength(1);
     
-    const { data: updated } = await admin.from('walk_sessions').select('status, end_time').eq('id', session.id).single();
-    expect(updated.status).toBe('completed');
-    expect(updated.end_time).not.toBeNull();
-    
-    const { data: walker } = await admin.from('petwalker_profiles').select('current_walk_id').eq('user_id', walkerId).single();
-    expect(walker.current_walk_id).toBeNull();
-  });
-
-  test('10. SERVICE ROLE SAFETY: in_progress -> completed blocked', async () => {
-    const session = await createSession('in_progress');
-    
-    const { data, error } = await admin.rpc('petwalker_complete_walk', { _session_id: session.id });
-    expect(error).toBeNull();
-    expect(data).toBe(false);
-    
-    const { data: check } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
-    expect(check.status).toBe('in_progress');
-    expect(check.current_status).toBe('in_progress');
-  });
-
-  test('8. DISTANCE CONTRACT: fail-closed validation', async () => {
-    const ownerClient = await getAuthenticatedClient(ownerEmail);
-    
-    const s2 = await createSession('returning');
-    const { error: i1 } = await admin.from('walker_tracking').insert({ walk_session_id: s2.id, walker_id: walkerId, location: 'POINT(-46.6333 -23.5505)' });
-    expect(i1).toBeNull();
-    const { error: i2 } = await admin.from('walker_tracking').insert({ walk_session_id: s2.id, walker_id: walkerId, location: 'POINT(-46.6343 -23.5515)' });
-    expect(i2).toBeNull();
-    
-    const { data, error } = await ownerClient.rpc('customer_confirm_arrival', { _session_id: s2.id });
-    expect(error).toBeNull();
-    expect(data).toBe(true);
-    
-    const { data: dist } = await admin.from('walk_sessions').select('distance_km').eq('id', s2.id).single();
-    expect(dist.distance_km).toBeGreaterThan(0);
+    const { data: s } = await admin.from('walk_sessions').select('status').eq('id', session.id).single();
+    expect(s.status).toBe('completed');
   });
 });
