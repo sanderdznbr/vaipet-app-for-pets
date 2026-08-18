@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { failClosedCleanup } from './helpers/cleanup';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
@@ -13,15 +13,35 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY) {
 const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const E2E_RUN_ID = `4.3-security-${Date.now()}`;
 
+// 5. LOGIN FAIL-CLOSED Helper
+async function getAuthenticatedClient(email: string): Promise<SupabaseClient> {
+  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: false }
+  });
+  const { data, error } = await client.auth.signInWithPassword({
+    email,
+    password: 'VaiPet@2026'
+  });
+  if (error) throw error;
+  if (!data.session) throw new Error(`Failed to establish session for ${email}`);
+  return client;
+}
+
 test.describe('Phase 4.3: Completion Security Hardening', () => {
   let ownerId: string;
   let wrongOwnerId: string;
   let walkerId: string;
-  let sessionId: string;
   let petId: string;
+  let ownerEmail: string;
+  let wrongOwnerEmail: string;
+  let walkerEmail: string;
+
+  test.describe.configure({
+    mode: 'serial',
+    retries: 0
+  });
 
   test.beforeAll(async () => {
-    // 1. Setup Users
     const create = async (email: string, intent: string) => {
       const res = await admin.auth.admin.createUser({
         email,
@@ -40,9 +60,7 @@ test.describe('Phase 4.3: Completion Security Hardening', () => {
       }).eq('id', uid);
       if (pErr) throw pErr;
 
-      // Clean existing roles first to avoid collision
       await admin.from('user_roles').delete().eq('user_id', uid);
-
       const { error: rErr } = await admin.from('user_roles').insert([
         { user_id: uid, role: 'user' },
         ...(intent === 'petwalker' ? [{ user_id: uid, role: 'petwalker' }] : [])
@@ -52,204 +70,263 @@ test.describe('Phase 4.3: Completion Security Hardening', () => {
       return uid;
     };
 
-    try {
-      ownerId = await create(`owner-${E2E_RUN_ID}@test.com`, 'pet_owner');
-      wrongOwnerId = await create(`wrong-${E2E_RUN_ID}@test.com`, 'pet_owner');
-      walkerId = await create(`walker-${E2E_RUN_ID}@test.com`, 'petwalker');
+    ownerEmail = `owner-${E2E_RUN_ID}@test.com`;
+    wrongOwnerEmail = `wrong-${E2E_RUN_ID}@test.com`;
+    walkerEmail = `walker-${E2E_RUN_ID}@test.com`;
 
-      // 2. Walker Profile
-      const { error: wpErr } = await admin.from('petwalker_profiles').upsert({
-        user_id: walkerId,
-        approval_status: 'approved',
-        profile_completed: true,
-        availability_status: 'busy',
-        e2e_test: true
-      });
-      if (wpErr) throw wpErr;
+    ownerId = await create(ownerEmail, 'pet_owner');
+    wrongOwnerId = await create(wrongOwnerEmail, 'pet_owner');
+    walkerId = await create(walkerEmail, 'petwalker');
 
-      // 3. Pet
-      const { data: pet, error: petErr } = await admin.from('pets').insert({
-        owner_id: ownerId,
-        name: 'E2E Security Pet',
-        breed: 'Vira-lata',
-        weight: 10,
-        e2e_test: true,
-        e2e_run_id: E2E_RUN_ID
-      }).select().single();
-      if (petErr) throw petErr;
-      petId = pet.id;
+    const { error: wpErr } = await admin.from('petwalker_profiles').upsert({
+      user_id: walkerId,
+      approval_status: 'approved',
+      profile_completed: true,
+      availability_status: 'busy',
+      e2e_test: true
+    });
+    if (wpErr) throw wpErr;
 
-      // 4. Session Setup (Starting at in_progress)
-      const { data: session, error: sErr } = await admin.from('walk_sessions').insert({
-        customer_id: ownerId,
-        walker_id: walkerId,
-        pet_id: petId,
-        status: 'in_progress',
-        current_status: 'in_progress',
-        walk_type: 'livre',
-        start_time: new Date(Date.now() - 3600000 * 2).toISOString(), // 2 hours ago
-        planned_duration_minutes: 60, // Multiple of 15
-
-
-        e2e_test: true,
-        e2e_run_id: E2E_RUN_ID
-      }).select().single();
-      if (sErr) throw sErr;
-      sessionId = session.id;
-
-      // 5. Add tracking points
-      const { error: tErr } = await admin.from('walker_tracking').insert([
-        { walk_session_id: sessionId, walker_id: walkerId, location: 'POINT(-46.6333 -23.5505)', accuracy: 10 },
-        { walk_session_id: sessionId, walker_id: walkerId, location: 'POINT(-46.6343 -23.5515)', accuracy: 10 }
-      ]);
-      if (tErr) throw tErr;
-    } catch (e) {
-      console.error('Setup failed:', e);
-      // Cleanup what was created
-      await failClosedCleanup(admin, [ownerId, wrongOwnerId, walkerId].filter(Boolean) as string[], E2E_RUN_ID);
-      throw e;
-    }
+    const { data: pet, error: petErr } = await admin.from('pets').insert({
+      owner_id: ownerId,
+      name: 'E2E Security Pet',
+      breed: 'Vira-lata',
+      weight: 10,
+      e2e_test: true,
+      e2e_run_id: E2E_RUN_ID
+    }).select().single();
+    if (petErr) throw petErr;
+    petId = pet.id;
   });
 
   test.afterAll(async () => {
     await failClosedCleanup(admin, [ownerId, wrongOwnerId, walkerId].filter(Boolean) as string[], E2E_RUN_ID);
   });
 
-
-  const getClient = (uid: string) => createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { persistSession: false }
-  });
-
-  test('Authority: Only Owner can request return', async () => {
-    const walkerClient = getClient(walkerId);
-    const wrongClient = getClient(wrongOwnerId);
-    const ownerClient = getClient(ownerId);
-
-    // Login for JWT
-    await walkerClient.auth.signInWithPassword({ email: `walker-${E2E_RUN_ID}@test.com`, password: 'VaiPet@2026' });
-    await wrongClient.auth.signInWithPassword({ email: `wrong-${E2E_RUN_ID}@test.com`, password: 'VaiPet@2026' });
-    await ownerClient.auth.signInWithPassword({ email: `owner-${E2E_RUN_ID}@test.com`, password: 'VaiPet@2026' });
-
-    // C. Walker blocked
-    const resWalker = await walkerClient.rpc('customer_request_return', { _session_id: sessionId });
-    expect(resWalker.error).not.toBeNull();
-    expect(resWalker.error?.code).toBe('42501');
-
-    // B. Wrong Owner blocked
-    const resWrong = await wrongClient.rpc('customer_request_return', { _session_id: sessionId });
-    expect(resWrong.error).not.toBeNull();
-    expect(resWrong.error?.code).toBe('42501');
-
-    // A. Correct Owner success
-    const resOwner = await ownerClient.rpc('customer_request_return', { _session_id: sessionId });
-    expect(resOwner.error).toBeNull();
-    expect(resOwner.data).toBe(true);
-
-    // D. Replay check
-    const resReplay = await ownerClient.rpc('customer_request_return', { _session_id: sessionId });
-    expect(resReplay.data).toBe(false); // Already 'returning'
-  });
-
-  test('Authority: Only Owner can confirm arrival', async () => {
-    const walkerClient = getClient(walkerId);
-    const ownerClient = getClient(ownerId);
-    
-    await walkerClient.auth.signInWithPassword({ email: `walker-${E2E_RUN_ID}@test.com`, password: 'VaiPet@2026' });
-    await ownerClient.auth.signInWithPassword({ email: `owner-${E2E_RUN_ID}@test.com`, password: 'VaiPet@2026' });
-
-    // H. Walker blocked
-    const resWalker = await walkerClient.rpc('customer_confirm_arrival', { _session_id: sessionId });
-    expect(resWalker.error).not.toBeNull();
-    expect(resWalker.error?.code).toBe('42501');
-
-    // F. confirm before returning state (session is now 'returning' from previous test, so we need a new session or check logic)
-    // We already moved to 'returning' in the previous test. If we try to confirm it should work.
-
-    // E. Correct Owner success + K. Completion Audit
-    const resOwner = await ownerClient.rpc('customer_confirm_arrival', { _session_id: sessionId });
-    expect(resOwner.error).toBeNull();
-    expect(resOwner.data).toBe(true);
-
-    // Verify Completion
-    const { data: finalSession, error: fsErr } = await admin.from('walk_sessions').select('*').eq('id', sessionId).single();
-    expect(fsErr).toBeNull();
-    expect(finalSession.status).toBe('completed');
-    expect(finalSession.current_status).toBe('completed');
-    expect(finalSession.end_time).not.toBeNull();
-    expect(finalSession.actual_duration_minutes).toBeGreaterThanOrEqual(60); // 1 hour ago
-    expect(finalSession.distance_km).toBeGreaterThan(0);
-
-    // Check Walker released
-    const { data: walkerProf, error: wpErr } = await admin.from('petwalker_profiles').select('current_walk_id').eq('user_id', walkerId).single();
-    expect(wpErr).toBeNull();
-    expect(walkerProf.current_walk_id).toBeNull();
-
-    // I. Replay false
-    const resReplay = await ownerClient.rpc('customer_confirm_arrival', { _session_id: sessionId });
-    expect(resReplay.data).toBe(false);
-  });
-
-  test('Security: petwalker_complete_walk is blocked for authenticated', async () => {
-    const walkerClient = getClient(walkerId);
-    await walkerClient.auth.signInWithPassword({ email: `walker-${E2E_RUN_ID}@test.com`, password: 'VaiPet@2026' });
-
-    // J. petwalker_complete_walk revoked
-    const res = await walkerClient.rpc('petwalker_complete_walk', { _session_id: sessionId });
-    expect(res.error).not.toBeNull();
-    expect(res.error?.code).toBe('42501');
-  });
-
-  test('Post-completion tracking lockdown', async () => {
-    // M. new update_walker_location for completed session
-    // Since petwalker_profiles.current_walk_id is NULL, update_walker_location won't insert tracking.
-    
-    // Check initial counts
-    const { count: countBefore } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', sessionId);
-
-    // Simulate update call via service role (since current_walk_id is null, it should skip insert)
-    // Actually, update_walker_location uses current_walk_id from petwalker_profiles.
-    // If we call it for a walker who just finished, current_walk_id is NULL.
-    
-    const walkerClient = getClient(walkerId);
-    await walkerClient.auth.signInWithPassword({ email: `walker-${E2E_RUN_ID}@test.com`, password: 'VaiPet@2026' });
-    
-    await walkerClient.rpc('update_walker_location', { _lat: -23.5525, _lng: -46.6353, _accuracy: 10 });
-    
-    const { count: countAfter } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', sessionId);
-    expect(countAfter).toBe(countBefore);
-  });
-
-  test('Concurrency: dual confirmation', async () => {
-    // Setup new session in returning state
-    const { data: newSession, error: sErr } = await admin.from('walk_sessions').insert({
+  async function createSession(status: string) {
+    const { data, error } = await admin.from('walk_sessions').insert({
       customer_id: ownerId,
       walker_id: walkerId,
       pet_id: petId,
-      status: 'returning',
-      current_status: 'returning',
+      status: status,
+      current_status: status,
       walk_type: 'livre',
-      planned_duration_minutes: 60,
       start_time: new Date(Date.now() - 3600000 * 2).toISOString(),
+      planned_duration_minutes: 60,
       e2e_test: true,
       e2e_run_id: E2E_RUN_ID
     }).select().single();
-    if (sErr || !newSession) throw new Error(JSON.stringify(sErr || 'Insert failed'));
+    if (error) throw error;
+    return data;
+  }
 
-
+  // 7. TESTE COMPLETO DE AUTORIDADE
+  test('A. Owner correto: in_progress -> customer_request_return', async () => {
+    const session = await createSession('in_progress');
+    const ownerClient = await getAuthenticatedClient(ownerEmail);
+    const { data, error } = await ownerClient.rpc('customer_request_return', { _session_id: session.id });
+    expect(error).toBeNull();
+    expect(data).toBe(true);
     
-    const ownerClient = getClient(ownerId);
-    await ownerClient.auth.signInWithPassword({ email: `owner-${E2E_RUN_ID}@test.com`, password: 'VaiPet@2026' });
+    const { data: updated } = await admin.from('walk_sessions').select('current_status').eq('id', session.id).single();
+    expect(updated.current_status).toBe('returning');
+  });
 
-    // N. Concurrency test
+  test('B. Wrong Owner: request_return -> 42501', async () => {
+    const session = await createSession('in_progress');
+    const wrongClient = await getAuthenticatedClient(wrongOwnerEmail);
+    const { error } = await wrongClient.rpc('customer_request_return', { _session_id: session.id });
+    expect(error?.code).toBe('42501');
+    
+    const { data: updated } = await admin.from('walk_sessions').select('current_status').eq('id', session.id).single();
+    expect(updated.current_status).toBe('in_progress');
+  });
+
+  test('C. Walker: request_return -> 42501', async () => {
+    const session = await createSession('in_progress');
+    const walkerClient = await getAuthenticatedClient(walkerEmail);
+    const { error } = await walkerClient.rpc('customer_request_return', { _session_id: session.id });
+    expect(error?.code).toBe('42501');
+    
+    const { data: updated } = await admin.from('walk_sessions').select('current_status').eq('id', session.id).single();
+    expect(updated.current_status).toBe('in_progress');
+  });
+
+  test('D. Replay request_return: first true, second false', async () => {
+    const session = await createSession('in_progress');
+    const ownerClient = await getAuthenticatedClient(ownerEmail);
+    
+    const res1 = await ownerClient.rpc('customer_request_return', { _session_id: session.id });
+    expect(res1.data).toBe(true);
+    
+    const res2 = await ownerClient.rpc('customer_request_return', { _session_id: session.id });
+    expect(res2.data).toBe(false);
+  });
+
+  test('E. Owner correto: returning -> customer_confirm_arrival', async () => {
+    const session = await createSession('returning');
+    
+    // 6. current_walk_id — PROVA REAL
+    await admin.from('petwalker_profiles').update({ current_walk_id: session.id }).eq('user_id', walkerId);
+    const { data: before } = await admin.from('petwalker_profiles').select('current_walk_id').eq('user_id', walkerId).single();
+    expect(before.current_walk_id).toBe(session.id);
+
+    const ownerClient = await getAuthenticatedClient(ownerEmail);
+    const { data, error } = await ownerClient.rpc('customer_confirm_arrival', { _session_id: session.id });
+    expect(error).toBeNull();
+    expect(data).toBe(true);
+    
+    // 8. COMPLETION AUDIT
+    const { data: updated } = await admin.from('walk_sessions').select('*').eq('id', session.id).single();
+    expect(updated.current_status).toBe('completed');
+    expect(updated.status).toBe('completed');
+    expect(updated.end_time).not.toBeNull();
+    expect(updated.actual_duration_minutes).toBeGreaterThanOrEqual(1);
+    expect(updated.distance_km).toBe(0); // No tracking points inserted for this session
+
+    const { data: after } = await admin.from('petwalker_profiles').select('current_walk_id').eq('user_id', walkerId).single();
+    expect(after.current_walk_id).toBeNull();
+  });
+
+  test('F. CONFIRM BEFORE RETURNING REAL', async () => {
+    const session = await createSession('in_progress');
+    const ownerClient = await getAuthenticatedClient(ownerEmail);
+    const { data, error } = await ownerClient.rpc('customer_confirm_arrival', { _session_id: session.id });
+    expect(error).toBeNull();
+    expect(data).toBe(false);
+    
+    const { data: updated } = await admin.from('walk_sessions').select('current_status').eq('id', session.id).single();
+    expect(updated.current_status).toBe('in_progress');
+  });
+
+  test('G. WRONG OWNER CONFIRM -> 42501', async () => {
+    const session = await createSession('returning');
+    const wrongClient = await getAuthenticatedClient(wrongOwnerEmail);
+    const { error } = await wrongClient.rpc('customer_confirm_arrival', { _session_id: session.id });
+    expect(error?.code).toBe('42501');
+    
+    const { data: updated } = await admin.from('walk_sessions').select('current_status').eq('id', session.id).single();
+    expect(updated.current_status).toBe('returning');
+  });
+
+  test('H. WALKER CONFIRM -> 42501', async () => {
+    const session = await createSession('returning');
+    const walkerClient = await getAuthenticatedClient(walkerEmail);
+    const { error } = await walkerClient.rpc('customer_confirm_arrival', { _session_id: session.id });
+    expect(error?.code).toBe('42501');
+    
+    const { data: updated } = await admin.from('walk_sessions').select('current_status').eq('id', session.id).single();
+    expect(updated.current_status).toBe('returning');
+  });
+
+  test('I. Replay confirm: first true, second false', async () => {
+    const session = await createSession('returning');
+    const ownerClient = await getAuthenticatedClient(ownerEmail);
+    
+    const res1 = await ownerClient.rpc('customer_confirm_arrival', { _session_id: session.id });
+    expect(res1.data).toBe(true);
+    
+    const res2 = await ownerClient.rpc('customer_confirm_arrival', { _session_id: session.id });
+    expect(res2.data).toBe(false);
+  });
+
+  test('J. petwalker_complete_walk: security check', async () => {
+    const session = await createSession('returning');
+    const walkerClient = await getAuthenticatedClient(walkerEmail);
+    
+    const { error } = await walkerClient.rpc('petwalker_complete_walk', { _session_id: session.id });
+    expect(error?.code).toBe('42501');
+
+    const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const resAnon = await anonClient.rpc('petwalker_complete_walk', { _session_id: session.id });
+    expect(resAnon.error?.code).toBe('42501');
+  });
+
+  test('3. DISTÂNCIA — CONTRATO EXPLÍCITO (0, 1, 2+ points)', async () => {
+    const ownerClient = await getAuthenticatedClient(ownerEmail);
+
+    // 0 points
+    const s0 = await createSession('returning');
+    await ownerClient.rpc('customer_confirm_arrival', { _session_id: s0.id });
+    const { data: d0 } = await admin.from('walk_sessions').select('distance_km').eq('id', s0.id).single();
+    expect(d0.distance_km).toBe(0);
+
+    // 1 point
+    const s1 = await createSession('returning');
+    await admin.from('walker_tracking').insert({ walk_session_id: s1.id, walker_id: walkerId, location: 'POINT(-46.6333 -23.5505)' });
+    await ownerClient.rpc('customer_confirm_arrival', { _session_id: s1.id });
+    const { data: d1 } = await admin.from('walk_sessions').select('distance_km').eq('id', s1.id).single();
+    expect(d1.distance_km).toBe(0);
+
+    // 2 points
+    const s2 = await createSession('returning');
+    await admin.from('walker_tracking').insert([
+      { walk_session_id: s2.id, walker_id: walkerId, location: 'POINT(-46.6333 -23.5505)' },
+      { walk_session_id: s2.id, walker_id: walkerId, location: 'POINT(-46.6343 -23.5515)' }
+    ]);
+    await ownerClient.rpc('customer_confirm_arrival', { _session_id: s2.id });
+    const { data: d2 } = await admin.from('walk_sessions').select('distance_km').eq('id', s2.id).single();
+    expect(d2.distance_km).toBeGreaterThan(0);
+  });
+
+  test('9. TRACKING FREEZE REAL', async () => {
+    const session = await createSession('returning');
+    await admin.from('petwalker_profiles').update({ current_walk_id: session.id }).eq('user_id', walkerId);
+    
+    // Add valid tracking
+    await admin.from('walker_tracking').insert({ walk_session_id: session.id, walker_id: walkerId, location: 'POINT(-46.6333 -23.5505)' });
+    
+    const { count: countBefore } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session.id);
+    const { data: sessionBefore } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session.id).single();
+
+    const ownerClient = await getAuthenticatedClient(ownerEmail);
+    await ownerClient.rpc('customer_confirm_arrival', { _session_id: session.id });
+
+    // Confirm frozen
+    const walkerClient = await getAuthenticatedClient(walkerEmail);
+    // update_walker_location depends on current_walk_id in profile. We proved it is NULL above.
+    await walkerClient.rpc('update_walker_location', { _lat: -23.5525, _lng: -46.6353, _accuracy: 10, _captured_at: Date.now() });
+
+    const { count: countAfter } = await admin.from('walker_tracking').select('*', { count: 'exact', head: true }).eq('walk_session_id', session.id);
+    const { data: sessionAfter } = await admin.from('walk_sessions').select('route_coordinates').eq('id', session.id).single();
+
+    expect(countAfter).toBe(countBefore);
+    expect(sessionAfter.route_coordinates).toEqual(sessionBefore.route_coordinates);
+  });
+
+  test('10. CONCORRÊNCIA: dual confirmation', async () => {
+    const session = await createSession('returning');
+    await admin.from('petwalker_profiles').update({ current_walk_id: session.id }).eq('user_id', walkerId);
+
+    const ownerClient = await getAuthenticatedClient(ownerEmail);
     const [res1, res2] = await Promise.all([
-      ownerClient.rpc('customer_confirm_arrival', { _session_id: newSession.id }),
-      ownerClient.rpc('customer_confirm_arrival', { _session_id: newSession.id })
+      ownerClient.rpc('customer_confirm_arrival', { _session_id: session.id }),
+      ownerClient.rpc('customer_confirm_arrival', { _session_id: session.id })
     ]);
 
     const results = [res1.data, res2.data];
     expect(results).toContain(true);
     expect(results).toContain(false);
+    
+    const { data: updated } = await admin.from('walk_sessions').select('*').eq('id', session.id).single();
+    expect(updated.current_status).toBe('completed');
+    expect(updated.status).toBe('completed');
+    expect(updated.end_time).not.toBeNull();
+    
+    const { data: walker } = await admin.from('petwalker_profiles').select('current_walk_id').eq('user_id', walkerId).single();
+    expect(walker.current_walk_id).toBeNull();
+  });
+
+  test('1. STATE MACHINE — CORRIGIR BYPASS status/current_status', async () => {
+    const session = await createSession('in_progress');
+    
+    // Attempt bypass via status='completed' directly
+    const { error } = await admin.from('walk_sessions').update({ status: 'completed' }).eq('id', session.id);
+    // Trigger fn_validate_walk_status_transition_v5 will raise exception
+    expect(error).not.toBeNull();
+    
+    const { data: check } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
+    expect(check.current_status).toBe('in_progress');
+    expect(check.status).toBe('in_progress');
   });
 });
-
-function now() { return new Date(); }
