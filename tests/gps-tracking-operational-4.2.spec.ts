@@ -67,7 +67,9 @@ test.describe('Phase 4.2: Operational Browser GPS Tracking', () => {
     expect(p2).toBeNull();
 
     // Roles
-    await admin.from('user_roles').delete().in('user_id', [ownerId, walkerId]);
+    const { error: delRolesErr } = await admin.from('user_roles').delete().in('user_id', [ownerId, walkerId]);
+    expect(delRolesErr).toBeNull();
+    
     const { error: r1 } = await admin.from('user_roles').insert([
       { user_id: ownerId, role: 'user' },
       { user_id: walkerId, role: 'user' },
@@ -175,106 +177,188 @@ test.describe('Phase 4.2: Operational Browser GPS Tracking', () => {
         intervals: [5000]
       }).toBeGreaterThan(0);
 
-      // Auditar walker_tracking e route_coordinates
-      const { data: trail, error: trailErr } = await admin.from('walk_sessions')
+      // Auditar walker_tracking e route_coordinates iniciais (Posição A)
+      const { data: profileA, error: profileAErr } = await admin.from('petwalker_profiles')
+        .select('last_location_captured_at, last_known_location')
+        .eq('user_id', walkerId)
+        .single();
+      expect(profileAErr).toBeNull();
+      const lastCapturedAtA = profileA!.last_location_captured_at;
+
+      const { data: trailA, error: trailAErr } = await admin.from('walk_sessions')
         .select('route_coordinates')
         .eq('id', sessionId)
         .single();
-      expect(trailErr).toBeNull();
-      expect(Array.isArray(trail?.route_coordinates)).toBe(true);
-      expect(trail?.route_coordinates.length).toBeGreaterThanOrEqual(1);
+      expect(trailAErr).toBeNull();
+      const routeLengthA = (trailA?.route_coordinates as any[] || []).length;
 
-      const { count: trackingCount, error: countErr } = await admin.from('walker_tracking')
+      const { count: trackingCountA, error: countAErr } = await admin.from('walker_tracking')
         .select('*', { count: 'exact', head: true })
-        .eq('walk_session_id', sessionId);
-      expect(countErr).toBeNull();
-      expect(trackingCount).toBeGreaterThanOrEqual(1);
+        .eq('walk_session_id', sessionId)
+        .eq('walker_id', walkerId);
+      expect(countAErr).toBeNull();
 
-      // 4. OWNER — CONSUMO REAL
+      // 4. OWNER — OBSERVAR POLLING REAL (Posição A)
+      // Armar observação da response natural
+      const responseAPromise = ownerPage.waitForResponse(
+        resp => resp.url().includes('/rest/v1/rpc/get_active_walker_location') && resp.request().method() === 'POST'
+      );
+      
       await ownerPage.goto(`/search-walk?resume=${sessionId}`);
+      
+      const responseA = await responseAPromise;
+      expect(responseA.status()).toBe(200);
+      const dataA = await responseA.json();
+      
+      // Provar que a resposta contém dados reais de A
+      expect(typeof dataA.lat).toBe('number');
+      expect(typeof dataA.lng).toBe('number');
+      expect(dataA.updated_at).toBeDefined();
+      expect(dataA.lat).toBeCloseTo(posA.latitude, 3);
+      expect(dataA.lng).toBeCloseTo(posA.longitude, 3);
+
       const marker = ownerPage.locator('[data-testid="active-walker-marker"]');
       await expect(marker).toBeVisible({ timeout: 30000 });
+      const transformA = await marker.evaluate(el => (el as HTMLElement).style.transform);
 
-      // Registrar posição inicial do marcador
-      const initialTransform = await marker.evaluate(el => (el as HTMLElement).style.transform);
-
-      // 5. MOVIMENTO REAL DO WALKER
-      // Posição B (~50m de diferença)
+      // 5. MOVIMENTO REAL DO WALKER (A -> B)
       const posB = { latitude: -23.5500, longitude: -46.6330 };
       await walkerCtx.setGeolocation(posB);
 
-      // Respeitar throttle de 10s + processamento
+      // Esperar persistência natural de B
       await expect.poll(async () => {
-        const { count } = await admin.from('walker_tracking')
-          .select('*', { count: 'exact', head: true })
-          .eq('walk_session_id', sessionId);
-        return count || 0;
+        const { data: pB } = await admin.from('petwalker_profiles')
+          .select('last_location_captured_at')
+          .eq('user_id', walkerId)
+          .single();
+        return Number(pB?.last_location_captured_at || 0);
       }, {
         message: 'Waiting for movement persistence (Pos B)',
-        timeout: 45000,
+        timeout: 60000,
         intervals: [5000]
-      }).toBeGreaterThan(trackingCount!);
+      }).toBeGreaterThan(Number(lastCapturedAtA));
 
-      // Auditoria Posição B
-      const { data: auditB } = await admin.from('petwalker_profiles')
-        .select('last_known_location, last_location_captured_at')
+      // Auditoria Posição B no Backend
+      const { data: profileB } = await admin.from('petwalker_profiles')
+        .select('last_location_captured_at, last_known_location')
         .eq('user_id', walkerId)
         .single();
-      expect(auditB?.last_known_location).toBeDefined();
+      const lastCapturedAtB = profileB!.last_location_captured_at;
+      expect(BigInt(lastCapturedAtB)).toBeGreaterThan(BigInt(lastCapturedAtA));
 
-      const { data: sessionB } = await admin.from('walk_sessions')
+      const { data: trailB } = await admin.from('walk_sessions')
         .select('route_coordinates')
         .eq('id', sessionId)
         .single();
-      const coords = sessionB?.route_coordinates as any[][];
-      const lastPoint = coords[coords.length - 1];
-      expect(lastPoint).toHaveLength(2); // [lng, lat]
-      expect(lastPoint[0]).toBeCloseTo(posB.longitude, 4);
-      expect(lastPoint[1]).toBeCloseTo(posB.latitude, 4);
+      const routeB = trailB?.route_coordinates as any[][];
+      expect(routeB.length).toBeGreaterThan(routeLengthA);
+      const lastPointB = routeB[routeB.length - 1];
+      expect(lastPointB[0]).toBeCloseTo(posB.longitude, 4); // [lng, lat]
+      expect(lastPointB[1]).toBeCloseTo(posB.latitude, 4);
 
-      // 6. OWNER RECEBE A POSIÇÃO B
-      // Esperar marker se mover
+      const { count: trackingCountB } = await admin.from('walker_tracking')
+        .select('*', { count: 'exact', head: true })
+        .eq('walk_session_id', sessionId)
+        .eq('walker_id', walkerId);
+      expect(trackingCountB).toBeGreaterThan(trackingCountA!);
+
+      // 6. OWNER RECEBE A POSIÇÃO B (Observar Polling Real)
+      // Continuar aguardando polling até a response retornar coordenadas correspondentes a B
+      let responseBData;
       await expect.poll(async () => {
-        const currentTransform = await marker.evaluate(el => (el as HTMLElement).style.transform);
-        return currentTransform !== initialTransform;
+        const resp = await ownerPage.waitForResponse(
+          r => r.url().includes('/rest/v1/rpc/get_active_walker_location') && r.request().method() === 'POST',
+          { timeout: 15000 }
+        );
+        const json = await resp.json();
+        if (Math.abs(json.lat - posB.latitude) < 0.001 && Math.abs(json.lng - posB.longitude) < 0.001) {
+          responseBData = json;
+          return true;
+        }
+        return false;
       }, {
-        message: 'Waiting for owner UI to reflect movement',
-        timeout: 30000
+        message: 'Waiting for owner polling to receive Pos B',
+        timeout: 60000,
+        intervals: [2000]
       }).toBe(true);
 
-      // 7. REFRESH / REOPEN
-      await ownerPage.reload();
-      await expect(ownerPage.locator('[data-testid="active-walker-marker"]')).toBeVisible({ timeout: 30000 });
-      
-      const transformAfterReload = await marker.evaluate(el => (el as HTMLElement).style.transform);
-      expect(transformAfterReload).not.toBe(initialTransform);
+      expect(responseBData.lat).toBeCloseTo(posB.latitude, 4);
+      expect(responseBData.lng).toBeCloseTo(posB.longitude, 4);
 
-      // 8. TERCEIRO MOVIMENTO APÓS RELOAD
+      // Assertion secundária do marker
+      await expect(marker).toBeVisible();
+      const transformB = await marker.evaluate(el => (el as HTMLElement).style.transform);
+      expect(transformB).not.toBe(transformA);
+
+      // 7. REFRESH / REOPEN
+      // Armar espera por polling natural PÓS reload
+      const responseReloadPromise = ownerPage.waitForResponse(
+        resp => resp.url().includes('/rest/v1/rpc/get_active_walker_location') && resp.request().method() === 'POST'
+      );
+      
+      await ownerPage.reload();
+      
+      const responseReload = await responseReloadPromise;
+      const dataReload = await responseReload.json();
+      expect(dataReload.lat).toBeCloseTo(posB.latitude, 4);
+      expect(dataReload.lng).toBeCloseTo(posB.longitude, 4);
+
+      await expect(ownerPage.locator('[data-testid="active-walker-marker"]')).toBeVisible({ timeout: 30000 });
+      const transformAfterReload = await marker.evaluate(el => (el as HTMLElement).style.transform);
+      expect(transformAfterReload).not.toBe(transformA);
+
+      // 8. MOVIMENTO B -> C
       const posC = { latitude: -23.5495, longitude: -46.6327 };
       await walkerCtx.setGeolocation(posC);
 
-      const currentTrackingCount = (await admin.from('walker_tracking')
-        .select('*', { count: 'exact', head: true })
-        .eq('walk_session_id', sessionId)).count || 0;
-
+      // Esperar persistência natural de C
       await expect.poll(async () => {
-        const { count } = await admin.from('walker_tracking')
-          .select('*', { count: 'exact', head: true })
-          .eq('walk_session_id', sessionId);
-        return count || 0;
+        const { data: pC } = await admin.from('petwalker_profiles')
+          .select('last_location_captured_at')
+          .eq('user_id', walkerId)
+          .single();
+        return Number(pC?.last_location_captured_at || 0);
       }, {
         message: 'Waiting for movement persistence (Pos C)',
-        timeout: 45000,
+        timeout: 60000,
         intervals: [5000]
-      }).toBeGreaterThan(currentTrackingCount);
+      }).toBeGreaterThan(Number(lastCapturedAtB));
 
+      // Auditoria Posição C no Backend
+      const { data: profileC } = await admin.from('petwalker_profiles')
+        .select('last_location_captured_at')
+        .eq('user_id', walkerId)
+        .single();
+      expect(BigInt(profileC!.last_location_captured_at)).toBeGreaterThan(BigInt(lastCapturedAtB));
+
+      const { count: trackingCountC } = await admin.from('walker_tracking')
+        .select('*', { count: 'exact', head: true })
+        .eq('walk_session_id', sessionId)
+        .eq('walker_id', walkerId);
+      expect(trackingCountC).toBeGreaterThan(trackingCountB!);
+
+      // Esperar polling real do Owner até retornar C
+      let responseCData;
       await expect.poll(async () => {
-        const finalTransform = await marker.evaluate(el => (el as HTMLElement).style.transform);
-        return finalTransform !== transformAfterReload;
+        const resp = await ownerPage.waitForResponse(
+          r => r.url().includes('/rest/v1/rpc/get_active_walker_location') && r.request().method() === 'POST',
+          { timeout: 15000 }
+        );
+        const json = await resp.json();
+        if (Math.abs(json.lat - posC.latitude) < 0.001 && Math.abs(json.lng - posC.longitude) < 0.001) {
+          responseCData = json;
+          return true;
+        }
+        return false;
       }, {
-        message: 'Waiting for owner UI to reflect movement C',
-        timeout: 30000
+        message: 'Waiting for owner polling to receive Pos C',
+        timeout: 60000,
+        intervals: [2000]
       }).toBe(true);
+
+      expect(responseCData.lat).toBeCloseTo(posC.latitude, 4);
+      expect(responseCData.lng).toBeCloseTo(posC.longitude, 4);
+      await expect(marker).toBeVisible();
 
     } finally {
       await walkerCtx.close();
