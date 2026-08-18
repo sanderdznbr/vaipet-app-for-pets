@@ -162,9 +162,10 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     const { data, error } = await client.rpc('customer_request_return', { _session_id: session.id });
     expect(error).toBeNull();
     expect(data).toBe(true);
-    const { data: s, error: sErr } = await admin.from('walk_sessions').select('status').eq('id', session.id).single();
+    const { data: s, error: sErr } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
     expect(sErr).toBeNull();
     expect(s.status).toBe('returning');
+    expect(s.current_status).toBe('returning');
   });
 
   // 4. Wrong Owner request_return
@@ -174,8 +175,10 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     const { error } = await client.rpc('customer_request_return', { _session_id: session.id });
     expect(error).not.toBeNull();
     expect(error?.code).toBe('42501');
-    const { data: s } = await admin.from('walk_sessions').select('status').eq('id', session.id).single();
+    const { data: s, error: sErr } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
+    expect(sErr).toBeNull();
     expect(s.status).toBe('in_progress');
+    expect(s.current_status).toBe('in_progress');
   });
 
   // 5. Walker request_return
@@ -185,6 +188,10 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     const { error } = await client.rpc('customer_request_return', { _session_id: session.id });
     expect(error).not.toBeNull();
     expect(error?.code).toBe('42501');
+    const { data: s, error: sErr } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
+    expect(sErr).toBeNull();
+    expect(s.status).toBe('in_progress');
+    expect(s.current_status).toBe('in_progress');
   });
 
   // 6. replay request_return
@@ -197,6 +204,10 @@ test.describe('Phase 4.3: Completion Security Hardening (Patch 1C)', () => {
     const r2 = await client.rpc('customer_request_return', { _session_id: session.id });
     expect(r2.error).toBeNull();
     expect(r2.data).toBe(false);
+    const { data: s, error: sErr } = await admin.from('walk_sessions').select('status, current_status').eq('id', session.id).single();
+    expect(sErr).toBeNull();
+    expect(s.status).toBe('returning');
+    expect(s.current_status).toBe('returning');
   });
 
   // 7. Owner confirm_arrival
